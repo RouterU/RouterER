@@ -25,6 +25,7 @@
     <button class="btn primary" onclick="openDepotOpt()">Depot Optimization</button>
     <button class="btn purple" onclick="openNetworkOpt()">Network Optimization</button>
     <button class="btn warn" onclick="openSolutionDials()">Solution Dials</button>
+    <button class="btn" onclick="openSessionData()">Session Data</button>
     <button class="btn success" onclick="exportExcel()">Export</button>
     <button class="btn danger" onclick="clearSession()">Clear Session</button>
   </div>
@@ -43,6 +44,7 @@
   </div>
   <div class="map-area">
     <div class="map-controls">
+      <select id="map-layer-select" class="sort-select" onchange="switchMapLayer(this.value)" title="Map view"><option value="dark">Black Map</option><option value="satellite">Satellite Map</option></select>
       <button class="btn" onclick="fitAll()">Fit All</button>
       <button class="btn" onclick="toggleDepots()">Toggle Depots</button>
       <button class="btn" onclick="toggleUnassigned()">Toggle Unassigned</button>
@@ -117,6 +119,8 @@
 
 <div id="customer-detail-modal" class="modal-overlay"><div class="modal wide"><h2 id="customer-detail-title">Customer Details</h2><div id="customer-detail-body"></div><div class="modal-actions"><button class="btn" onclick="closeModal('customer-detail-modal')">Close</button></div></div></div>
 
+<div id="session-data-modal" class="modal-overlay"><div class="modal wide"><h2>Session Data</h2><div id="session-data-body"></div><div class="modal-actions"><button class="btn" onclick="closeModal('session-data-modal')">Close</button></div></div></div>
+
 <div id="result-modal" class="modal-overlay"><div class="modal"><h2 id="result-title">Optimization Results</h2><div id="result-body" class="result-box"></div><div class="modal-actions"><button class="btn primary" onclick="closeModal('result-modal')">Done</button></div></div></div>
 
 <script>
@@ -131,11 +135,11 @@ const DEFAULT_CAPACITY={
 };
 let rawSheets={}, trucks=[], stopsTemplates=[], customers=[], routeTemplates=[], depotLocations=[], dayRef=[];
 let routes=[], optimizedStops=[], unassignedStops=[], sessionSummary=null, solutionDials={depotMiles:150,clusterMiles:40,capacityPct:85,runtimeHours:10,fleet:{},goals:['Reduce Routes']};
-let lastScenario=null, map, markers=[], lines=[], showDepotMarkers=true, showUnassignedMarkers=true, showRouteLines=true, activeDepotFilter=null, routeSort="";
+let lastScenario=null, map, darkTileLayer=null, satelliteTileLayer=null, currentMapLayer="dark", markers=[], lines=[], showDepotMarkers=true, showUnassignedMarkers=true, showRouteLines=true, activeDepotFilter=null, routeSort="";
 
 window.addEventListener('DOMContentLoaded',()=>{initDefaults();initMap();render();});
 function initDefaults(){TRUCK_TYPES.forEach(t=>solutionDials.fleet[t]=0);buildFleetInputs('dep-fleet','dep');buildGoalChecks('dep-goals','dep',['Reduce Routes']);buildFleetInputs('dial-fleet','dial');buildGoalChecks('dial-goals','dial',solutionDials.goals);addNetworkDepotSection();}
-function initMap(){map=L.map('map',{zoomControl:true}).setView([39.5,-98.35],4);L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);}
+function initMap(){map=L.map('map',{zoomControl:true}).setView([39.5,-98.35],4);darkTileLayer=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'&copy; OpenStreetMap &copy; CARTO'});satelliteTileLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles &copy; Esri, Maxar, Earthstar Geographics'});darkTileLayer.addTo(map);}
 function buildFleetInputs(containerId,prefix,defaults={}){const el=document.getElementById(containerId);el.innerHTML='';TRUCK_TYPES.forEach(t=>{const id=prefix+'-'+safeId(t);el.insertAdjacentHTML('beforeend',`<div class="field"><label>${t} Count</label><input id="${id}-count" data-truck="${t}" type="number" min="0" value="${defaults[t]?.count??solutionDials.fleet[t]??0}" /></div><div class="field"><label>${t} Daily Run Time</label><input id="${id}-runtime" data-truck-runtime="${t}" type="number" min="1" step=".25" value="${defaults[t]?.runtime??solutionDials.runtimeHours}" /></div>`);});}
 function buildGoalChecks(containerId,prefix,selected=[]){const el=document.getElementById(containerId);el.innerHTML='';GOALS.forEach(g=>{el.insertAdjacentHTML('beforeend',`<label class="checkline"><input type="checkbox" class="${prefix}-goal" value="${g}" ${selected.includes(g)?'checked':''}/>${g}</label>`);});}
 function safeId(s){return s.replace(/[^A-Za-z0-9]/g,'_');}
@@ -204,10 +208,34 @@ function routeCPM(r){return r.miles? r.cases/r.miles:0;}
 function sortedFilteredRoutes(){const list=[...filteredRoutes()];if(!routeSort)return list;list.sort((a,b)=>{if(routeSort==='runtime')return (b.hours||0)-(a.hours||0);if(routeSort==='capacity')return routeCapacityPct(b)-routeCapacityPct(a);if(routeSort==='cpm')return routeCPM(b)-routeCPM(a);if(routeSort==='miles')return (b.miles||0)-(a.miles||0);if(routeSort==='stops')return (b.stops?.length||0)-(a.stops?.length||0);return 0;});return list;}
 function setRouteSort(value){routeSort=value;renderRoutes();}
 function renderRoutes(){const el=document.getElementById('route-list');const clearBtn=document.getElementById('clear-depot-filter-btn');if(clearBtn)clearBtn.style.display=activeDepotFilter?'inline-flex':'none';const list=sortedFilteredRoutes();if(!routes.length){el.innerHTML='<div class="empty">Import the template, then run Depot Optimization or Network Optimization.</div>';return;}if(!list.length){el.innerHTML='<div class="empty">No routes for the selected depot filter.</div>';return;}el.innerHTML=list.map((r)=>{const color=depotColor(r.depotKey);return `<div class="route-card"><div class="route-head" onclick="toggleRoute('${r.id}')"><div class="colorbar" style="background:${color}"></div><div class="route-main"><div class="route-name">${esc(routeDisplayName(r))} <span class="badge badge-blue">${esc(r.truckType)}</span></div><div class="route-meta">${esc(r.depotName)} · ${r.stops.length} stops · ${r.cases.toLocaleString()} cases · ${r.miles.toFixed(1)} mi</div><div class="route-kpis">${r.hours.toFixed(1)} hrs · ${routeCapacityPct(r).toFixed(1)}% capacity · ${routeCPM(r).toFixed(1)} CPM</div></div><div class="route-actions"><button class="btn small-btn" onclick="event.stopPropagation();openRouteManifest('${r.id}')">Manifest</button></div></div><div class="route-stops" id="stops-${r.id}">${r.stops.map(s=>`<div class="stop-row" onclick="event.stopPropagation();openCustomerDetails('${s.id}')"><span class="seq">${s.sequence}</span><span class="dot" style="background:${color}"></span><div class="sinfo"><div class="sname">${esc(s.name)}</div><div class="smeta">${esc(s.city)}, ${esc(s.state)} · ${s.cases} cases · ${esc(s.day||'')}</div></div></div>`).join('')}</div></div>`;}).join('');}
-function renderUnassigned(){const el=document.getElementById('unassigned-list');const pill=document.getElementById('ua-pill');const list=filteredUnassigned();if(pill)pill.textContent=String(list.length);if(!unassignedStops.length){el.innerHTML='<div class="empty">No unassigned stops.</div>';return;}if(!list.length){el.innerHTML='<div class="empty">No unassigned stops for the selected depot.</div>';return;}el.innerHTML=list.map(s=>`<div class="ua-row" onclick="zoomStop('${s.id}')"><span class="dot" style="background:#ef4444"></span><div class="sinfo"><div class="sname">${esc(s.name)}</div><div class="smeta">${esc(s.city)}, ${esc(s.state)} · ${s.cases} cases · ${esc(s.depotKey)}</div><div class="ua-reason">${esc(s.unassignedReason||'No route fit')}</div></div></div>`).join('');}
+function renderUnassigned(){const el=document.getElementById('unassigned-list');const pill=document.getElementById('ua-pill');const list=filteredUnassigned();if(pill)pill.textContent=String(list.length);if(!unassignedStops.length){el.innerHTML='<div class="empty">No unassigned stops.</div>';return;}if(!list.length){el.innerHTML='<div class="empty">No unassigned stops for the selected depot.</div>';return;}el.innerHTML=list.map(s=>`<div class="ua-row" onclick="zoomStop('${s.id}')"><span class="dot" style="background:#ef4444"></span><div class="sinfo"><div class="sname">${esc(s.name)}</div><div class="smeta">${esc(s.city)}, ${esc(s.state)} · ${s.cases} cases · ${esc(s.depotKey)}</div><div class="ua-reason">${esc(s.unassignedReason||'No route fit')}</div></div><button class="btn small-btn" title="Customer details" onclick="event.stopPropagation();openCustomerDetails('${s.id}')">📝</button></div>`).join('');}
 function toggleRoute(id){const el=document.getElementById('stops-'+id);if(el)el.classList.toggle('open');}
 function clearMap(){markers.forEach(m=>map.removeLayer(m));lines.forEach(l=>map.removeLayer(l));markers=[];lines=[];}
 function renderMap(){if(!map)return;clearMap();const list=filteredRoutes();const depotMarkers=new Set();list.forEach((r)=>{const color=depotColor(r.depotKey);if(showDepotMarkers&&r.depotLat&&r.depotLng&&!depotMarkers.has(r.depotKey)){depotMarkers.add(r.depotKey);const active=activeDepotFilter===r.depotKey?' active':'';const icon=L.divIcon({className:'',html:`<div class="depot-label${active}" style="color:${color}"><span class="depot-building">▦</span><span>${esc(r.depotName)}</span></div>`,iconSize:[180,30],iconAnchor:[10,15]});const m=L.marker([r.depotLat,r.depotLng],{icon}).addTo(map);m.on('click',()=>setDepotFilter(r.depotKey));m.bindPopup(`<b>${esc(r.depotName)}</b><br>Click the depot label to filter routes and stops.`);markers.push(m);}const pts=[];if(r.depotLat&&r.depotLng)pts.push([r.depotLat,r.depotLng]);r.stops.forEach(s=>{pts.push([s.lat,s.lng]);const cm=L.circleMarker([s.lat,s.lng],{radius:6,color,fillColor:color,fillOpacity:.85,weight:2}).addTo(map);cm.on('click',()=>openCustomerDetails(s.id));cm.bindTooltip(`${esc(s.name)} · ${esc(routeDisplayName(r))}`,{direction:'top'});markers.push(cm);});if(r.depotLat&&r.depotLng)pts.push([r.depotLat,r.depotLng]);if(showRouteLines&&pts.length>1)lines.push(L.polyline(pts,{color,weight:3,opacity:.72}).addTo(map));});if(showUnassignedMarkers){filteredUnassigned().forEach(s=>{if(s.lat&&s.lng){const cm=L.circleMarker([s.lat,s.lng],{radius:5,color:'#ef4444',fillColor:'#ef4444',fillOpacity:.8,weight:2}).addTo(map);cm.on('click',()=>openCustomerDetails(s.id));cm.bindTooltip(`Unassigned · ${esc(s.name)}`,{direction:'top'});markers.push(cm);}});}fitAll(false);}
+
+function switchMapLayer(layerName){
+  currentMapLayer=layerName;
+  if(!map||!darkTileLayer||!satelliteTileLayer)return;
+  if(layerName==='satellite'){
+    if(map.hasLayer(darkTileLayer))map.removeLayer(darkTileLayer);
+    if(!map.hasLayer(satelliteTileLayer))satelliteTileLayer.addTo(map);
+    showToast('Satellite map enabled.');
+  }else{
+    if(map.hasLayer(satelliteTileLayer))map.removeLayer(satelliteTileLayer);
+    if(!map.hasLayer(darkTileLayer))darkTileLayer.addTo(map);
+    showToast('Black map enabled.');
+  }
+}
+function openSessionData(){
+  const sheetCounts=Object.keys(rawSheets||{}).map(k=>`<tr><td>${esc(k)}</td><td>${Array.isArray(rawSheets[k])?rawSheets[k].length:0}</td></tr>`).join('')||'<tr><td colspan="2">No imported sheets loaded.</td></tr>';
+  const scenario=lastScenario?`<div class="result-box" style="margin-bottom:10px"><strong>Last Scenario:</strong> ${esc(lastScenario.mode||sessionSummary?.mode||'') }<br><strong>Selected Depot(s):</strong> ${esc((lastScenario.depots||sessionSummary?.depots||[]).join(', ')||'') }<br><strong>Goals:</strong> ${esc((lastScenario.goals||solutionDials.goals||[]).join(', '))}<br><strong>Capacity %:</strong> ${esc(lastScenario.capacityPct||solutionDials.capacityPct)}<br><strong>Depot Miles Limit:</strong> ${esc(solutionDials.depotMiles)}<br><strong>Customer Cluster Miles:</strong> ${esc(solutionDials.clusterMiles)}</div>`:'<div class="result-box" style="margin-bottom:10px">No optimization has been run yet. Imported data is still shown below.</div>';
+  const counts=`<div class="grid4" style="margin-bottom:10px"><div class="detail-field"><div class="lbl">Customers</div><div class="val">${customers.length}</div></div><div class="detail-field"><div class="lbl">Route Templates</div><div class="val">${routeTemplates.length}</div></div><div class="detail-field"><div class="lbl">Stop/Order Templates</div><div class="val">${stopsTemplates.length}</div></div><div class="detail-field"><div class="lbl">Depot Locations</div><div class="val">${depotLocations.length}</div></div><div class="detail-field"><div class="lbl">Optimized Routes</div><div class="val">${routes.length}</div></div><div class="detail-field"><div class="lbl">Assigned Stops</div><div class="val">${optimizedStops.length}</div></div><div class="detail-field"><div class="lbl">Unassigned Stops</div><div class="val">${unassignedStops.length}</div></div><div class="detail-field"><div class="lbl">Trucks</div><div class="val">${trucks.length}</div></div></div>`;
+  const fleet=`<table class="mini-table"><thead><tr><th>Truck Type</th><th>Count Available / Current Pass</th></tr></thead><tbody>${TRUCK_TYPES.map(t=>`<tr><td>${esc(t)}</td><td>${esc(solutionDials.fleet[t]||0)}</td></tr>`).join('')}</tbody></table>`;
+  const sheets=`<div class="section-title">Imported Sheet Row Counts</div><table class="mini-table"><thead><tr><th>Sheet</th><th>Rows</th></tr></thead><tbody>${sheetCounts}</tbody></table>`;
+  document.getElementById('session-data-body').innerHTML=scenario+counts+'<div class="section-title">Current Fleet Dials</div>'+fleet+sheets;
+  modal('session-data-modal');
+}
+
 function fitAll(showMsg=true){const pts=[];filteredRoutes().forEach(r=>{if(r.depotLat&&r.depotLng)pts.push([r.depotLat,r.depotLng]);r.stops.forEach(s=>pts.push([s.lat,s.lng]));});filteredUnassigned().forEach(s=>s.lat&&s.lng&&pts.push([s.lat,s.lng]));if(pts.length){map.fitBounds(pts,{padding:[45,45],maxZoom:10});if(showMsg)showToast(activeDepotFilter?'Map fitted to selected depot.':'Map fitted to scenario.');}}
 function toggleDepots(){showDepotMarkers=!showDepotMarkers;renderMap();}function toggleUnassigned(){showUnassignedMarkers=!showUnassignedMarkers;renderMap();}
 function toggleRouteLines(){showRouteLines=!showRouteLines;const btn=document.getElementById('route-lines-btn');if(btn)btn.textContent=showRouteLines?'Route Lines: On':'Route Lines: Off';renderMap();}
