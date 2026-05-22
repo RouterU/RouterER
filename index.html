@@ -206,13 +206,14 @@ function runNetworkEngine(opts){let depotKeys=opts.depots.map(d=>d.depotKey);let
 function buildOrdersForDepot(depotKey,day,useReal,respectDays){
   const days=selectedDays(day);
   if(useReal){
+    // Real orders are already coming from the Stops Templates tab for the session.
+    // For now, do NOT filter real orders by day. The selected day only filters route templates.
+    // This avoids dropping valid orders when the Stops Templates tab does not carry the same day code format.
     const templateRoutes=getRouteTemplatesForDepotDay(depotKey,day);
-    const routeKeys=new Set(templateRoutes.map(r=>cleanText(r.routeKey)));
     const routeDayByKey={};
     templateRoutes.forEach(r=>{routeDayByKey[cleanText(r.routeKey)]=routeTemplateDay(r)||days[0]||'Monday';});
 
     return stopsTemplates
-      .filter(s=>routeKeys.has(cleanText(s.standardRoute)) || templateRoutes.some(r=>candidateMatchesOrderRoute({routeKey:r.routeKey,template:r,name:r.name},s)))
       .filter(s=>s.lat&&s.lng)
       .map((s,i)=>({
         id:s.id,source:'Real Order',orderNumber:s.orderNumber,account:s.customerNumber||s.shipTo,name:s.customerName,
