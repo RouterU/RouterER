@@ -169,9 +169,27 @@ function routeTemplateDay(r){return Object.keys(DAY_CODES).find(d=>DAY_CODES[d]=
 function routeMatchesSelectedDay(r,day){return !day||day==='ALL'||normalizeDayCode(r.dayCode)===DAY_CODES[day]||routeTemplateDay(r)===day;}
 function routeMatchesDepot(r,depotKey){
   const k=cleanText(depotKey);
-  return cleanText(r.initialLocationKey)===k||cleanText(r.finalLocationKey)===k;
+  if(!k) return true;
+  const selectedDepot=findDepot(k);
+  const selectedUdf=firstDigits(selectedDepot?.udfNumber,4);
+  const routeUdf=firstDigits(r.udfNumber,4);
+
+  // 1) Exact template location match: Route Templates Initial/Final LocationKey equals selected Depot LocationKey.
+  if(cleanText(r.initialLocationKey)===k||cleanText(r.finalLocationKey)===k) return true;
+
+  // 2) Division/market depot match: many templates use a satellite depot LocationKey, while the user may select
+  //    the main depot. In that case, match by the depot UDFNumber1 / route UDFNumber1, e.g. 2185.
+  if(selectedUdf&&routeUdf&&selectedUdf===routeUdf) return true;
+
+  return false;
 }
-function getRouteTemplatesForDepotDay(depotKey,day){return routeTemplates.filter(r=>routeMatchesDepot(r,depotKey)).filter(r=>routeMatchesSelectedDay(r,day));}
+function getRouteTemplatesForDepotDay(depotKey,day){
+  const dayFiltered=routeTemplates.filter(r=>routeMatchesSelectedDay(r,day));
+  const depotFiltered=dayFiltered.filter(r=>routeMatchesDepot(r,depotKey));
+  // If no depot match is found, still return the day-matched templates so the user can verify/run the scenario.
+  // This prevents a blank solution when the selected depot is a parent depot and templates use satellite LocationKeys.
+  return depotFiltered.length?depotFiltered:dayFiltered;
+}
 function candidateMatchesOrderRoute(r,o){
   if(!o.standardRoute)return true;
   if(cleanText(r.routeKey)===cleanText(o.standardRoute))return true;
