@@ -285,7 +285,21 @@ function assignOrders(candidateRoutes,orders,opts){
     if(opts.useRouteTemplates&&o.standardRoute&&exact.length)baseRoutes=exact;
     const candidates=baseRoutes.filter(r=>canFit(r,o,opts)).map(r=>({r,score:routeScore(r,o,goal)})).sort((a,b)=>a.score-b.score);
     if(candidates.length){placeStop(candidates[0].r,o);}
-    else if(opts.useRouteTemplates){o.unassignedReason='No matching route template fit capacity, runtime, miles, or geocode constraints';}
+    else if(opts.useRouteTemplates){
+      // Template mode should never show a fake route cut just because the optimizer constraints
+      // were too tight. If real Stops Templates are being used, first load the current route
+      // relationship from Standard Route / Preferred Resource, then let later passes improve it.
+      const fallbackBase=baseRoutes.length?baseRoutes:candidateRoutes;
+      const routeMatched=fallbackBase.filter(r=>candidateMatchesOrderRoute(r,o));
+      const fallbackPool=routeMatched.length?routeMatched:fallbackBase;
+      if(fallbackPool.length){
+        const chosen=fallbackPool.map(r=>({r,score:routeScore(r,o,goal)})).sort((a,b)=>a.score-b.score)[0].r;
+        o.assignmentWarning='Loaded from current templates; optimizer constraints may need review';
+        placeStop(chosen,o);
+      }else{
+        o.unassignedReason='No route templates were available for this depot/day selection';
+      }
+    }
     else{
       let depot=findDepot(o.depotKey);
       let extra=makeRoute({name:`Route ${candidateRoutes.length+1}`,routeKey:`EXTRA-${candidateRoutes.length+1}`,depotKey:o.depotKey,depot,truckType:'53FT',day:o.day||'Multi-Day',runtimeHours:solutionDials.runtimeHours,capacityPct:opts.capacityPct||solutionDials.capacityPct});
