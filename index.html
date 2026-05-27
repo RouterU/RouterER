@@ -191,11 +191,20 @@ function getRouteTemplatesForDepotDay(depotKey,day){
   return depotFiltered.length?depotFiltered:dayFiltered;
 }
 function candidateMatchesOrderRoute(r,o){
-  if(!o.standardRoute)return true;
-  if(cleanText(r.routeKey)===cleanText(o.standardRoute))return true;
+  // Hard-match only when the stop explicitly restricts the preferred resource.
+  // Standard Route is treated as a preference, not a lock, so depot optimization can spread orders across all eligible templates.
+  if(!o.restrictResource)return true;
+  if(o.standardRoute&&cleanText(r.routeKey)===cleanText(o.standardRoute))return true;
   const pref=firstDigits(o.preferredResource,4);
   const routeNum=firstDigits(r.template?.udfNumber||r.routeKey||r.name,4);
-  return pref&&routeNum&&pref===routeNum;
+  return !!(pref&&routeNum&&pref===routeNum);
+}
+function preferredRoutePenalty(r,o){
+  if(!o)return 0;
+  if(o.standardRoute&&cleanText(r.routeKey)===cleanText(o.standardRoute))return -250;
+  const pref=firstDigits(o.preferredResource,4);
+  const routeNum=firstDigits(r.template?.udfNumber||r.routeKey||r.name,4);
+  return pref&&routeNum&&pref===routeNum?-150:0;
 }
 function firstDigits(value,len){const d=String(value??'').replace(/\D/g,'');return d.length>=len?d.slice(0,len):'';}
 function guessTruckType(s){s=String(s||'').toLowerCase();if(s.includes('open_28')||s.includes('28'))return'28FT';if(s.includes('open_36')||s.includes('36'))return'36FT';if(s.includes('open_48')||s.includes('48'))return'48FT';if(s.includes('open_53')||s.includes('53'))return'53FT';if(s.includes('open_van')||s.includes('sprinter')||s.includes('van'))return'Sprinter Van';if(s.includes('open_18')||s.includes('18'))return'18FT Pronto';if(s.includes('open_26')||s.includes('26'))return'26FT Box Truck';return'53FT';}
@@ -281,26 +290,21 @@ function assignOrders(candidateRoutes,orders,opts){
   if(goal==='Reduce Miles'||goal==='Increase Cases Per Mile')sorted.sort((a,b)=>distToDepot(b,b.depotKey)-distToDepot(a,a.depotKey));
   sorted.forEach(o=>{
     let baseRoutes=candidateRoutes.filter(r=>r.depotKey===o.depotKey);
-    const exact=baseRoutes.filter(r=>candidateMatchesOrderRoute(r,o));
-    if(opts.useRouteTemplates&&o.standardRoute&&exact.length)baseRoutes=exact;
-    const candidates=baseRoutes.filter(r=>canFit(r,o,opts)).map(r=>({r,score:routeScore(r,o,goal)})).sort((a,b)=>a.score-b.score);
-    if(candidates.length){placeStop(candidates[0].r,o);}
-    else if(opts.useRouteTemplates){
-      // Template mode should never show a fake route cut just because the optimizer constraints
-      // were too tight. If real Stops Templates are being used, first load the current route
-      // relationship from Standard Route / Preferred Resource, then let later passes improve it.
-      const fallbackBase=baseRoutes.length?baseRoutes:candidateRoutes;
-      const routeMatched=fallbackBase.filter(r=>candidateMatchesOrderRoute(r,o));
-      const fallbackPool=routeMatched.length?routeMatched:fallbackBase;
-      if(fallbackPool.length){
-        const chosen=fallbackPool.map(r=>({r,score:routeScore(r,o,goal)})).sort((a,b)=>a.score-b.score)[0].r;
-        o.assignmentWarning='Loaded from current templates; optimizer constraints may need review';
-        placeStop(chosen,o);
-      }else{
-        o.unassignedReason='No route templates were available for this depot/day selection';
-      }
+    if(opts.useRouteTemplates&&o.restrictResource){
+      const restricted=baseRoutes.filter(r=>candidateMatchesOrderRoute(r,o));
+      if(restricted.length)baseRoutes=restricted;
     }
-    else{
+    const candidates=baseRoutes
+      .filter(r=>canFit(r,o,opts))
+      .map(r=>({r,score:routeScore(r,o,goal)+preferredRoutePenalty(r,o)}))
+      .sort((a,b)=>a.score-b.score);
+    if(candidates.length){
+      placeStop(candidates[0].r,o);
+    }else if(opts.useRouteTemplates){
+      // Do not force-load into one route. Template mode must respect route capacity/run-time limits
+      // and use every eligible template. If none fit, the order stays unassigned for review.
+      o.unassignedReason=baseRoutes.length?'No eligible template route had remaining capacity/runtime/mileage':'No route templates were available for this depot/day selection';
+    }else{
       let depot=findDepot(o.depotKey);
       let extra=makeRoute({name:`Route ${candidateRoutes.length+1}`,routeKey:`EXTRA-${candidateRoutes.length+1}`,depotKey:o.depotKey,depot,truckType:'53FT',day:o.day||'Multi-Day',runtimeHours:solutionDials.runtimeHours,capacityPct:opts.capacityPct||solutionDials.capacityPct});
       candidateRoutes.push(extra);
@@ -312,7 +316,7 @@ function assignOrders(candidateRoutes,orders,opts){
 function primaryGoal(opts){const goals=opts.goals||[];return goals.includes('Reduce Routes')?'Reduce Routes':goals.includes('Reduce Miles')?'Reduce Miles':goals.includes('Increase Cases Per Mile')?'Increase Cases Per Mile':goals.includes('Fleet Balancing')?'Fleet Balancing':goals[0]||'Reduce Routes';}
 function canFit(r,o,opts){if(!o.lat||!o.lng||!r.depotLat||!r.depotLng)return false;if(distToDepot(o,r.depotKey)>((opts.dials?.depotMiles)||solutionDials.depotMiles))return false;if(r.cases+o.cases>r.maxCases||r.cube+o.cube>r.maxCube||r.weight+o.weight>r.maxWeight)return false;const estMiles=estimateMilesIfAdded(r,o);if(estMiles>((opts.dials?.depotMiles)||solutionDials.depotMiles)*2.25)return false;const estHours=estimateHours(estMiles,r.stops.length+1);if(estHours>r.runtimeHours)return false;if(r.stops.length){const last=r.stops[r.stops.length-1];if(haversine(last.lat,last.lng,o.lat,o.lng)>((opts.dials?.clusterMiles)||solutionDials.clusterMiles))return false;}return true;}
 function routeScore(r,o,goal){const estMiles=estimateMilesIfAdded(r,o);const add=estMiles-r.miles;const newCases=r.cases+o.cases;const newCPM=estMiles?newCases/estMiles:0;const newCap=(newCases/Math.max(r.maxCases,1))*100;if(goal==='Reduce Routes')return r.stops.length?add-(newCap*6):add+500;if(goal==='Fleet Balancing')return Math.abs(75-newCap)+(r.stops.length?add:150);if(goal==='Increase Cases Per Mile')return -newCPM+(add/1000);if(goal==='Reduce Miles')return add;return add;}
-function placeStop(r,o){r.stops.push(o);o.assignedRoute=r.name;o.newRoute=r.name;o.routeChanged=o.standardRoute&&o.standardRoute!==r.routeKey?'Yes':'No';o.suggestedDepot=o.depotKey;o.depotChanged=o.originalDepot&&o.originalDepot!==o.depotKey?'Yes':'No';r.cases+=o.cases;r.cube+=o.cube;r.weight+=o.weight;r.miles=routeMiles(r);r.hours=estimateHours(r.miles,r.stops.length);}
+function placeStop(r,o){r.stops.push(o);o.routeId=r.id;o.assignedRoute=r.name;o.newRoute=r.name;o.depotName=r.depotName;o.routeChanged=o.standardRoute&&o.standardRoute!==r.routeKey?'Yes':'No';o.suggestedDepot=o.depotKey;o.depotChanged=o.originalDepot&&o.originalDepot!==o.depotKey?'Yes':'No';r.cases+=o.cases;r.cube+=o.cube;r.weight+=o.weight;r.miles=routeMiles(r);r.hours=estimateHours(r.miles,r.stops.length);}
 function sequenceRoute(r){r.stops.sort((a,b)=>{if(a.sequence&&b.sequence)return a.sequence-b.sequence;const da=haversine(r.depotLat,r.depotLng,a.lat,a.lng);const db=haversine(r.depotLat,r.depotLng,b.lat,b.lng);return da-db;});r.stops.forEach((s,i)=>s.sequence=i+1);r.miles=routeMiles(r);r.hours=estimateHours(r.miles,r.stops.length);}
 function routeMiles(r){if(!r.stops.length)return 0;let miles=0,prev={lat:r.depotLat,lng:r.depotLng};r.stops.forEach(s=>{miles+=haversine(prev.lat,prev.lng,s.lat,s.lng)*1.25;prev=s;});miles+=haversine(prev.lat,prev.lng,r.depotLat,r.depotLng)*1.25;return miles;}
 function estimateMilesIfAdded(r,o){const copy={...r,stops:[...r.stops,o]};return routeMiles(copy);}function estimateHours(miles,stopCount){return miles/35+(stopCount*8/60)+0.5;}function haversine(lat1,lng1,lat2,lng2){const R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
