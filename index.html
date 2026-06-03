@@ -11,22 +11,14 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}body{font-family:Sora,sans-serif;background:#0f1117;color:#e8e6e0;height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:13px}:root{--bg0:#0f1117;--bg1:#171b25;--bg2:#1e2330;--bg3:#252a3a;--bg4:#2c3347;--border:#2e3447;--border2:#3d4560;--text1:#e8e6e0;--text2:#9ca3b8;--text3:#65708d;--accent:#4f8cff;--success:#3ecf8e;--warn:#f59e0b;--danger:#ef4444;--purple:#a78bfa}.topbar{display:flex;align-items:center;gap:8px;padding:0 12px;height:52px;background:var(--bg1);border-bottom:1px solid var(--border);flex-shrink:0;z-index:100}.logo{font-family:'DM Mono',monospace;font-size:15px;font-weight:600;color:var(--accent);letter-spacing:-.5px;white-space:nowrap}.logo span{color:var(--text2)}.logo small{font-size:9px;color:var(--text3);margin-left:3px}.topbar-sep{width:1px;height:25px;background:var(--border);flex-shrink:0;margin:0 2px}.topbar-actions{display:flex;gap:5px;align-items:center;flex-wrap:nowrap;overflow-x:auto}.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:7px;font-size:11px;font-family:Sora,sans-serif;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text1);transition:all .15s;white-space:nowrap}.btn:hover{background:var(--bg2);border-color:var(--accent)}.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn.success{background:var(--success);border-color:var(--success);color:#0f1117}.btn.warn{background:var(--warn);border-color:var(--warn);color:#0f1117}.btn.purple{background:var(--purple);border-color:var(--purple);color:#fff}.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}.btn:disabled{opacity:.45;cursor:not-allowed}.stats-bar{display:grid;grid-template-columns:repeat(11,minmax(80px,1fr));border-bottom:1px solid var(--border);background:var(--bg1);flex-shrink:0}.stat{padding:6px 8px;border-right:1px solid var(--border);text-align:center}.stat-val{font-family:'DM Mono',monospace;font-size:14px;font-weight:600;color:var(--text1)}.stat-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}.main{display:flex;flex:1;overflow:hidden}.left-panel{width:410px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;background:var(--bg1);border-right:1px solid var(--border)}.panel-head{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--bg2);border-bottom:1px solid var(--border)}.panel-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;flex:1}.panel-body{overflow:auto;flex:1}.panel-body::-webkit-scrollbar,.modal::-webkit-scrollbar{width:5px}.panel-body::-webkit-scrollbar-thumb,.modal::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px}.route-card{border-bottom:1px solid var(--border)}.route-head{display:flex;gap:8px;align-items:center;padding:9px 10px;cursor:pointer}.route-head:hover{background:var(--bg2)}.colorbar{width:4px;align-self:stretch;border-radius:3px;min-height:42px}.route-main{flex:1;min-width:0}.route-name{font-size:12px;font-weight:700;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.route-meta{font-size:10px;color:var(--text2);margin-top:2px}.route-kpis{font-size:9px;color:var(--text3);margin-top:2px}.route-stops{display:none;padding:0 8px 8px 22px}.route-stops.open{display:block}.stop-row{display:flex;gap:7px;align-items:center;padding:5px 6px;border-radius:6px;margin:2px 0;cursor:pointer}.stop-row:hover{background:var(--bg3)}.seq{font-family:'DM Mono',monospace;color:var(--text3);width:28px;text-align:right;font-size:10px}.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}.sinfo{min-width:0;flex:1}.sname{font-size:11px;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.smeta{font-size:9px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.badge{display:inline-block;padding:1px 5px;border-radius:4px;font-size:8px;font-weight:700;margin-left:4px}.badge-blue{background:rgba(79,140,255,.18);color:#93c5fd}.badge-warn{background:rgba(245,158,11,.18);color:#fbbf24}.badge-green{background:rgba(62,207,142,.16);color:#86efac}.map-area{flex:1;position:relative}#map{width:100%;height:100%}.map-controls{position:absolute;left:76px;top:10px;z-index:550;display:flex;gap:6px;align-items:center;background:rgba(23,27,37,.92);border:1px solid var(--border);border-radius:9px;padding:6px}.legend{position:absolute;right:10px;top:10px;z-index:550;background:rgba(23,27,37,.92);border:1px solid var(--border);border-radius:9px;padding:9px 11px;min-width:170px;max-height:320px;overflow:auto}.legend-title{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}.legend-item{display:flex;gap:7px;align-items:center;margin-bottom:4px;font-size:10px;color:var(--text1)}.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:2000;display:none;align-items:center;justify-content:center;padding:14px}.modal{background:var(--bg1);border:1px solid var(--border2);border-radius:14px;padding:18px;width:720px;max-width:96vw;max-height:92vh;overflow:auto;box-shadow:0 20px 70px rgba(0,0,0,.55)}.modal.wide{width:1050px}.modal h2{font-size:15px;font-weight:700;margin-bottom:12px}.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.field{display:flex;flex-direction:column;gap:4px}.field label{font-size:10px;color:var(--text2);font-weight:600}.field input,.field select{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text1);font-family:Sora,sans-serif;font-size:11px;padding:7px}.field input:focus,.field select:focus{outline:none;border-color:var(--accent)}.section-title{font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin:13px 0 7px;padding-bottom:4px;border-bottom:1px solid var(--border)}.file-drop{border:2px dashed var(--border2);border-radius:10px;padding:26px;text-align:center;cursor:pointer;background:var(--bg2);transition:all .16s}.file-drop:hover,.file-drop.dragover{border-color:var(--accent);background:rgba(79,140,255,.06)}.file-drop p{font-size:13px;color:var(--text1);font-weight:700}.file-drop span{font-size:10px;color:var(--text3)}.check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.checkline{display:flex;gap:7px;align-items:flex-start;font-size:11px;color:var(--text1);cursor:pointer;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px}.checkline input{accent-color:var(--accent);margin-top:1px}.depot-block{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px}.result-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11px;color:var(--text2);line-height:1.8}.result-box strong{color:var(--text1)}.empty{padding:35px 20px;text-align:center;color:var(--text3);font-size:12px}.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:9px 15px;font-size:12px;box-shadow:0 10px 30px rgba(0,0,0,.4)}.depot-label{display:inline-flex;align-items:center;gap:6px;max-width:220px;padding:5px 9px;border-radius:10px;background:rgba(15,17,23,.95);border:2px solid currentColor;box-shadow:0 4px 14px rgba(0,0,0,.6);font-size:10px;font-weight:800;color:inherit}.depot-building{width:18px;height:18px;border-radius:5px;background:currentColor;color:#0f1117;display:inline-flex;align-items:center;justify-content:center}.pill{display:inline-flex;align-items:center;border:1px solid var(--border2);background:var(--bg3);border-radius:999px;padding:4px 8px;font-size:10px;color:var(--text2);gap:5px}.mini-table{width:100%;border-collapse:collapse;font-size:11px}.mini-table th,.mini-table td{border-bottom:1px solid var(--border);padding:7px;text-align:left}.mini-table th{font-size:9px;text-transform:uppercase;color:var(--text3);letter-spacing:.4px;background:var(--bg2);position:sticky;top:0}.tabs{display:flex;gap:5px;margin-bottom:10px}.tab{flex:1;text-align:center;border:1px solid var(--border);background:var(--bg2);padding:7px;border-radius:7px;font-size:11px;cursor:pointer}.tab.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
 .left-panel{gap:0}.route-section{flex:1 1 62%;min-height:130px;display:flex;flex-direction:column;overflow:hidden}.unassigned-section{flex:1 1 38%;min-height:110px;display:flex;flex-direction:column;overflow:hidden;border-top:1px solid var(--border)}.panel-body.compact{flex:1;overflow:auto}.filter-btn{font-size:10px;padding:4px 8px}.ua-row{display:flex;gap:7px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--border);cursor:pointer}.ua-row:hover{background:var(--bg2)}.ua-reason{font-size:9px;color:var(--danger);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.depot-label{cursor:pointer}.depot-label.active{box-shadow:0 0 0 3px rgba(255,255,255,.18),0 4px 14px rgba(0,0,0,.6)}
+
 .sort-select{background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text1);font-family:Sora,sans-serif;font-size:10px;padding:5px 7px;max-width:120px}.route-actions{display:flex;align-items:center;gap:6px}.manifest-list{border:1px solid var(--border);border-radius:10px;background:var(--bg2);max-height:62vh;overflow:auto}.manifest-row{display:grid;grid-template-columns:58px 1.5fr .9fr .8fr .8fr .8fr .8fr .8fr;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;min-width:980px}.manifest-row.header{position:sticky;top:0;background:var(--bg3);font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);font-weight:800;z-index:1}.manifest-row:last-child{border-bottom:none}.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.detail-field{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:8px;min-width:0}.detail-field .lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}.detail-field .val{font-size:12px;color:var(--text1);word-break:break-word}.small-btn{padding:4px 7px;font-size:10px}
-/* Optimization goal indicator badges */
-.opt-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:12px;font-size:9px;font-weight:700;letter-spacing:.3px}
-.opt-badge.reduce-routes{background:rgba(167,139,250,.18);color:#c4b5fd}
-.opt-badge.reduce-miles{background:rgba(56,189,248,.15);color:#7dd3fc}
-.opt-badge.cases-per-mile{background:rgba(62,207,142,.15);color:#6ee7b7}
-.opt-badge.fleet-balance{background:rgba(245,158,11,.15);color:#fcd34d}
-/* Capacity bar inside route cards */
-.cap-bar-wrap{margin-top:3px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
-.cap-bar-fill{height:100%;border-radius:2px;transition:width .3s}
 @media(max-width:1100px){.stats-bar{grid-template-columns:repeat(6,minmax(80px,1fr))}.left-panel{width:360px}.topbar{height:auto;min-height:52px;flex-wrap:wrap;padding:8px}.topbar-actions{flex-wrap:wrap}.map-controls{left:10px;top:55px;flex-wrap:wrap}.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body>
 <div class="topbar">
-  <div class="logo">Network<span>OptDesk</span><small>v2</small></div>
+  <div class="logo">Network<span>OptDesk</span><small>v1</small></div>
   <div class="topbar-sep"></div>
   <div class="topbar-actions">
     <button class="btn" onclick="openImport()">Import</button>
@@ -42,19 +34,7 @@
 <div class="main">
   <div class="left-panel">
     <div class="route-section">
-      <div class="panel-head">
-        <div class="panel-title">Optimized Routes</div>
-        <select id="route-sort" class="sort-select" onchange="setRouteSort(this.value)" title="Sort route options">
-          <option value="">Sort...</option>
-          <option value="runtime">Run Time</option>
-          <option value="capacity">Capacity</option>
-          <option value="cpm">CPM</option>
-          <option value="miles">Miles</option>
-          <option value="stops">Stops</option>
-        </select>
-        <button class="btn filter-btn" id="clear-depot-filter-btn" style="display:none" onclick="clearDepotFilter()">Clear Depot Filter</button>
-        <span id="session-pill" class="pill">No session</span>
-      </div>
+      <div class="panel-head"><div class="panel-title">Optimized Routes</div><select id="route-sort" class="sort-select" onchange="setRouteSort(this.value)" title="Sort route options"><option value="">Sort...</option><option value="runtime">Run Time</option><option value="capacity">Capacity</option><option value="cpm">CPM</option><option value="miles">Miles</option><option value="stops">Stops</option></select><button class="btn filter-btn" id="clear-depot-filter-btn" style="display:none" onclick="clearDepotFilter()">Clear Depot Filter</button><span id="session-pill" class="pill">No session</span></div>
       <div class="panel-body compact" id="route-list"></div>
     </div>
     <div class="unassigned-section">
@@ -64,10 +44,7 @@
   </div>
   <div class="map-area">
     <div class="map-controls">
-      <select id="map-layer-select" class="sort-select" onchange="switchMapLayer(this.value)" title="Map view">
-        <option value="dark">Black Map</option>
-        <option value="satellite">Satellite Map</option>
-      </select>
+      <select id="map-layer-select" class="sort-select" onchange="switchMapLayer(this.value)" title="Map view"><option value="dark">Black Map</option><option value="satellite">Satellite Map</option></select>
       <button class="btn" onclick="fitAll()">Fit All</button>
       <button class="btn" onclick="toggleDepots()">Toggle Depots</button>
       <button class="btn" onclick="toggleUnassigned()">Toggle Unassigned</button>
@@ -79,21 +56,15 @@
   </div>
 </div>
 
-<!-- ── IMPORT MODAL ── -->
 <div id="import-modal" class="modal-overlay"><div class="modal"><h2>Import Network Optimization Template</h2>
   <div class="file-drop" id="drop" onclick="document.getElementById('file-in').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event)">
-    <p>Click or drag/drop the latest DepotOpt template</p>
-    <span>Expected sheets: Trucks Templates, Stops Templates, Customer List, Route Templates, Depot Locations, Day Code Reference</span>
+    <p>Click or drag/drop the latest DepotOpt template</p><span>Expected sheets: Trucks Templates, Stops Templates, Customer List, Route Templates, Depot Locations, Day Code Reference</span>
   </div>
   <input id="file-in" type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFileSelect(this)" />
   <div id="import-preview" class="result-box" style="display:none"></div>
-  <div class="modal-actions">
-    <button class="btn" onclick="closeModal('import-modal')">Close</button>
-    <button class="btn primary" id="start-session-btn" style="display:none" onclick="startSession()">Start Session</button>
-  </div>
+  <div class="modal-actions"><button class="btn" onclick="closeModal('import-modal')">Close</button><button class="btn primary" id="start-session-btn" style="display:none" onclick="startSession()">Start Session</button></div>
 </div></div>
 
-<!-- ── DEPOT OPT MODAL ── -->
 <div id="depot-modal" class="modal-overlay"><div class="modal wide"><h2>Depot Optimization</h2>
   <div class="grid3">
     <div class="field"><label>Pick a Depot</label><select id="dep-depot"></select></div>
@@ -102,19 +73,11 @@
   </div>
   <div class="section-title">Order / Day Controls</div>
   <div class="grid3">
-    <div class="field"><label>Optimize Day</label>
-      <select id="dep-day">
-        <option value="ALL">All Active Days</option>
-        <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
-        <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
-      </select>
-    </div>
+    <div class="field"><label>Optimize Day</label><select id="dep-day"><option value="ALL">All Active Days</option><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></div>
     <div class="field"><label>How many days of orders/routes?</label><input id="dep-days-count" type="number" min="1" max="7" value="1" /></div>
     <div class="field"><label>Respect Customers Current Delivery Days?</label><select id="dep-respect-days"><option>Yes</option><option>No</option></select></div>
   </div>
-  <div class="section-title">Fleet Count and Daily Run Time</div>
-  <div id="dep-template-note" class="result-box" style="display:none;margin-bottom:8px">Route templates selected: truck counts are optional because route templates and truck/open equipment rows will drive available route capacity.</div>
-  <div id="dep-fleet" class="grid4"></div>
+  <div class="section-title">Fleet Count and Daily Run Time</div><div id="dep-template-note" class="result-box" style="display:none;margin-bottom:8px">Route templates selected: truck counts are optional because route templates and truck/open equipment rows will drive available route capacity.</div><div id="dep-fleet" class="grid4"></div>
   <div class="section-title">Constraints</div>
   <div class="grid4">
     <div class="field"><label>Do they all have Coolers?</label><select id="dep-coolers"><option>Yes</option><option>No</option></select></div>
@@ -123,15 +86,10 @@
     <div class="field"><label>Backhauls?</label><select id="dep-backhauls"><option>No</option><option>Yes</option></select></div>
     <div class="field"><label>If yes, how many daily routes?</label><input id="dep-backhaul-routes" type="number" value="0" /></div>
   </div>
-  <div class="section-title">Goal of This Pass</div>
-  <div class="check-grid" id="dep-goals"></div>
-  <div class="modal-actions">
-    <button class="btn" onclick="closeModal('depot-modal')">Cancel</button>
-    <button class="btn primary" onclick="runDepotOptimization()">Run</button>
-  </div>
+  <div class="section-title">Goal of This Pass</div><div class="check-grid" id="dep-goals"></div>
+  <div class="modal-actions"><button class="btn" onclick="closeModal('depot-modal')">Cancel</button><button class="btn primary" onclick="runDepotOptimization()">Run</button></div>
 </div></div>
 
-<!-- ── NETWORK OPT MODAL ── -->
 <div id="network-modal" class="modal-overlay"><div class="modal wide"><h2>Network Optimization</h2>
   <div class="section-title">What are we trying to accomplish?</div>
   <div class="grid3">
@@ -139,16 +97,11 @@
     <div class="field"><label>Ideally, by how many Depots?</label><input id="net-reduce-count" type="number" min="0" value="1" /></div>
     <label class="checkline"><input type="checkbox" id="net-customer-balancing" checked />Customer Balancing</label>
   </div>
-  <div class="section-title">Depot Sections</div>
-  <div id="network-depots"></div>
+  <div class="section-title">Depot Sections</div><div id="network-depots"></div>
   <button class="btn" onclick="addNetworkDepotSection()">Add Another Depot</button>
-  <div class="modal-actions">
-    <button class="btn" onclick="closeModal('network-modal')">Cancel</button>
-    <button class="btn primary" onclick="runNetworkOptimization()">Run</button>
-  </div>
+  <div class="modal-actions"><button class="btn" onclick="closeModal('network-modal')">Cancel</button><button class="btn primary" onclick="runNetworkOptimization()">Run</button></div>
 </div></div>
 
-<!-- ── SOLUTION DIALS MODAL ── -->
 <div id="dials-modal" class="modal-overlay"><div class="modal wide"><h2>Solution Dials</h2>
   <div class="grid4">
     <div class="field"><label>Miles From Depot Limit</label><input id="dial-depot-miles" type="number" value="150" /></div>
@@ -156,49 +109,21 @@
     <div class="field"><label>Capacity %</label><input id="dial-capacity" type="number" value="85" /></div>
     <div class="field"><label>Default Daily Run Time</label><input id="dial-runtime" type="number" value="10" step=".25" /></div>
   </div>
-  <div class="section-title">Truck Counts for Current Pass</div>
-  <div id="dial-fleet" class="grid4"></div>
-  <div class="section-title">Pass Goal</div>
-  <div class="check-grid" id="dial-goals"></div>
-  <div class="modal-actions">
-    <button class="btn" onclick="closeModal('dials-modal')">Cancel</button>
-    <button class="btn primary" onclick="rerunSolution()">Re-Run Solution</button>
-  </div>
+  <div class="section-title">Truck Counts for Current Pass</div><div id="dial-fleet" class="grid4"></div>
+  <div class="section-title">Pass Goal</div><div class="check-grid" id="dial-goals"></div>
+  <div class="modal-actions"><button class="btn" onclick="closeModal('dials-modal')">Cancel</button><button class="btn primary" onclick="rerunSolution()">Re-Run Solution</button></div>
 </div></div>
 
-<!-- ── MANIFEST MODAL ── -->
-<div id="manifest-modal" class="modal-overlay"><div class="modal wide">
-  <h2 id="manifest-title">Route Manifest</h2>
-  <div id="manifest-summary" class="result-box" style="margin-bottom:10px"></div>
-  <div id="manifest-list" class="manifest-list"></div>
-  <div class="modal-actions"><button class="btn" onclick="closeModal('manifest-modal')">Close</button></div>
-</div></div>
 
-<!-- ── CUSTOMER DETAIL MODAL ── -->
-<div id="customer-detail-modal" class="modal-overlay"><div class="modal wide">
-  <h2 id="customer-detail-title">Customer Details</h2>
-  <div id="customer-detail-body"></div>
-  <div class="modal-actions"><button class="btn" onclick="closeModal('customer-detail-modal')">Close</button></div>
-</div></div>
+<div id="manifest-modal" class="modal-overlay"><div class="modal wide"><h2 id="manifest-title">Route Manifest</h2><div id="manifest-summary" class="result-box" style="margin-bottom:10px"></div><div id="manifest-list" class="manifest-list"></div><div class="modal-actions"><button class="btn" onclick="closeModal('manifest-modal')">Close</button></div></div></div>
 
-<!-- ── SESSION DATA MODAL ── -->
-<div id="session-data-modal" class="modal-overlay"><div class="modal wide">
-  <h2>Session Data</h2>
-  <div id="session-data-body"></div>
-  <div class="modal-actions"><button class="btn" onclick="closeModal('session-data-modal')">Close</button></div>
-</div></div>
+<div id="customer-detail-modal" class="modal-overlay"><div class="modal wide"><h2 id="customer-detail-title">Customer Details</h2><div id="customer-detail-body"></div><div class="modal-actions"><button class="btn" onclick="closeModal('customer-detail-modal')">Close</button></div></div></div>
 
-<!-- ── RESULT MODAL ── -->
-<div id="result-modal" class="modal-overlay"><div class="modal">
-  <h2 id="result-title">Optimization Results</h2>
-  <div id="result-body" class="result-box"></div>
-  <div class="modal-actions"><button class="btn primary" onclick="closeModal('result-modal')">Done</button></div>
-</div></div>
+<div id="session-data-modal" class="modal-overlay"><div class="modal wide"><h2>Session Data</h2><div id="session-data-body"></div><div class="modal-actions"><button class="btn" onclick="closeModal('session-data-modal')">Close</button></div></div></div>
+
+<div id="result-modal" class="modal-overlay"><div class="modal"><h2 id="result-title">Optimization Results</h2><div id="result-body" class="result-box"></div><div class="modal-actions"><button class="btn primary" onclick="closeModal('result-modal')">Done</button></div></div></div>
 
 <script>
-/* ============================================================
-   CONSTANTS & GLOBALS
-   ============================================================ */
 const TRUCK_TYPES=['28FT','36FT','48FT','53FT','Sprinter Van','18FT Pronto','26FT Box Truck'];
 const GOALS=['Reduce Routes','Reduce Miles','Increase Cases Per Mile','Fleet Balancing','Customer Balancing','Reduce Depot Footprint'];
 const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -206,204 +131,32 @@ const DAY_CODES={Monday:'D_1_MONDAY',Tuesday:'D_2_TUESDAY',Wednesday:'D_3_WEDNES
 const DAY_NUM={1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday',7:'Sunday'};
 const COLORS=['#4f8cff','#3ecf8e','#f59e0b','#ef4444','#a78bfa','#fb923c','#38bdf8','#f472b6','#34d399','#fbbf24','#60a5fa','#86efac'];
 const DEFAULT_CAPACITY={
-  '28FT':{cases:650,cube:780,weight:17500},
-  '36FT':{cases:800,cube:1040,weight:25000},
-  '48FT':{cases:1050,cube:1430,weight:40000},
-  '53FT':{cases:1200,cube:1820,weight:40000},
-  'Sprinter Van':{cases:120,cube:100,weight:2500},
-  '18FT Pronto':{cases:250,cube:550,weight:10000},
-  '26FT Box Truck':{cases:500,cube:550,weight:10000}
+ '28FT':{cases:650,cube:780,weight:17500},'36FT':{cases:800,cube:1040,weight:25000},'48FT':{cases:1050,cube:1430,weight:40000},'53FT':{cases:1200,cube:1820,weight:40000},'Sprinter Van':{cases:120,cube:100,weight:2500},'18FT Pronto':{cases:250,cube:550,weight:10000},'26FT Box Truck':{cases:500,cube:550,weight:10000}
 };
 const OPEN_TRUCK_KEYS={'28FT':'OPEN_28','36FT':'OPEN_36','48FT':'OPEN_48','53FT':'OPEN_53','Sprinter Van':'OPEN_VAN','18FT Pronto':'OPEN_18','26FT Box Truck':'OPEN_26'};
-
 let rawSheets={}, trucks=[], stopsTemplates=[], customers=[], routeTemplates=[], depotLocations=[], dayRef=[];
-let routes=[], optimizedStops=[], unassignedStops=[], sessionSummary=null;
-let solutionDials={depotMiles:150,clusterMiles:40,capacityPct:85,runtimeHours:10,fleet:{},goals:['Reduce Routes']};
-let lastScenario=null, map, darkTileLayer=null, satelliteTileLayer=null, currentMapLayer="dark";
-let markers=[], lines=[], showDepotMarkers=true, showUnassignedMarkers=true, showRouteLines=true;
-let activeDepotFilter=null, routeSort="";
+let routes=[], optimizedStops=[], unassignedStops=[], sessionSummary=null, solutionDials={depotMiles:150,clusterMiles:40,capacityPct:85,runtimeHours:10,fleet:{},goals:['Reduce Routes']};
+let lastScenario=null, map, darkTileLayer=null, satelliteTileLayer=null, currentMapLayer="dark", markers=[], lines=[], showDepotMarkers=true, showUnassignedMarkers=true, showRouteLines=true, activeDepotFilter=null, routeSort="";
 
-/* ============================================================
-   INIT
-   ============================================================ */
 window.addEventListener('DOMContentLoaded',()=>{initDefaults();initMap();render();});
-
-function initDefaults(){
-  TRUCK_TYPES.forEach(t=>solutionDials.fleet[t]=0);
-  buildFleetInputs('dep-fleet','dep');
-  buildGoalChecks('dep-goals','dep',['Reduce Routes']);
-  buildFleetInputs('dial-fleet','dial');
-  buildGoalChecks('dial-goals','dial',solutionDials.goals);
-  addNetworkDepotSection();
-  refreshDepotOptionState();
-}
-
-function initMap(){
-  map=L.map('map',{zoomControl:true}).setView([39.5,-98.35],4);
-  darkTileLayer=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'&copy; OpenStreetMap &copy; CARTO'});
-  satelliteTileLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles &copy; Esri, Maxar, Earthstar Geographics'});
-  darkTileLayer.addTo(map);
-}
-
-/* ============================================================
-   UI HELPERS
-   ============================================================ */
-function buildFleetInputs(containerId,prefix,defaults={}){
-  const el=document.getElementById(containerId);
-  el.innerHTML='';
-  TRUCK_TYPES.forEach(t=>{
-    const id=prefix+'-'+safeId(t);
-    el.insertAdjacentHTML('beforeend',
-      `<div class="field"><label>${t} Count</label><input id="${id}-count" data-truck="${t}" type="number" min="0" value="${defaults[t]?.count??solutionDials.fleet[t]??0}" /></div>
-       <div class="field"><label>${t} Daily Run Time</label><input id="${id}-runtime" data-truck-runtime="${t}" type="number" min="1" step=".25" value="${defaults[t]?.runtime??solutionDials.runtimeHours}" /></div>`);
-  });
-}
-
-function buildGoalChecks(containerId,prefix,selected=[]){
-  const el=document.getElementById(containerId);
-  el.innerHTML='';
-  GOALS.forEach(g=>{
-    el.insertAdjacentHTML('beforeend',
-      `<label class="checkline"><input type="checkbox" class="${prefix}-goal" value="${g}" ${selected.includes(g)?'checked':''}/>${g}</label>`);
-  });
-}
-
+function initDefaults(){TRUCK_TYPES.forEach(t=>solutionDials.fleet[t]=0);buildFleetInputs('dep-fleet','dep');buildGoalChecks('dep-goals','dep',['Reduce Routes']);buildFleetInputs('dial-fleet','dial');buildGoalChecks('dial-goals','dial',solutionDials.goals);addNetworkDepotSection();refreshDepotOptionState();}
+function initMap(){map=L.map('map',{zoomControl:true}).setView([39.5,-98.35],4);darkTileLayer=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'&copy; OpenStreetMap &copy; CARTO'});satelliteTileLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles &copy; Esri, Maxar, Earthstar Geographics'});darkTileLayer.addTo(map);}
+function buildFleetInputs(containerId,prefix,defaults={}){const el=document.getElementById(containerId);el.innerHTML='';TRUCK_TYPES.forEach(t=>{const id=prefix+'-'+safeId(t);el.insertAdjacentHTML('beforeend',`<div class="field"><label>${t} Count</label><input id="${id}-count" data-truck="${t}" type="number" min="0" value="${defaults[t]?.count??solutionDials.fleet[t]??0}" /></div><div class="field"><label>${t} Daily Run Time</label><input id="${id}-runtime" data-truck-runtime="${t}" type="number" min="1" step=".25" value="${defaults[t]?.runtime??solutionDials.runtimeHours}" /></div>`);});}
+function buildGoalChecks(containerId,prefix,selected=[]){const el=document.getElementById(containerId);el.innerHTML='';GOALS.forEach(g=>{el.insertAdjacentHTML('beforeend',`<label class="checkline"><input type="checkbox" class="${prefix}-goal" value="${g}" ${selected.includes(g)?'checked':''}/>${g}</label>`);});}
 function safeId(s){return s.replace(/[^A-Za-z0-9]/g,'_');}
 function modal(id,show=true){document.getElementById(id).style.display=show?'flex':'none';}
-function closeModal(id){modal(id,false);}
-function showToast(msg,color){
-  const t=document.createElement('div');
-  t.className='toast';
-  t.textContent=msg;
-  if(color)t.style.borderColor=color;
-  document.body.appendChild(t);
-  setTimeout(()=>t.remove(),2800);
-}
+function closeModal(id){modal(id,false);}function showToast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
 
-/* ============================================================
-   IMPORT
-   ============================================================ */
 function openImport(){modal('import-modal');}
 function handleDrop(e){e.preventDefault();e.currentTarget.classList.remove('dragover');if(e.dataTransfer.files?.[0])loadWorkbook(e.dataTransfer.files[0]);}
 function handleFileSelect(input){if(input.files?.[0])loadWorkbook(input.files[0]);input.value='';}
 function startSession(){closeModal('import-modal');populateDepotDropdowns();render();showToast('Session started. Choose Depot Optimization or Network Optimization.');}
-
-function loadWorkbook(file){
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
-    rawSheets={};
-    wb.SheetNames.forEach(name=>{rawSheets[name]=XLSX.utils.sheet_to_json(wb.Sheets[name],{defval:'',raw:false});});
-    parseImportedSheets();
-    populateDepotDropdowns();
-    render();
-    const html=`<strong>Imported:</strong> ${file.name}<br>`+Object.entries(rawSheets).map(([k,v])=>`${k}: <strong>${v.length.toLocaleString()}</strong> rows`).join('<br>');
-    document.getElementById('import-preview').style.display='block';
-    document.getElementById('import-preview').innerHTML=html+'<br><br><strong>Status:</strong> Data is ready. Click Start Session to begin scenario setup.';
-    const ss=document.getElementById('start-session-btn');
-    if(ss)ss.style.display='inline-flex';
-    showToast('Template imported successfully');
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-function parseImportedSheets(){
-  trucks=(rawSheets['Trucks Templates']||[]).map(r=>({
-    raw:r,truckKey:v(r,'TruckKey'),name:v(r,'Name'),vehicleType:v(r,'VehicleType'),
-    length:num(v(r,'Length')),type:guessTruckType(v(r,'TruckKey')||v(r,'Name')||v(r,'VehicleType')),
-    cases:num(v(r,'Measure1')),cube:num(v(r,'Cube')),weight:num(v(r,'Weight'))
-  }));
-
-  stopsTemplates=(rawSheets['Stops Templates']||[]).map((r,i)=>({
-    raw:r,id:'ST'+i,
-    standardRoute:v(r,'Standard Route'),sequence:num(v(r,'Standard Sequence')||v(r,'Route Sequence')),
-    orderNumber:v(r,'ORDER_NUMBER'),shipTo:v(r,'SHIP_TO_ID'),customerNumber:v(r,'CUSTOMER_NUMBER'),
-    preferredResource:v(r,'Preferred Resource Key'),restrictResource:yes(v(r,'Restrict preferred resource')),
-    restrictPosition:yes(v(r,'Restrict route position')),
-    address:v(r,'Address'),city:v(r,'City'),state:v(r,'State'),zip:v(r,'Zip'),
-    lat:num(v(r,'Latitude')),lng:num(v(r,'Longitude')),customerName:v(r,'Customer Name'),
-    // Aggregate all product categories into unified load fields
-    dryCases:num(v(r,'DRY Total Cases')),dryCube:num(v(r,'DRY Cube')),dryWeight:num(v(r,'DRY Weight')),
-    coolerCases:num(v(r,'Cooler Cases')),coolerCube:num(v(r,'Cooler Cube')),coolerWeight:num(v(r,'Cooler Weight')),
-    frozenCases:num(v(r,'Frozen Cases')),frozenCube:num(v(r,'Frozen Cube')),frozenWeight:num(v(r,'Frozen Weight')),
-    pkgCases:num(v(r,'Package cases')),pkgCube:num(v(r,'Package cube')),pkgWeight:num(v(r,'Package Weight')),
-    // Derive totals
-    get cases(){return this.dryCases+this.coolerCases+this.frozenCases+this.pkgCases||10;},
-    get cube(){return this.dryCube+this.coolerCube+this.frozenCube+this.pkgCube||9.95;},
-    get weight(){return this.dryWeight+this.coolerWeight+this.frozenWeight+this.pkgWeight||100;},
-    // Time windows — stored as fraction-of-day decimals OR "HH:MM" strings
-    earliest:v(r,'Earliest Time Window')||v(r,'Earliest Delivery Time')||'06:00',
-    latest:v(r,'Latest Time Window')||v(r,'Latest Delivery Time')||'18:00'
-  })).filter(s=>s.customerName||s.shipTo||s.lat||s.lng);
-
-  customers=(rawSheets['Customer List']||[]).map((r,i)=>normalizeCustomer(r,i)).filter(c=>c.name||c.account);
-
-  routeTemplates=(rawSheets['Route Templates']||[]).map((r,i)=>({
-    raw:r,id:'RT'+i,scheduleKey:v(r,'ScheduleKey'),routeKey:v(r,'RouteTemplateKey'),
-    name:v(r,'Name')||v(r,'RouteTemplateKey')||`Route ${i+1}`,udfNumber:v(r,'UDFNumber1'),
-    dayCode:v(r,'UDFString2'),initialLocationKey:v(r,'InitialLocationKey'),finalLocationKey:v(r,'FinalLocationKey'),
-    driverKey:v(r,'DriverKey'),truckKey:v(r,'TruckKey'),
-    earliestStart:v(r,'EarliestStartTime')||'06:00',latestEnd:v(r,'LatestEndTime')||'18:00',
-    startup:num(v(r,'StartupTime')),windup:num(v(r,'WindupTime'))
-  }));
-
-  depotLocations=(rawSheets['Depot Locations']||[]).map(r=>({
-    raw:r,key:v(r,'LocationKey'),type:v(r,'Location Type'),name:v(r,'Name')||v(r,'LocationKey'),
-    street:[v(r,'ShipStreet'),v(r,'ShipStreet2'),v(r,'ShipStreet3')].filter(Boolean).join(' '),
-    city:v(r,'ShipCity'),state:v(r,'ShipState'),zip:v(r,'ShipZipCode'),
-    lat:num(v(r,'Latitude')),lng:num(v(r,'Longitude')),
-    udfNumber:v(r,'UDFNumber1'),serviceDuration:num(v(r,'ServiceDuration'))
-  })).filter(d=>d.key);
-
-  dayRef=rawSheets['Day Code Reference']||[];
-}
-
-function normalizeCustomer(r,i){
-  const keys=Object.keys(r);
-  const dayNumVal=v(r,'Day Of Week');
-  let dayText='';
-  const duplicateDayKey=keys.find((k,idx)=>k.startsWith('Day Of Week')&&idx>keys.indexOf('Day Of Week'));
-  if(duplicateDayKey)dayText=r[duplicateDayKey];
-  dayText=dayText||DAY_NUM[parseInt(dayNumVal,10)]||dayNumVal;
-  return{
-    raw:r,id:'C'+i,account:v(r,'Tandem Account Number'),depot:v(r,'Depot'),name:v(r,'Account: Account Name'),
-    routingAttribute:v(r,'Routing Attributes: Routing Attributes Number'),dayNumber:parseInt(dayNumVal,10)||'',
-    dayName:normalizeDay(dayText),deliveryDay:yes(v(r,'Delivery Day')),deliveryGroup:v(r,'Delivery Group ID'),
-    fixedService:num(v(r,'Fixed ServiceTime')),variableService:num(v(r,'Variable ServiceTime')),
-    earliest:v(r,'Earliest Delivery Time')||v(r,'Delivery Window Start')||'06:00',
-    latest:v(r,'Latest Delivery Time')||v(r,'Delivery Window End')||'18:00',
-    class:v(r,'Account: Account Class'),status:v(r,'Account: Account Status'),
-    lat:num(v(r,'Latitude')),lng:num(v(r,'Longitude')),
-    address:[v(r,'Address Line 1'),v(r,'Address Line 2')].filter(Boolean).join(' '),
-    city:v(r,'City'),state:v(r,'State')
-  };
-}
-
-/* ============================================================
-   DATA UTILITIES
-   ============================================================ */
-function v(r,key){return r&&r[key]!==undefined&&r[key]!==null?r[key]:'';}
-function num(x){if(x instanceof Date)return 0;const n=parseFloat(String(x).replace(/,/g,''));return isFinite(n)?n:0;}
-function yes(x){return x===true||String(x).toLowerCase()==='true'||String(x).toLowerCase()==='yes'||String(x)==='1';}
+function loadWorkbook(file){const reader=new FileReader();reader.onload=e=>{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});rawSheets={};wb.SheetNames.forEach(name=>{rawSheets[name]=XLSX.utils.sheet_to_json(wb.Sheets[name],{defval:'',raw:false});});parseImportedSheets();populateDepotDropdowns();render();const html=`<strong>Imported:</strong> ${file.name}<br>`+Object.entries(rawSheets).map(([k,v])=>`${k}: <strong>${v.length.toLocaleString()}</strong> rows`).join('<br>');document.getElementById('import-preview').style.display='block';document.getElementById('import-preview').innerHTML=html+'<br><br><strong>Status:</strong> Data is ready. Click Start Session to begin scenario setup.';const ss=document.getElementById('start-session-btn');if(ss)ss.style.display='inline-flex';showToast('Template imported successfully');};reader.readAsArrayBuffer(file);}
+function parseImportedSheets(){trucks=(rawSheets['Trucks Templates']||[]).map(r=>({raw:r,truckKey:v(r,'TruckKey'),name:v(r,'Name'),vehicleType:v(r,'VehicleType'),length:num(v(r,'Length')),type:guessTruckType(v(r,'TruckKey')||v(r,'Name')||v(r,'VehicleType')),cases:num(v(r,'Measure1')),cube:num(v(r,'Cube')),weight:num(v(r,'Weight'))}));stopsTemplates=(rawSheets['Stops Templates']||[]).map((r,i)=>({raw:r,id:'ST'+i,standardRoute:v(r,'Standard Route'),sequence:num(v(r,'Standard Sequence')||v(r,'Route Sequence')),orderNumber:v(r,'ORDER_NUMBER'),shipTo:v(r,'SHIP_TO_ID'),customerNumber:v(r,'CUSTOMER_NUMBER'),preferredResource:v(r,'Preferred Resource Key'),restrictResource:yes(v(r,'Restrict preferred resource')),restrictPosition:yes(v(r,'Restrict route position')),address:v(r,'Address'),city:v(r,'City'),state:v(r,'State'),zip:v(r,'Zip'),lat:num(v(r,'Latitude')),lng:num(v(r,'Longitude')),customerName:v(r,'Customer Name'),cases:num(v(r,'DRY Total Cases')||v(r,'DRY_CASES')||v(r,'Cases')||10),cube:num(v(r,'DRY Cube')||v(r,'DRY_CUBE')||v(r,'Cube')||9.95),weight:num(v(r,'DRY Weight')||v(r,'DRY_WEIGHT')||v(r,'Weight')||100)})).filter(s=>s.customerName||s.shipTo||s.lat||s.lng);customers=(rawSheets['Customer List']||[]).map((r,i)=>normalizeCustomer(r,i)).filter(c=>c.name||c.account);routeTemplates=(rawSheets['Route Templates']||[]).map((r,i)=>({raw:r,id:'RT'+i,scheduleKey:v(r,'ScheduleKey'),routeKey:v(r,'RouteTemplateKey'),name:v(r,'Name')||v(r,'RouteTemplateKey')||`Route ${i+1}`,udfNumber:v(r,'UDFNumber1'),dayCode:v(r,'UDFString2'),initialLocationKey:v(r,'InitialLocationKey'),finalLocationKey:v(r,'FinalLocationKey'),driverKey:v(r,'DriverKey'),truckKey:v(r,'TruckKey'),earliestStart:v(r,'EarliestStartTime')||'06:00',latestEnd:v(r,'LatestEndTime')||'18:00',startup:num(v(r,'StartupTime')),windup:num(v(r,'WindupTime'))}));depotLocations=(rawSheets['Depot Locations']||[]).map(r=>({raw:r,key:v(r,'LocationKey'),type:v(r,'Location Type'),name:v(r,'Name')||v(r,'LocationKey'),street:[v(r,'ShipStreet'),v(r,'ShipStreet2'),v(r,'ShipStreet3')].filter(Boolean).join(' '),city:v(r,'ShipCity'),state:v(r,'ShipState'),zip:v(r,'ShipZipCode'),lat:num(v(r,'Latitude')),lng:num(v(r,'Longitude')),udfNumber:v(r,'UDFNumber1'),serviceDuration:num(v(r,'ServiceDuration'))})).filter(d=>d.key);dayRef=rawSheets['Day Code Reference']||[];}
+function normalizeCustomer(r,i){const keys=Object.keys(r);const dayNumVal=v(r,'Day Of Week');let dayText='';const duplicateDayKey=keys.find((k,idx)=>k.startsWith('Day Of Week')&&idx>keys.indexOf('Day Of Week'));if(duplicateDayKey)dayText=r[duplicateDayKey];dayText=dayText||DAY_NUM[parseInt(dayNumVal,10)]||dayNumVal;return{raw:r,id:'C'+i,account:v(r,'Tandem Account Number'),depot:v(r,'Depot'),name:v(r,'Account: Account Name'),routingAttribute:v(r,'Routing Attributes: Routing Attributes Number'),dayNumber:parseInt(dayNumVal,10)||'',dayName:normalizeDay(dayText),deliveryDay:yes(v(r,'Delivery Day')),deliveryGroup:v(r,'Delivery Group ID'),fixedService:num(v(r,'Fixed ServiceTime')),variableService:num(v(r,'Variable ServiceTime')),earliest:v(r,'Earliest Delivery Time')||v(r,'Delivery Window Start')||'06:00',latest:v(r,'Latest Delivery Time')||v(r,'Delivery Window End')||'18:00',class:v(r,'Account: Account Class'),status:v(r,'Account: Account Status'),lat:num(v(r,'Latitude')),lng:num(v(r,'Longitude')),address:[v(r,'Address Line 1'),v(r,'Address Line 2')].filter(Boolean).join(' '),city:v(r,'City'),state:v(r,'State')};}
+function v(r,key){return r&&r[key]!==undefined&&r[key]!==null?r[key]:'';}function num(x){if(x instanceof Date)return 0;const n=parseFloat(String(x).replace(/,/g,''));return isFinite(n)?n:0;}function yes(x){return x===true||String(x).toLowerCase()==='true'||String(x).toLowerCase()==='yes'||String(x)==='1';}
 function normalizeDay(x){const s=String(x||'').toLowerCase();return DAYS.find(d=>s.includes(d.toLowerCase()))||DAY_NUM[parseInt(s,10)]||'';}
 function cleanText(x){return String(x??'').trim();}
-
-/**
- * Parse a time window value that may be stored as:
- *   • A decimal fraction of a day  (e.g. 0.208333 = 5:00 AM)
- *   • An "HH:MM" string            (e.g. "07:30")
- * Returns decimal hours (0–24).
- */
-function parseTimeWindow(val){
-  if(val===null||val===undefined||val==='')return null;
-  const n=parseFloat(val);
-  if(!isNaN(n)&&n>=0&&n<=1)return n*24; // fraction of a day
-  if(!isNaN(n)&&n>1)return n;           // already in hours
-  const m=String(val).match(/(\d{1,2}):(\d{2})/);
-  if(m)return parseInt(m[1],10)+parseInt(m[2],10)/60;
-  return null;
-}
-
 function normalizeDayCode(x){
   const raw=cleanText(x).toUpperCase().replace(/\s+/g,'_');
   if(!raw)return '';
@@ -416,20 +169,30 @@ function routeTemplateDay(r){return Object.keys(DAY_CODES).find(d=>DAY_CODES[d]=
 function routeMatchesSelectedDay(r,day){return !day||day==='ALL'||normalizeDayCode(r.dayCode)===DAY_CODES[day]||routeTemplateDay(r)===day;}
 function routeMatchesDepot(r,depotKey){
   const k=cleanText(depotKey);
-  if(!k)return true;
+  if(!k) return true;
   const selectedDepot=findDepot(k);
   const selectedUdf=firstDigits(selectedDepot?.udfNumber,4);
   const routeUdf=firstDigits(r.udfNumber,4);
-  if(cleanText(r.initialLocationKey)===k||cleanText(r.finalLocationKey)===k)return true;
-  if(selectedUdf&&routeUdf&&selectedUdf===routeUdf)return true;
+
+  // 1) Exact template location match: Route Templates Initial/Final LocationKey equals selected Depot LocationKey.
+  if(cleanText(r.initialLocationKey)===k||cleanText(r.finalLocationKey)===k) return true;
+
+  // 2) Division/market depot match: many templates use a satellite depot LocationKey, while the user may select
+  //    the main depot. In that case, match by the depot UDFNumber1 / route UDFNumber1, e.g. 2185.
+  if(selectedUdf&&routeUdf&&selectedUdf===routeUdf) return true;
+
   return false;
 }
 function getRouteTemplatesForDepotDay(depotKey,day){
   const dayFiltered=routeTemplates.filter(r=>routeMatchesSelectedDay(r,day));
   const depotFiltered=dayFiltered.filter(r=>routeMatchesDepot(r,depotKey));
+  // If no depot match is found, still return the day-matched templates so the user can verify/run the scenario.
+  // This prevents a blank solution when the selected depot is a parent depot and templates use satellite LocationKeys.
   return depotFiltered.length?depotFiltered:dayFiltered;
 }
 function candidateMatchesOrderRoute(r,o){
+  // Hard-match only when the stop explicitly restricts the preferred resource.
+  // Standard Route is treated as a preference, not a lock, so depot optimization can spread orders across all eligible templates.
   if(!o.restrictResource)return true;
   if(o.standardRoute&&cleanText(r.routeKey)===cleanText(o.standardRoute))return true;
   const pref=firstDigits(o.preferredResource,4);
@@ -444,219 +207,46 @@ function preferredRoutePenalty(r,o){
   return pref&&routeNum&&pref===routeNum?-150:0;
 }
 function firstDigits(value,len){const d=String(value??'').replace(/\D/g,'');return d.length>=len?d.slice(0,len):'';}
-function guessTruckType(s){
-  s=String(s||'').toLowerCase();
-  if(s.includes('open_28')||s.includes('28'))return'28FT';
-  if(s.includes('open_36')||s.includes('36'))return'36FT';
-  if(s.includes('open_48')||s.includes('48'))return'48FT';
-  if(s.includes('open_53')||s.includes('53'))return'53FT';
-  if(s.includes('open_van')||s.includes('sprinter')||s.includes('van'))return'Sprinter Van';
-  if(s.includes('open_18')||s.includes('18'))return'18FT Pronto';
-  if(s.includes('open_26')||s.includes('26'))return'26FT Box Truck';
-  return'53FT';
-}
-function capacityForTruckType(truckType){
-  const openKey=OPEN_TRUCK_KEYS[truckType];
-  const openTruck=trucks.find(t=>String(t.truckKey).toUpperCase()===String(openKey).toUpperCase());
-  if(openTruck){return{cases:openTruck.cases||DEFAULT_CAPACITY[truckType]?.cases||99999,cube:openTruck.cube||DEFAULT_CAPACITY[truckType]?.cube||0,weight:openTruck.weight||DEFAULT_CAPACITY[truckType]?.weight||0};}
-  return DEFAULT_CAPACITY[truckType]||DEFAULT_CAPACITY['53FT'];
-}
-
-/* ============================================================
-   UI STATE
-   ============================================================ */
-function refreshDepotOptionState(){
-  const useRoutes=document.getElementById('dep-use-routes')?.value==='Yes';
-  const useOrders=document.getElementById('dep-use-orders')?.value==='Yes';
-  const note=document.getElementById('dep-template-note');
-  if(note)note.style.display=useRoutes?'block':'none';
-  document.querySelectorAll('#dep-fleet input').forEach(x=>x.disabled=useRoutes);
-  const respect=document.getElementById('dep-respect-days');
-  if(respect){respect.disabled=useOrders;if(useOrders)respect.value='Yes';}
-}
-function populateDepotDropdowns(){
-  const opts=depotLocations.map(d=>`<option value="${esc(d.key)}">${esc(d.name)} (${esc(d.key)})</option>`).join('');
-  ['dep-depot'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts||'<option value="">No depots imported</option>';});
-  document.querySelectorAll('.net-depot-select').forEach(el=>el.innerHTML=opts||'<option value="">No depots imported</option>');
-}
+function guessTruckType(s){s=String(s||'').toLowerCase();if(s.includes('open_28')||s.includes('28'))return'28FT';if(s.includes('open_36')||s.includes('36'))return'36FT';if(s.includes('open_48')||s.includes('48'))return'48FT';if(s.includes('open_53')||s.includes('53'))return'53FT';if(s.includes('open_van')||s.includes('sprinter')||s.includes('van'))return'Sprinter Van';if(s.includes('open_18')||s.includes('18'))return'18FT Pronto';if(s.includes('open_26')||s.includes('26'))return'26FT Box Truck';return'53FT';}
+function capacityForTruckType(truckType){const openKey=OPEN_TRUCK_KEYS[truckType];const openTruck=trucks.find(t=>String(t.truckKey).toUpperCase()===String(openKey).toUpperCase());if(openTruck){return {cases:openTruck.cases||DEFAULT_CAPACITY[truckType]?.cases||99999,cube:openTruck.cube||DEFAULT_CAPACITY[truckType]?.cube||0,weight:openTruck.weight||DEFAULT_CAPACITY[truckType]?.weight||0};}return DEFAULT_CAPACITY[truckType]||DEFAULT_CAPACITY['53FT'];}
+function refreshDepotOptionState(){const useRoutes=document.getElementById('dep-use-routes')?.value==='Yes';const useOrders=document.getElementById('dep-use-orders')?.value==='Yes';const note=document.getElementById('dep-template-note');if(note)note.style.display=useRoutes?'block':'none';document.querySelectorAll('#dep-fleet input').forEach(x=>x.disabled=useRoutes);const respect=document.getElementById('dep-respect-days');if(respect){respect.disabled=useOrders; if(useOrders)respect.value='Yes';}}
+function populateDepotDropdowns(){const opts=depotLocations.map(d=>`<option value="${esc(d.key)}">${esc(d.name)} (${esc(d.key)})</option>`).join('');['dep-depot'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts||'<option value="">No depots imported</option>';});document.querySelectorAll('.net-depot-select').forEach(el=>el.innerHTML=opts||'<option value="">No depots imported</option>');}
 function esc(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function openDepotOpt(){populateDepotDropdowns();refreshDepotOptionState();modal('depot-modal');}
 function openNetworkOpt(){populateDepotDropdowns();modal('network-modal');}
-function openSolutionDials(){
-  const state=getDialPrefillState();
-  document.getElementById('dial-depot-miles').value=state.depotMiles;
-  document.getElementById('dial-cluster-miles').value=state.clusterMiles;
-  document.getElementById('dial-capacity').value=state.capacityPct;
-  document.getElementById('dial-runtime').value=state.runtimeHours;
-  buildFleetInputs('dial-fleet','dial',state.fleet);
-  buildGoalChecks('dial-goals','dial',state.goals);
-  modal('dials-modal');
-}
-function getDialPrefillState(){
-  const base={depotMiles:solutionDials.depotMiles,clusterMiles:solutionDials.clusterMiles,capacityPct:solutionDials.capacityPct,runtimeHours:solutionDials.runtimeHours,fleet:{},goals:solutionDials.goals};
-  TRUCK_TYPES.forEach(t=>base.fleet[t]={count:solutionDials.fleet[t]||0,runtime:solutionDials.runtimeHours});
-  if(!lastScenario)return base;
-  const opts=lastScenario.opts||{};
-  base.depotMiles=opts.dials?.depotMiles||solutionDials.depotMiles;
-  base.clusterMiles=opts.dials?.clusterMiles||solutionDials.clusterMiles;
-  base.capacityPct=opts.capacityPct||opts.dials?.capacityPct||solutionDials.capacityPct;
-  base.runtimeHours=opts.dials?.runtimeHours||solutionDials.runtimeHours;
-  base.goals=(opts.goals&&opts.goals.length?opts.goals:solutionDials.goals);
-  TRUCK_TYPES.forEach(t=>base.fleet[t]={count:0,runtime:base.runtimeHours});
-  if(lastScenario.type==='depot'&&opts.fleet){TRUCK_TYPES.forEach(t=>{base.fleet[t]={count:opts.fleet[t]?.count||0,runtime:opts.fleet[t]?.runtime||base.runtimeHours};});}
-  else if(lastScenario.type==='network'&&opts.depots){opts.depots.forEach(d=>TRUCK_TYPES.forEach(t=>{base.fleet[t].count+=(d.fleet?.[t]?.count||0);const rt=d.fleet?.[t]?.runtime;if(rt)base.fleet[t].runtime=rt;}));}
-  return base;
-}
-function collectFleet(prefix){
-  const out={};
-  TRUCK_TYPES.forEach(t=>{
-    const id=prefix+'-'+safeId(t);
-    out[t]={count:Math.max(0,parseInt(document.getElementById(id+'-count')?.value||0,10)||0),runtime:num(document.getElementById(id+'-runtime')?.value||solutionDials.runtimeHours)};
-  });
-  return out;
-}
+function openSolutionDials(){const state=getDialPrefillState();document.getElementById('dial-depot-miles').value=state.depotMiles;document.getElementById('dial-cluster-miles').value=state.clusterMiles;document.getElementById('dial-capacity').value=state.capacityPct;document.getElementById('dial-runtime').value=state.runtimeHours;buildFleetInputs('dial-fleet','dial',state.fleet);buildGoalChecks('dial-goals','dial',state.goals);modal('dials-modal');}
+function getDialPrefillState(){const base={depotMiles:solutionDials.depotMiles,clusterMiles:solutionDials.clusterMiles,capacityPct:solutionDials.capacityPct,runtimeHours:solutionDials.runtimeHours,fleet:{},goals:solutionDials.goals};TRUCK_TYPES.forEach(t=>base.fleet[t]={count:solutionDials.fleet[t]||0,runtime:solutionDials.runtimeHours});if(!lastScenario)return base;const opts=lastScenario.opts||{};base.depotMiles=opts.dials?.depotMiles||solutionDials.depotMiles;base.clusterMiles=opts.dials?.clusterMiles||solutionDials.clusterMiles;base.capacityPct=opts.capacityPct||opts.dials?.capacityPct||solutionDials.capacityPct;base.runtimeHours=opts.dials?.runtimeHours||solutionDials.runtimeHours;base.goals=(opts.goals&&opts.goals.length?opts.goals:solutionDials.goals);TRUCK_TYPES.forEach(t=>base.fleet[t]={count:0,runtime:base.runtimeHours});if(lastScenario.type==='depot'&&opts.fleet){TRUCK_TYPES.forEach(t=>{base.fleet[t]={count:opts.fleet[t]?.count||0,runtime:opts.fleet[t]?.runtime||base.runtimeHours};});}else if(lastScenario.type==='network'&&opts.depots){opts.depots.forEach(d=>TRUCK_TYPES.forEach(t=>{base.fleet[t].count+=(d.fleet?.[t]?.count||0);const rt=d.fleet?.[t]?.runtime;if(rt)base.fleet[t].runtime=rt;}));}return base;}
+function collectFleet(prefix){const out={};TRUCK_TYPES.forEach(t=>{const id=prefix+'-'+safeId(t);out[t]={count:Math.max(0,parseInt(document.getElementById(id+'-count')?.value||0,10)||0),runtime:num(document.getElementById(id+'-runtime')?.value||solutionDials.runtimeHours)};});return out;}
 function collectGoals(prefix){return [...document.querySelectorAll('.'+prefix+'-goal:checked')].map(x=>x.value);}
-function syncDialsFromModal(){
-  solutionDials={depotMiles:num(document.getElementById('dial-depot-miles').value)||150,clusterMiles:num(document.getElementById('dial-cluster-miles').value)||40,capacityPct:num(document.getElementById('dial-capacity').value)||85,runtimeHours:num(document.getElementById('dial-runtime').value)||10,fleet:{},fleetRuntime:{},goals:collectGoals('dial')};
-  const f=collectFleet('dial');
-  TRUCK_TYPES.forEach(t=>{solutionDials.fleet[t]=f[t].count;solutionDials.fleetRuntime[t]=f[t].runtime;});
-  return f;
-}
+function syncDialsFromModal(){solutionDials={depotMiles:num(document.getElementById('dial-depot-miles').value)||150,clusterMiles:num(document.getElementById('dial-cluster-miles').value)||40,capacityPct:num(document.getElementById('dial-capacity').value)||85,runtimeHours:num(document.getElementById('dial-runtime').value)||10,fleet:{},fleetRuntime:{},goals:collectGoals('dial')};const f=collectFleet('dial');TRUCK_TYPES.forEach(t=>{solutionDials.fleet[t]=f[t].count;solutionDials.fleetRuntime[t]=f[t].runtime;});return f;}
 
-/* ============================================================
-   RUN CONTROLS
-   ============================================================ */
-function runDepotOptimization(){
-  const opts={mode:'Depot Optimization',depotKey:document.getElementById('dep-depot').value,useRouteTemplates:document.getElementById('dep-use-routes').value==='Yes',useRealOrders:document.getElementById('dep-use-orders').value==='Yes',day:document.getElementById('dep-day').value,daysCount:num(document.getElementById('dep-days-count').value)||1,respectDays:document.getElementById('dep-use-orders').value==='Yes'?true:document.getElementById('dep-respect-days').value==='Yes',coolers:document.getElementById('dep-coolers').value==='Yes',noCoolerCount:num(document.getElementById('dep-no-cooler').value),capacityPct:num(document.getElementById('dep-capacity').value)||85,backhauls:document.getElementById('dep-backhauls').value==='Yes',backhaulRoutes:num(document.getElementById('dep-backhaul-routes').value),goals:collectGoals('dep'),fleet:collectFleet('dep'),dials:{...solutionDials}};
-  lastScenario={type:'depot',opts};
-  runScenario(opts);
-  closeModal('depot-modal');
-}
+function runDepotOptimization(){const opts={mode:'Depot Optimization',depotKey:document.getElementById('dep-depot').value,useRouteTemplates:document.getElementById('dep-use-routes').value==='Yes',useRealOrders:document.getElementById('dep-use-orders').value==='Yes',day:document.getElementById('dep-day').value,daysCount:num(document.getElementById('dep-days-count').value)||1,respectDays:document.getElementById('dep-use-orders').value==='Yes'?true:document.getElementById('dep-respect-days').value==='Yes',coolers:document.getElementById('dep-coolers').value==='Yes',noCoolerCount:num(document.getElementById('dep-no-cooler').value),capacityPct:num(document.getElementById('dep-capacity').value)||85,backhauls:document.getElementById('dep-backhauls').value==='Yes',backhaulRoutes:num(document.getElementById('dep-backhaul-routes').value),goals:collectGoals('dep'),fleet:collectFleet('dep'),dials:{...solutionDials}};lastScenario={type:'depot',opts};runScenario(opts);closeModal('depot-modal');}
+function addNetworkDepotSection(){const idx=document.querySelectorAll('.depot-block').length+1;const block=document.createElement('div');block.className='depot-block';block.dataset.idx=idx;block.innerHTML=`<div class="section-title" style="margin-top:0">Depot ${idx}</div><div class="grid3"><div class="field"><label>Pick a Depot</label><select class="net-depot-select"></select></div><div class="field"><label>In terms of staffing, are they at capacity?</label><select class="net-at-capacity"><option>Yes</option><option>No</option></select></div><div class="field"><label>If not at capacity, how many more can we add?</label><input class="net-additional" type="number" value="0" /></div></div><div class="section-title">Fleet</div><div class="grid4 net-fleet"></div><div class="section-title">Constraints</div><div class="grid4"><div class="field"><label>Do they all have Coolers?</label><select class="net-coolers"><option>Yes</option><option>No</option></select></div><div class="field"><label>No - How many don't?</label><input class="net-no-cooler" type="number" value="0" /></div><div class="field"><label>Capacity %</label><input class="net-capacity" type="number" value="85" /></div><div class="field"><label>Backhauls?</label><select class="net-backhauls"><option>No</option><option>Yes</option></select></div></div><div class="section-title">Goal of This Pass</div><div class="check-grid net-goals"></div>`;document.getElementById('network-depots').appendChild(block);populateDepotDropdowns();const fleet=block.querySelector('.net-fleet');TRUCK_TYPES.forEach(t=>fleet.insertAdjacentHTML('beforeend',`<div class="field"><label>${t} Count</label><input class="net-truck-count" data-truck="${t}" type="number" min="0" value="0" /></div><div class="field"><label>${t} Run Time</label><input class="net-truck-runtime" data-truck="${t}" type="number" value="10" step=".25" /></div>`));GOALS.filter(g=>g!=='Reduce Depot Footprint').forEach(g=>block.querySelector('.net-goals').insertAdjacentHTML('beforeend',`<label class="checkline"><input type="checkbox" value="${g}" ${g==='Customer Balancing'?'checked':''}/>${g}</label>`));}
+function collectNetworkDepotBlocks(){return [...document.querySelectorAll('.depot-block')].map(block=>{const fleet={};TRUCK_TYPES.forEach(t=>{const c=block.querySelector(`.net-truck-count[data-truck="${t}"]`);const r=block.querySelector(`.net-truck-runtime[data-truck="${t}"]`);fleet[t]={count:parseInt(c?.value||0,10)||0,runtime:num(r?.value||10)};});return{depotKey:block.querySelector('.net-depot-select').value,atCapacity:block.querySelector('.net-at-capacity').value==='Yes',additionalRoutes:num(block.querySelector('.net-additional').value),coolers:block.querySelector('.net-coolers').value==='Yes',noCoolerCount:num(block.querySelector('.net-no-cooler').value),capacityPct:num(block.querySelector('.net-capacity').value)||85,backhauls:block.querySelector('.net-backhauls').value==='Yes',fleet,goals:[...block.querySelectorAll('.net-goals input:checked')].map(x=>x.value)};}).filter(x=>x.depotKey);}
+function runNetworkOptimization(){const opts={mode:'Network Optimization',reduceDepotFootprint:document.getElementById('net-reduce-footprint').checked,reduceCount:num(document.getElementById('net-reduce-count').value),customerBalancing:document.getElementById('net-customer-balancing').checked,depots:collectNetworkDepotBlocks(),capacityPct:solutionDials.capacityPct,goals:[],dials:{...solutionDials}};opts.goals=[...new Set(opts.depots.flatMap(d=>d.goals).concat(opts.customerBalancing?['Customer Balancing']:[]).concat(opts.reduceDepotFootprint?['Reduce Depot Footprint']:[]))];lastScenario={type:'network',opts};runScenario(opts);closeModal('network-modal');}
+function rerunSolution(){const editedFleet=syncDialsFromModal();if(lastScenario){lastScenario.opts.dials={...solutionDials};lastScenario.opts.capacityPct=solutionDials.capacityPct;lastScenario.opts.goals=solutionDials.goals;if(lastScenario.type==='depot'){lastScenario.opts.fleet=editedFleet;}else if(lastScenario.type==='network'){applyEditedFleetToNetworkScenario(lastScenario.opts,editedFleet);lastScenario.opts.depots.forEach(d=>{d.capacityPct=solutionDials.capacityPct;d.goals=solutionDials.goals.filter(g=>g!=='Reduce Depot Footprint');});}runScenario(lastScenario.opts);closeModal('dials-modal');}else{showToast('No previous scenario to re-run yet.');}}
+function applyEditedFleetToNetworkScenario(opts,editedFleet){if(!opts.depots||!opts.depots.length)return;TRUCK_TYPES.forEach(t=>{const total=editedFleet[t]?.count||0;const currentTotal=opts.depots.reduce((a,d)=>a+(d.fleet?.[t]?.count||0),0);let remaining=total;opts.depots.forEach((d,idx)=>{if(!d.fleet)d.fleet={};let count=idx===opts.depots.length-1?remaining:(currentTotal?Math.floor(total*((d.fleet?.[t]?.count||0)/currentTotal)):0);if(!currentTotal&&idx===0)count=total;if(count<0)count=0;remaining-=count;d.fleet[t]={count,runtime:editedFleet[t]?.runtime||solutionDials.runtimeHours};});});}
 
-function addNetworkDepotSection(){
-  const idx=document.querySelectorAll('.depot-block').length+1;
-  const block=document.createElement('div');
-  block.className='depot-block';
-  block.dataset.idx=idx;
-  block.innerHTML=`<div class="section-title" style="margin-top:0">Depot ${idx}</div><div class="grid3"><div class="field"><label>Pick a Depot</label><select class="net-depot-select"></select></div><div class="field"><label>In terms of staffing, are they at capacity?</label><select class="net-at-capacity"><option>Yes</option><option>No</option></select></div><div class="field"><label>If not at capacity, how many more can we add?</label><input class="net-additional" type="number" value="0" /></div></div><div class="section-title">Fleet</div><div class="grid4 net-fleet"></div><div class="section-title">Constraints</div><div class="grid4"><div class="field"><label>Do they all have Coolers?</label><select class="net-coolers"><option>Yes</option><option>No</option></select></div><div class="field"><label>No - How many don't?</label><input class="net-no-cooler" type="number" value="0" /></div><div class="field"><label>Capacity %</label><input class="net-capacity" type="number" value="85" /></div><div class="field"><label>Backhauls?</label><select class="net-backhauls"><option>No</option><option>Yes</option></select></div></div><div class="section-title">Goal of This Pass</div><div class="check-grid net-goals"></div>`;
-  document.getElementById('network-depots').appendChild(block);
-  populateDepotDropdowns();
-  const fleet=block.querySelector('.net-fleet');
-  TRUCK_TYPES.forEach(t=>fleet.insertAdjacentHTML('beforeend',`<div class="field"><label>${t} Count</label><input class="net-truck-count" data-truck="${t}" type="number" min="0" value="0" /></div><div class="field"><label>${t} Run Time</label><input class="net-truck-runtime" data-truck="${t}" type="number" value="10" step=".25" /></div>`));
-  GOALS.filter(g=>g!=='Reduce Depot Footprint').forEach(g=>block.querySelector('.net-goals').insertAdjacentHTML('beforeend',`<label class="checkline"><input type="checkbox" value="${g}" ${g==='Customer Balancing'?'checked':''}/>${g}</label>`));
-}
-
-function collectNetworkDepotBlocks(){
-  return [...document.querySelectorAll('.depot-block')].map(block=>{
-    const fleet={};
-    TRUCK_TYPES.forEach(t=>{const c=block.querySelector(`.net-truck-count[data-truck="${t}"]`);const r=block.querySelector(`.net-truck-runtime[data-truck="${t}"]`);fleet[t]={count:parseInt(c?.value||0,10)||0,runtime:num(r?.value||10)};});
-    return{depotKey:block.querySelector('.net-depot-select').value,atCapacity:block.querySelector('.net-at-capacity').value==='Yes',additionalRoutes:num(block.querySelector('.net-additional').value),coolers:block.querySelector('.net-coolers').value==='Yes',noCoolerCount:num(block.querySelector('.net-no-cooler').value),capacityPct:num(block.querySelector('.net-capacity').value)||85,backhauls:block.querySelector('.net-backhauls').value==='Yes',fleet,goals:[...block.querySelectorAll('.net-goals input:checked')].map(x=>x.value)};
-  }).filter(x=>x.depotKey);
-}
-
-function runNetworkOptimization(){
-  const opts={mode:'Network Optimization',reduceDepotFootprint:document.getElementById('net-reduce-footprint').checked,reduceCount:num(document.getElementById('net-reduce-count').value),customerBalancing:document.getElementById('net-customer-balancing').checked,depots:collectNetworkDepotBlocks(),capacityPct:solutionDials.capacityPct,goals:[],dials:{...solutionDials}};
-  opts.goals=[...new Set(opts.depots.flatMap(d=>d.goals).concat(opts.customerBalancing?['Customer Balancing']:[]).concat(opts.reduceDepotFootprint?['Reduce Depot Footprint']:[]))];
-  lastScenario={type:'network',opts};
-  runScenario(opts);
-  closeModal('network-modal');
-}
-
-function rerunSolution(){
-  const editedFleet=syncDialsFromModal();
-  if(lastScenario){
-    lastScenario.opts.dials={...solutionDials};
-    lastScenario.opts.capacityPct=solutionDials.capacityPct;
-    lastScenario.opts.goals=solutionDials.goals;
-    if(lastScenario.type==='depot'){lastScenario.opts.fleet=editedFleet;}
-    else if(lastScenario.type==='network'){applyEditedFleetToNetworkScenario(lastScenario.opts,editedFleet);lastScenario.opts.depots.forEach(d=>{d.capacityPct=solutionDials.capacityPct;d.goals=solutionDials.goals.filter(g=>g!=='Reduce Depot Footprint');});}
-    runScenario(lastScenario.opts);
-    closeModal('dials-modal');
-  }else{showToast('No previous scenario to re-run yet.');}
-}
-
-function applyEditedFleetToNetworkScenario(opts,editedFleet){
-  if(!opts.depots||!opts.depots.length)return;
-  TRUCK_TYPES.forEach(t=>{
-    const total=editedFleet[t]?.count||0;
-    const currentTotal=opts.depots.reduce((a,d)=>a+(d.fleet?.[t]?.count||0),0);
-    let remaining=total;
-    opts.depots.forEach((d,idx)=>{
-      if(!d.fleet)d.fleet={};
-      let count=idx===opts.depots.length-1?remaining:(currentTotal?Math.floor(total*((d.fleet?.[t]?.count||0)/currentTotal)):0);
-      if(!currentTotal&&idx===0)count=total;
-      if(count<0)count=0;
-      remaining-=count;
-      d.fleet[t]={count,runtime:editedFleet[t]?.runtime||solutionDials.runtimeHours};
-    });
-  });
-}
-
-/* ============================================================
-   SCENARIO ENGINE
-   ============================================================ */
-function runScenario(opts){
-  if(!depotLocations.length){showToast('Import the template first.');return;}
-  if(opts.mode==='Depot Optimization')runDepotEngine(opts);
-  else runNetworkEngine(opts);
-  render();
-  showResults();
-}
-
-function runDepotEngine(opts){
-  const depot=findDepot(opts.depotKey);
-  let orders=buildOrdersForDepot(opts.depotKey,opts.day,opts.useRealOrders,opts.respectDays);
-  let candidateRoutes=buildRoutesForDepot(opts,depot,orders);
-  assignOrders(candidateRoutes,orders,opts);
-  finalizeScenario(opts,candidateRoutes,orders);
-}
-
-function runNetworkEngine(opts){
-  let depotKeys=opts.depots.map(d=>d.depotKey);
-  let sourceCustomers=customers.filter(c=>c.lat&&c.lng&&depotKeys.includes(c.depot)&&c.deliveryDay);
-  let openDepots=depotKeys;
-  if(opts.reduceDepotFootprint&&opts.reduceCount>0&&depotKeys.length>1){
-    const score=depotKeys.map(k=>({key:k,miles:sourceCustomers.reduce((a,c)=>a+distToDepot(c,k),0)})).sort((a,b)=>a.miles-b.miles);
-    openDepots=score.slice(0,Math.max(1,depotKeys.length-opts.reduceCount)).map(x=>x.key);
-  }
-  let orders=sourceCustomers.map(c=>customerToOrder(c,c.dayName||'Monday'));
-  if(opts.customerBalancing||opts.reduceDepotFootprint){
-    orders.forEach(o=>{
-      const nearest=openDepots.map(k=>({k,m:distToDepot(o,k)})).sort((a,b)=>a.m-b.m)[0];
-      if(nearest&&nearest.m<=solutionDials.depotMiles){o.originalDepot=o.depotKey;o.depotKey=nearest.k;o.suggestedDepot=nearest.k;o.depotChanged=o.originalDepot!==o.depotKey?'Yes':'No';}
-    });
-  }
-  let allRoutes=[];
-  opts.depots.filter(d=>openDepots.includes(d.depotKey)).forEach(d=>{
-    const depot=findDepot(d.depotKey);
-    const depotOrders=orders.filter(o=>o.depotKey===d.depotKey);
-    const dOpts={...d,mode:'Network Optimization',useRouteTemplates:false,useRealOrders:false,day:'ALL',respectDays:true,capacityPct:d.capacityPct||opts.capacityPct||solutionDials.capacityPct,goals:opts.goals,dials:opts.dials};
-    allRoutes=allRoutes.concat(buildRoutesForDepot(dOpts,depot,depotOrders));
-  });
-  assignOrders(allRoutes,orders,{...opts,capacityPct:opts.capacityPct||solutionDials.capacityPct});
-  finalizeScenario(opts,allRoutes,orders);
-}
-
+function runScenario(opts){if(!depotLocations.length){showToast('Import the template first.');return;}if(opts.mode==='Depot Optimization')runDepotEngine(opts);else runNetworkEngine(opts);render();showResults();}
+function runDepotEngine(opts){const depot=findDepot(opts.depotKey);let orders=buildOrdersForDepot(opts.depotKey,opts.day,opts.useRealOrders,opts.respectDays);let candidateRoutes=buildRoutesForDepot(opts,depot,orders);assignOrders(candidateRoutes,orders,opts);finalizeScenario(opts,candidateRoutes,orders);}
+function runNetworkEngine(opts){let depotKeys=opts.depots.map(d=>d.depotKey);let sourceCustomers=customers.filter(c=>c.lat&&c.lng&&depotKeys.includes(c.depot)&&c.deliveryDay);let openDepots=depotKeys;if(opts.reduceDepotFootprint&&opts.reduceCount>0&&depotKeys.length>1){const score=depotKeys.map(k=>({key:k,miles:sourceCustomers.reduce((a,c)=>a+distToDepot(c,k),0)})).sort((a,b)=>a.miles-b.miles);openDepots=score.slice(0,Math.max(1,depotKeys.length-opts.reduceCount)).map(x=>x.key);}let orders=sourceCustomers.map(c=>customerToOrder(c,c.dayName||'Monday'));if(opts.customerBalancing||opts.reduceDepotFootprint){orders.forEach(o=>{const nearest=openDepots.map(k=>({k,m:distToDepot(o,k)})).sort((a,b)=>a.m-b)[0];if(nearest&&nearest.m<=solutionDials.depotMiles){o.originalDepot=o.depotKey;o.depotKey=nearest.k;o.suggestedDepot=nearest.k;o.depotChanged=o.originalDepot!==o.depotKey?'Yes':'No';}});}let allRoutes=[];opts.depots.filter(d=>openDepots.includes(d.depotKey)).forEach(d=>{const depot=findDepot(d.depotKey);const depotOrders=orders.filter(o=>o.depotKey===d.depotKey);const dOpts={...d,mode:'Network Optimization',useRouteTemplates:false,useRealOrders:false,day:'ALL',respectDays:true,capacityPct:d.capacityPct||opts.capacityPct||solutionDials.capacityPct,goals:opts.goals,dials:opts.dials};allRoutes=allRoutes.concat(buildRoutesForDepot(dOpts,depot,depotOrders));});assignOrders(allRoutes,orders,{...opts,capacityPct:opts.capacityPct||solutionDials.capacityPct});finalizeScenario(opts,allRoutes,orders);}
 function buildOrdersForDepot(depotKey,day,useReal,respectDays){
   const days=selectedDays(day);
   if(useReal){
+    // Real orders are already coming from the Stops Templates tab for the session.
+    // For now, do NOT filter real orders by day. The selected day only filters route templates.
+    // This avoids dropping valid orders when the Stops Templates tab does not carry the same day code format.
     const templateRoutes=getRouteTemplatesForDepotDay(depotKey,day);
     const routeDayByKey={};
     templateRoutes.forEach(r=>{routeDayByKey[cleanText(r.routeKey)]=routeTemplateDay(r)||days[0]||'Monday';});
+
     return stopsTemplates
       .filter(s=>s.lat&&s.lng)
-      .map((s)=>({
-        id:s.id,source:'Real Order',orderNumber:s.orderNumber,account:s.customerNumber||s.shipTo,
-        name:s.customerName,lat:s.lat,lng:s.lng,address:s.address,city:s.city,state:s.state,
-        depotKey,originalDepot:depotKey,
-        day:routeDayByKey[cleanText(s.standardRoute)]||days[0]||'Monday',
-        // Unified load fields
-        cases:s.cases,cube:s.cube,weight:s.weight,
-        dryCases:s.dryCases,coolerCases:s.coolerCases,frozenCases:s.frozenCases,pkgCases:s.pkgCases,
-        dryCube:s.dryCube,coolerCube:s.coolerCube,frozenCube:s.frozenCube,pkgCube:s.pkgCube,
-        dryWeight:s.dryWeight,coolerWeight:s.coolerWeight,frozenWeight:s.frozenWeight,pkgWeight:s.pkgWeight,
-        earliest:s.earliest||'06:00',latest:s.latest||'18:00',
-        raw:s.raw,standardRoute:s.standardRoute,sequence:s.sequence,
+      .map((s,i)=>({
+        id:s.id,source:'Real Order',orderNumber:s.orderNumber,account:s.customerNumber||s.shipTo,name:s.customerName,
+        lat:s.lat,lng:s.lng,address:s.address,city:s.city,state:s.state,depotKey,originalDepot:depotKey,
+        day:routeDayByKey[cleanText(s.standardRoute)]||days[0]||'Monday',earliest:s.earliest||'06:00',latest:s.latest||'18:00',
+        cases:s.cases||10,cube:s.cube||9.95,weight:s.weight||100,raw:s.raw,standardRoute:s.standardRoute,sequence:s.sequence,
         preferredResource:s.preferredResource,restrictResource:s.restrictResource,restrictPosition:s.restrictPosition,
         suggestedDepot:depotKey,depotChanged:'No',suggestedChangedDay:'',dayChanged:'No'
       }));
@@ -667,19 +257,18 @@ function buildOrdersForDepot(depotKey,day,useReal,respectDays){
     .filter(c=>day==='ALL'||days.includes(c.dayName))
     .map(c=>customerToOrder(c,c.dayName||days[0]||'Monday'));
 }
-
-function customerToOrder(c,day){
-  return{id:'ORD_'+c.id,source:'Generated Order',orderNumber:'GEN-'+c.account,account:c.account,name:c.name,lat:c.lat,lng:c.lng,address:c.address,city:c.city,state:c.state,depotKey:c.depot,originalDepot:c.depot,day,earliest:c.earliest||'06:00',latest:c.latest||'18:00',cases:10,cube:9.95,weight:100,raw:c.raw,suggestedDepot:c.depot,depotChanged:'No',suggestedChangedDay:'',dayChanged:'No'};
-}
+function customerToOrder(c,day){return{id:'ORD_'+c.id,source:'Generated Order',orderNumber:'GEN-'+c.account,account:c.account,name:c.name,lat:c.lat,lng:c.lng,address:c.address,city:c.city,state:c.state,depotKey:c.depot,originalDepot:c.depot,day,earliest:c.earliest||'06:00',latest:c.latest||'18:00',cases:10,cube:9.95,weight:100,raw:c.raw,suggestedDepot:c.depot,depotChanged:'No',suggestedChangedDay:'',dayChanged:'No'};}
 function selectedDays(day){if(day&&day!=='ALL')return[day];return DAYS;}
-
 function buildRoutesForDepot(opts,depot,orders){
   const routesOut=[];
   if(opts.useRouteTemplates){
-    getRouteTemplatesForDepotDay(opts.depotKey,opts.day).forEach((r)=>{
+    getRouteTemplatesForDepotDay(opts.depotKey,opts.day).forEach((r,i)=>{
       const t=trucks.find(x=>cleanText(x.truckKey)===cleanText(r.truckKey));
       const truckType=t?.type||guessTruckType(r.truckKey);
-      routesOut.push(makeRoute({name:r.name,routeKey:r.routeKey,depotKey:opts.depotKey,depot,truckType,day:routeTemplateDay(r)||opts.day||'Monday',runtimeHours:templateRuntimeHours(r)||solutionDials.runtimeHours,template:r,capacityPct:opts.capacityPct||85}));
+      routesOut.push(makeRoute({
+        name:r.name,routeKey:r.routeKey,depotKey:opts.depotKey,depot,truckType,day:routeTemplateDay(r)||opts.day||'Monday',
+        runtimeHours:templateRuntimeHours(r)||solutionDials.runtimeHours,template:r,capacityPct:opts.capacityPct||85
+      }));
     });
     return routesOut;
   }
@@ -691,924 +280,289 @@ function buildRoutesForDepot(opts,depot,orders){
   if(!routesOut.length&&orders.length){routesOut.push(makeRoute({name:'Route 1',routeKey:`GEN-${opts.depotKey}-1`,depotKey:opts.depotKey,depot,truckType:'53FT',day:opts.day==='ALL'?'Multi-Day':opts.day,runtimeHours:solutionDials.runtimeHours,capacityPct:opts.capacityPct||85}));}
   return routesOut;
 }
-
 function hhmmToMinutes(v){const m=String(v||'').match(/(\d{1,2}):(\d{2})/);return m?parseInt(m[1],10)*60+parseInt(m[2],10):null;}
 function templateRuntimeHours(t){const start=hhmmToMinutes(t.earliestStart);const end=hhmmToMinutes(t.latestEnd);return start!==null&&end!==null&&end>start?(end-start)/60:solutionDials.runtimeHours;}
-
-function makeRoute({name,routeKey,depotKey,depot,truckType,day,runtimeHours,template,capacityPct}){
-  const capPct=num(capacityPct)||85;
-  const cap=capacityForTruckType(truckType);
-  return{id:'R'+Math.random().toString(36).slice(2),name,routeKey,depotKey,depotName:depot?.name||depotKey,depotLat:depot?.lat,depotLng:depot?.lng,truckType,day,runtimeHours:num(runtimeHours)||10,template,stops:[],cases:0,cube:0,weight:0,miles:0,hours:0,capacityPct:capPct,maxCases:(cap.cases||99999)*(capPct/100),maxCube:(cap.cube||0)*(capPct/100),maxWeight:(cap.weight||0)*(capPct/100)};
-}
-
-/* ============================================================
-   ╔══════════════════════════════════════════════╗
-   ║     OPTIMIZATION LOGIC — FOUR GOAL MODES     ║
-   ╚══════════════════════════════════════════════╝
-
-   Goal 1 — REDUCE ROUTES
-     Minimize truck count using bin-packing (First-Fit Decreasing).
-     Fill each truck as full as possible before opening a new one.
-     Preferred/restricted resource assignments are honoured first.
-     Score: reward dense loading, penalize opening sparse new routes.
-
-   Goal 2 — INCREASE CASES PER MILE
-     Maximize the ratio of total_cases / total_miles across the fleet.
-     Cluster stops geographically so each route is a tight bundle.
-     Assign the smallest truck that still fits the cluster load so
-     deadhead miles are not wasted on oversized equipment.
-     Score: reward high CPM improvement, penalize added miles.
-
-   Goal 3 — REDUCE MILES
-     Minimise total travelled miles while keeping every stop inside
-     its delivery time window.  Uses a 2-opt local-search improvement
-     pass on each route after the initial nearest-neighbour assignment,
-     then cross-route "relocate" moves to shift stops to closer routes.
-     Score: penalise every added mile, apply window-violation penalty.
-
-   Goal 4 — FLEET BALANCE
-     Distribute load evenly across all available trucks.
-     Target utilisation band: minUtil (configurable) → capacityPct.
-     After initial round-robin assignment a balance pass moves stops
-     from over-loaded routes to under-loaded ones.
-     Near-empty routes are merged into others and eliminated.
-     Score: minimise deviation from target utilisation midpoint.
-   ============================================================ */
-
-/**
- * Determine the primary optimisation goal for scoring purposes.
- * Multiple goals may be checked; priority order matches the four modes above.
- */
-function primaryGoal(opts){
-  const goals=opts.goals||[];
-  if(goals.includes('Reduce Routes'))return'Reduce Routes';
-  if(goals.includes('Increase Cases Per Mile'))return'Increase Cases Per Mile';
-  if(goals.includes('Reduce Miles'))return'Reduce Miles';
-  if(goals.includes('Fleet Balancing'))return'Fleet Balancing';
-  return goals[0]||'Reduce Routes';
-}
-
-/**
- * Main assignment loop — called once per scenario after routes are built.
- * Dispatches per-stop scoring to the active goal's routeScore() variant.
- */
+function makeRoute({name,routeKey,depotKey,depot,truckType,day,runtimeHours,template,capacityPct}){const capPct=num(capacityPct)||85;const cap=capacityForTruckType(truckType);return{id:'R'+Math.random().toString(36).slice(2),name,routeKey,depotKey,depotName:depot?.name||depotKey,depotLat:depot?.lat,depotLng:depot?.lng,truckType,day,runtimeHours:num(runtimeHours)||10,template,stops:[],cases:0,cube:0,weight:0,miles:0,hours:0,capacityPct:capPct,maxCases:(cap.cases||99999)*(capPct/100),maxCube:(cap.cube||0)*(capPct/100),maxWeight:(cap.weight||0)*(capPct/100)};}
 function assignOrders(candidateRoutes,orders,opts){
-  candidateRoutes.forEach(r=>{r.stops=[];r.cases=0;r.cube=0;r.weight=0;r.miles=0;r.hours=0;});
-  const goal=primaryGoal(opts);
+  // Depot optimization engine upgrade:
+  // - Uses the selected goal to choose a routing strategy.
+  // - Treats Capacity % as a hard cap against cases, cube, and weight.
+  // - Uses route templates as the available fleet when Use Route Templates = Yes.
+  // - Uses real orders exactly from Stops Templates when Use Real Orders = Yes.
+  // - Avoids the previous false "routes cut" issue by assigning against the actual loaded templates.
+  candidateRoutes.forEach(resetRouteLoad);
+  orders.forEach(o=>{delete o.routeId;delete o.assignedRoute;delete o.newRoute;delete o.unassignedReason;});
 
-  // ── Pre-sort orders for each goal ─────────────────────────────────────────
-  // Reduce Routes / Fleet Balance: pack heaviest stops first (FFD heuristic)
-  // Cases Per Mile: process geographically dense clusters first
-  // Reduce Miles: process furthest-from-depot first so they anchor clusters
-  let sorted=[...orders];
-  if(goal==='Reduce Routes'||goal==='Fleet Balancing'){
-    sorted.sort((a,b)=>(b.cases||0)-(a.cases||0));
-  }else if(goal==='Increase Cases Per Mile'){
-    sorted.sort((a,b)=>(b.cases||0)-(a.cases||0)); // heavy stops anchor clusters
+  const goal=primaryGoal(opts);
+  const strategyRoutes=[...candidateRoutes];
+  const strategyOrders=sortOrdersForGoal(orders,goal,opts);
+
+  if(goal==='Fleet Balancing'){
+    optimizeFleetBalanceInPlace(strategyRoutes,strategyOrders,opts);
   }else if(goal==='Reduce Miles'){
-    sorted.sort((a,b)=>distToDepot(b,b.depotKey)-distToDepot(a,a.depotKey));
+    optimizeReduceMilesInPlace(strategyRoutes,strategyOrders,opts);
+  }else if(goal==='Increase Cases Per Mile'){
+    optimizeCasesPerMileInPlace(strategyRoutes,strategyOrders,opts);
   }else{
-    sorted.sort((a,b)=>distToDepot(a,a.depotKey)-distToDepot(b,b.depotKey));
+    optimizeReducedRoutesInPlace(strategyRoutes,strategyOrders,opts);
   }
 
-  sorted.forEach(o=>{
-    let baseRoutes=candidateRoutes.filter(r=>r.depotKey===o.depotKey);
-
-    // Honour hard preferred-resource restrictions
-    if(opts.useRouteTemplates&&o.restrictResource){
-      const restricted=baseRoutes.filter(r=>candidateMatchesOrderRoute(r,o));
-      if(restricted.length)baseRoutes=restricted;
-    }
-
-    const candidates=baseRoutes
-      .filter(r=>canFit(r,o,opts))
-      .map(r=>({r,score:routeScore(r,o,goal,opts)+preferredRoutePenalty(r,o)}))
-      .sort((a,b)=>a.score-b.score);
-
-    if(candidates.length){
-      placeStop(candidates[0].r,o);
-    }else if(opts.useRouteTemplates){
-      o.unassignedReason=baseRoutes.length
-        ?'No eligible template route had remaining capacity/runtime/mileage'
-        :'No route templates were available for this depot/day selection';
-    }else{
-      // Open an overflow route (non-template mode only)
-      const depot=findDepot(o.depotKey);
-      const extra=makeRoute({name:`Route ${candidateRoutes.length+1}`,routeKey:`EXTRA-${candidateRoutes.length+1}`,depotKey:o.depotKey,depot,truckType:'53FT',day:o.day||'Multi-Day',runtimeHours:solutionDials.runtimeHours,capacityPct:opts.capacityPct||solutionDials.capacityPct});
-      candidateRoutes.push(extra);
-      if(canFit(extra,o,opts))placeStop(extra,o);
-      else o.unassignedReason='Capacity, miles, runtime, or geocode constraint';
-    }
+  // Final light repair pass: try any still-unassigned stop against every route that has space.
+  strategyOrders.filter(o=>!o.assignedRoute).forEach(o=>{
+    const fallback=eligibleRoutesForOrder(strategyRoutes,o,opts,false)
+      .filter(r=>canFit(r,o,opts,{ignoreRuntime:true,ignoreCluster:true}))
+      .map(r=>({r,score:routeScore(r,o,'Reduce Miles',opts)+preferredRoutePenalty(r,o)}))
+      .sort((a,b)=>a.score-b.score)[0];
+    if(fallback)placeStop(fallback.r,o);
   });
 
-  // ── Post-assignment improvements ─────────────────────────────────────────
-  if(goal==='Reduce Miles'){
-    candidateRoutes.forEach(r=>{if(r.stops.length>3)twoOptImprove(r);});
-    crossRouteRelocate(candidateRoutes,opts);
-  }
-  if(goal==='Fleet Balancing'){
-    fleetBalancePass(candidateRoutes,opts);
-  }
-
-  candidateRoutes.forEach(sequenceRoute);
+  strategyRoutes.forEach(r=>sequenceRoute(r,goal));
+  strategyOrders.filter(o=>!o.assignedRoute).forEach(o=>{
+    if(!o.unassignedReason)o.unassignedReason=unassignedReason(strategyRoutes,o,opts);
+  });
 }
-
-/* ── GOAL 1: REDUCE ROUTES scoring ──────────────────────────────────────── */
-// Pack stops as densely as possible into the fewest routes.
-// Reward filling existing routes (high cap %) over opening new sparse ones.
-
-/* ── GOAL 2: INCREASE CASES PER MILE scoring ────────────────────────────── */
-// Reward adding a stop that increases the route's cases-per-mile ratio.
-// Penalise wide detours that dilute the CPM gain.
-
-/* ── GOAL 3: REDUCE MILES scoring ───────────────────────────────────────── */
-// Penalise every incremental mile added.  Window violations add a heavy
-// penalty so the solver favours compliant sequences over shortest distance.
-
-/* ── GOAL 4: FLEET BALANCE scoring ──────────────────────────────────────── */
-// Reward routes moving toward the target utilisation midpoint (75%).
-// Penalise routes that are already overloaded or that open mostly empty.
-
-/**
- * Score a candidate route for a given stop under the active goal.
- * Lower score = better fit (all goals minimise).
- */
-function routeScore(r,o,goal,opts){
-  const estMiles=estimateMilesIfAdded(r,o);
-  const addedMiles=Math.max(0,estMiles-r.miles);
-  const newCases=r.cases+o.cases;
-  const newCPM=estMiles>0?newCases/estMiles:0;
-  const newCapPct=(newCases/Math.max(r.maxCases,1))*100;
-  const hasStops=r.stops.length>0;
-
-  if(goal==='Reduce Routes'){
-    // Best-fit decreasing: prefer the fullest route that still accepts the stop
-    // Opening a new (empty) route costs +500 to strongly discourage it
-    return hasStops ? addedMiles-(newCapPct*6) : addedMiles+500;
-  }
-
-  if(goal==='Increase Cases Per Mile'){
-    // Reward CPM gain; penalise large detours that eat into that gain
-    const existingCPM=r.miles>0?r.cases/r.miles:0;
-    const cpmGain=newCPM-existingCPM;
-    return -(cpmGain*10)+(addedMiles*0.05);
-  }
-
-  if(goal==='Reduce Miles'){
-    // Pure mileage minimisation with a window-compliance bonus
-    const windowBonus=windowCompliant(r,o)?-5:50; // penalise window violations
-    return addedMiles+windowBonus;
-  }
-
-  if(goal==='Fleet Balancing'){
-    const TARGET_UTIL=75; // % — aim for routes at 75% capacity
-    const deviation=Math.abs(TARGET_UTIL-newCapPct);
-    return deviation+(hasStops?addedMiles*0.3:150);
-  }
-
-  // Default fallback
-  return addedMiles;
+function resetRouteLoad(r){r.stops=[];r.cases=0;r.cube=0;r.weight=0;r.miles=0;r.hours=0;}
+function primaryGoal(opts){const goals=opts.goals||[];return goals.includes('Reduce Routes')?'Reduce Routes':goals.includes('Reduce Miles')?'Reduce Miles':goals.includes('Increase Cases Per Mile')?'Increase Cases Per Mile':goals.includes('Fleet Balancing')?'Fleet Balancing':goals[0]||'Reduce Routes';}
+function orderLoad(o){return (num(o.cases)||0)+(num(o.cube)||0)*0.12+(num(o.weight)||0)/250;}
+function sortOrdersForGoal(orders,goal,opts){
+  const list=[...orders];
+  if(goal==='Reduce Routes'||goal==='Fleet Balancing')return list.sort((a,b)=>orderLoad(b)-orderLoad(a));
+  if(goal==='Reduce Miles')return list.sort((a,b)=>distToDepot(b,b.depotKey)-distToDepot(a,a.depotKey));
+  if(goal==='Increase Cases Per Mile')return list.sort((a,b)=>(b.cases||0)-(a.cases||0));
+  return list;
 }
-
-/**
- * Check whether a stop's delivery window is compatible with its position
- * at the end of a route (rough estimate — no full schedule simulation).
- */
-function windowCompliant(r,o){
-  const earliest=parseTimeWindow(o.earliest);
-  const latest=parseTimeWindow(o.latest);
-  if(earliest===null||latest===null)return true; // no window data — assume ok
-  // Rough arrival estimate: depot depart at 6 AM + drive time at 35 mph
-  const DEPART_HOUR=6;
-  const driveMiles=estimateMilesIfAdded(r,o);
-  const arrivalHour=DEPART_HOUR+(driveMiles/35)+(r.stops.length*8/60);
-  if(arrivalHour<earliest)return false; // too early
-  if(arrivalHour>latest)return false;   // too late (window missed)
-  return true;
+function eligibleRoutesForOrder(routeList,o,opts,allowOpen=true){
+  let base=routeList.filter(r=>r.depotKey===o.depotKey);
+  if(!base.length)base=routeList;
+  if(opts.useRouteTemplates&&o.restrictResource){
+    const restricted=base.filter(r=>candidateMatchesOrderRoute(r,o));
+    if(restricted.length)base=restricted;
+  }
+  if(opts.useRouteTemplates&&allowOpen){
+    const preferred=base.filter(r=>preferredRoutePenalty(r,o)<0);
+    if(preferred.length)return preferred.concat(base.filter(r=>!preferred.includes(r)));
+  }
+  return base;
 }
-
-/**
- * canFit — hard constraints that must pass for ANY goal.
- * Capacity (cases, cube, weight), depot distance, route runtime, and
- * customer cluster distance are all checked here.
- */
-function canFit(r,o,opts){
+function optimizeReducedRoutesInPlace(routeList,orders,opts){
+  // First-fit decreasing with best-fill scoring: fullest routes first, but never over capacity %.
+  for(const o of orders){
+    const candidates=eligibleRoutesForOrder(routeList,o,opts)
+      .filter(r=>canFit(r,o,opts,{ignoreCluster:true}))
+      .map(r=>({r,score:routeScore(r,o,'Reduce Routes',opts)+preferredRoutePenalty(r,o)}))
+      .sort((a,b)=>a.score-b.score);
+    if(candidates.length)placeStop(candidates[0].r,o);else handleNoRouteFit(routeList,o,opts);
+  }
+}
+function optimizeReduceMilesInPlace(routeList,orders,opts){
+  // Minimize incremental miles, then run 2-opt inside each final route.
+  for(const o of orders){
+    const candidates=eligibleRoutesForOrder(routeList,o,opts)
+      .filter(r=>canFit(r,o,opts,{ignoreCluster:true}))
+      .map(r=>({r,score:routeScore(r,o,'Reduce Miles',opts)+preferredRoutePenalty(r,o)}))
+      .sort((a,b)=>a.score-b.score);
+    if(candidates.length)placeStop(candidates[0].r,o);else handleNoRouteFit(routeList,o,opts);
+  }
+}
+function optimizeCasesPerMileInPlace(routeList,orders,opts){
+  // Favor dense loads with the best added cases-per-mile result.
+  for(const o of orders){
+    const candidates=eligibleRoutesForOrder(routeList,o,opts)
+      .filter(r=>canFit(r,o,opts,{ignoreCluster:true}))
+      .map(r=>({r,score:routeScore(r,o,'Increase Cases Per Mile',opts)+preferredRoutePenalty(r,o)}))
+      .sort((a,b)=>a.score-b.score);
+    if(candidates.length)placeStop(candidates[0].r,o);else handleNoRouteFit(routeList,o,opts);
+  }
+}
+function optimizeFleetBalanceInPlace(routeList,orders,opts){
+  // Load-aware assignment: avoids using trucks just to use them, but tries to keep active routes evenly utilized.
+  for(const o of orders){
+    const candidates=eligibleRoutesForOrder(routeList,o,opts)
+      .filter(r=>canFit(r,o,opts,{ignoreCluster:true}))
+      .map(r=>({r,score:routeScore(r,o,'Fleet Balancing',opts)+preferredRoutePenalty(r,o)}))
+      .sort((a,b)=>a.score-b.score);
+    if(candidates.length)placeStop(candidates[0].r,o);else handleNoRouteFit(routeList,o,opts);
+  }
+  mergeWasteRoutes(routeList,opts);
+}
+function handleNoRouteFit(routeList,o,opts){
+  if(opts.useRouteTemplates){o.unassignedReason=unassignedReason(routeList,o,opts);return;}
+  const depot=findDepot(o.depotKey);
+  const truckType=bestTruckTypeForOrder(o,opts);
+  const extra=makeRoute({name:`Route ${routeList.length+1}`,routeKey:`EXTRA-${routeList.length+1}`,depotKey:o.depotKey,depot,truckType,day:o.day||'Multi-Day',runtimeHours:solutionDials.runtimeHours,capacityPct:opts.capacityPct||solutionDials.capacityPct});
+  routeList.push(extra);
+  if(canFit(extra,o,opts,{ignoreRuntime:true,ignoreCluster:true}))placeStop(extra,o);else o.unassignedReason=unassignedReason(routeList,o,opts);
+}
+function bestTruckTypeForOrder(o,opts){
+  const pct=(opts.capacityPct||solutionDials.capacityPct||85)/100;
+  return TRUCK_TYPES.map(t=>({t,cap:capacityForTruckType(t)}))
+    .filter(x=>(x.cap.cases*pct)>=o.cases&&(x.cap.cube*pct)>=o.cube&&(x.cap.weight*pct)>=o.weight)
+    .sort((a,b)=>a.cap.cases-b.cap.cases)[0]?.t||'53FT';
+}
+function canFit(r,o,opts,flags={}){
   if(!o.lat||!o.lng||!r.depotLat||!r.depotLng)return false;
-  const depotMilesLimit=(opts.dials?.depotMiles)||solutionDials.depotMiles;
-  const clusterMilesLimit=(opts.dials?.clusterMiles)||solutionDials.clusterMiles;
-
-  // Stop must be within depot service radius
-  if(distToDepot(o,r.depotKey)>depotMilesLimit)return false;
-
-  // Capacity check — all three dimensions (cases, cube, weight)
-  if(r.cases+o.cases>r.maxCases)return false;
-  if(r.cube +(o.cube||0)>r.maxCube&&r.maxCube>0)return false;
-  if(r.weight+(o.weight||0)>r.maxWeight&&r.maxWeight>0)return false;
-
-  // Total route mileage guard (2.25× depot radius as upper bound)
+  const depotLimit=(opts.dials?.depotMiles)||solutionDials.depotMiles;
+  if(depotLimit>0&&distToDepot(o,r.depotKey)>depotLimit)return false;
+  if(r.cases+o.cases>r.maxCases||r.cube+o.cube>r.maxCube||r.weight+o.weight>r.maxWeight)return false;
   const estMiles=estimateMilesIfAdded(r,o);
-  if(estMiles>depotMilesLimit*2.25)return false;
-
-  // Run-time guard
-  const estHours=estimateHours(estMiles,r.stops.length+1);
-  if(estHours>r.runtimeHours)return false;
-
-  // Geographic clustering guard — last stop to new stop distance
-  if(r.stops.length){
+  if(!flags.ignoreRuntime&&estimateHours(estMiles,r.stops.length+1)>r.runtimeHours)return false;
+  if(!flags.ignoreCluster&&r.stops.length){
     const last=r.stops[r.stops.length-1];
-    if(haversine(last.lat,last.lng,o.lat,o.lng)>clusterMilesLimit)return false;
+    const clusterLimit=(opts.dials?.clusterMiles)||solutionDials.clusterMiles;
+    if(clusterLimit>0&&haversine(last.lat,last.lng,o.lat,o.lng)>clusterLimit)return false;
   }
-
   return true;
 }
-
-/* ── GOAL 3 POST-PASS: 2-Opt local search improvement ───────────────────── */
-/**
- * Classic 2-opt: try reversing every sub-segment of the route.
- * Accept a swap whenever it reduces total route mileage.
- * Modifies r.stops in-place; returns the number of improvements made.
- */
-function twoOptImprove(r){
-  if(r.stops.length<4)return 0;
-  let improved=true;
-  let passes=0;
-  while(improved&&passes<20){ // cap iterations for performance
-    improved=false;
-    passes++;
-    for(let i=1;i<r.stops.length-1;i++){
-      for(let j=i+1;j<r.stops.length;j++){
-        const before=segmentMiles(r,i-1,i)+segmentMiles(r,j,j+1<r.stops.length?j+1:-1);
-        // Reverse segment [i..j]
-        r.stops.splice(i,j-i+1,...r.stops.slice(i,j+1).reverse());
-        const after=segmentMiles(r,i-1,i)+segmentMiles(r,j,j+1<r.stops.length?j+1:-1);
-        if(after<before-0.01){
-          improved=true; // keep the swap
-        }else{
-          // Undo
-          r.stops.splice(i,j-i+1,...r.stops.slice(i,j+1).reverse());
-        }
-      }
-    }
+function routeScore(r,o,goal,opts={}){
+  const beforeMiles=r.miles||0;
+  const estMiles=estimateMilesIfAdded(r,o);
+  const addMiles=Math.max(0,estMiles-beforeMiles);
+  const newCases=r.cases+o.cases;
+  const newCube=r.cube+o.cube;
+  const newWeight=r.weight+o.weight;
+  const caseUtil=(newCases/Math.max(r.maxCases||1,1))*100;
+  const cubeUtil=(newCube/Math.max(r.maxCube||1,1))*100;
+  const weightUtil=(newWeight/Math.max(r.maxWeight||1,1))*100;
+  const maxUtil=Math.max(caseUtil,cubeUtil,weightUtil);
+  const newCPM=estMiles?newCases/estMiles:0;
+  const routeOpenPenalty=r.stops.length?0:350;
+  if(goal==='Reduce Routes')return routeOpenPenalty + addMiles - (maxUtil*8);
+  if(goal==='Reduce Miles')return addMiles + (r.stops.length?0:40);
+  if(goal==='Increase Cases Per Mile')return (-newCPM*1000)+addMiles+(r.stops.length?0:60);
+  if(goal==='Fleet Balancing'){
+    const active=routesForBalancePool(r,opts);
+    const avg=active.length?active.reduce((a,x)=>a+routeCapacityPct(x),0)/active.length:0;
+    return Math.abs((maxUtil||0)-Math.max(avg,60)) + (r.stops.length?0:100) + addMiles*.15;
   }
-  r.miles=routeMiles(r);
-  r.hours=estimateHours(r.miles,r.stops.length);
-  return passes;
+  return addMiles;
 }
-
-/**
- * Return the distance (miles) between consecutive route stops.
- * idx2 === -1 means "back to depot".
- */
-function segmentMiles(r,idx1,idx2){
-  const p1=idx1<0?{lat:r.depotLat,lng:r.depotLng}:r.stops[idx1];
-  const p2=idx2<0||idx2>=r.stops.length?{lat:r.depotLat,lng:r.depotLng}:r.stops[idx2];
-  if(!p1||!p2)return 0;
-  return haversine(p1.lat,p1.lng,p2.lat,p2.lng)*1.25;
-}
-
-/* ── GOAL 3 POST-PASS: cross-route relocate ──────────────────────────────── */
-/**
- * For each stop, check if moving it to a different route reduces total miles.
- * Accept the move only if both the source and destination route remain valid
- * (capacity, runtime, cluster distance all pass).
- */
-function crossRouteRelocate(routeList,opts){
-  let improved=true;
-  let iterations=0;
-  while(improved&&iterations<10){
-    improved=false;
-    iterations++;
-    for(const srcRoute of routeList){
-      for(let si=0;si<srcRoute.stops.length;si++){
-        const stop=srcRoute.stops[si];
-        for(const dstRoute of routeList){
-          if(dstRoute===srcRoute)continue;
-          if(!canFit(dstRoute,stop,opts))continue;
-          // Miles saved on source by removing stop
-          const srcBefore=routeMiles(srcRoute);
-          srcRoute.stops.splice(si,1);
-          srcRoute.cases-=stop.cases;srcRoute.cube-=stop.cube;srcRoute.weight-=stop.weight;
-          const srcAfter=routeMiles(srcRoute);
-          // Miles added on destination by inserting stop
-          const dstBefore=routeMiles(dstRoute);
-          dstRoute.stops.push(stop);
-          dstRoute.cases+=stop.cases;dstRoute.cube+=stop.cube;dstRoute.weight+=stop.weight;
-          const dstAfter=routeMiles(dstRoute);
-          const saving=(srcBefore-srcAfter)-(dstAfter-dstBefore);
-          if(saving>0.5){ // accept: total fleet miles reduced by >0.5 mi
-            stop.routeId=dstRoute.id;stop.assignedRoute=dstRoute.name;stop.newRoute=dstRoute.name;
-            srcRoute.miles=srcAfter;srcRoute.hours=estimateHours(srcAfter,srcRoute.stops.length);
-            dstRoute.miles=dstAfter;dstRoute.hours=estimateHours(dstAfter,dstRoute.stops.length);
-            improved=true;
-            si--;break;
-          }else{
-            // Undo
-            dstRoute.stops.pop();dstRoute.cases-=stop.cases;dstRoute.cube-=stop.cube;dstRoute.weight-=stop.weight;
-            srcRoute.stops.splice(si,0,stop);srcRoute.cases+=stop.cases;srcRoute.cube+=stop.cube;srcRoute.weight+=stop.weight;
-          }
-        }
-      }
-    }
+function routesForBalancePool(route,opts){return (routes.length?routes:[]).filter(x=>x.depotKey===route.depotKey&&x.stops&&x.stops.length);}
+function placeStop(r,o){r.stops.push(o);o.routeId=r.id;o.assignedRoute=r.name;o.newRoute=r.name;o.depotName=r.depotName;o.routeChanged=o.standardRoute&&o.standardRoute!==r.routeKey?'Yes':'No';o.suggestedDepot=o.depotKey;o.depotChanged=o.originalDepot&&o.originalDepot!==o.depotKey?'Yes':'No';r.cases+=o.cases;r.cube+=o.cube;r.weight+=o.weight;r.miles=routeMiles(r);r.hours=estimateHours(r.miles,r.stops.length);}
+function sequenceRoute(r,goal='Reduce Miles'){
+  if(!r.stops.length)return;
+  const locked=r.stops.every(s=>s.restrictPosition&&s.sequence);
+  if(locked){r.stops.sort((a,b)=>(a.sequence||9999)-(b.sequence||9999));}
+  else{
+    r.stops=nearestNeighborFromDepot(r,r.stops);
+    if(goal==='Reduce Miles'||goal==='Increase Cases Per Mile')r.stops=twoOptRoute(r,r.stops);
   }
-}
-
-/* ── GOAL 4 POST-PASS: fleet balance ─────────────────────────────────────── */
-/**
- * After initial assignment, redistribute stops to even out utilisation.
- *   1. Identify over-loaded routes (>capacityPct) and under-loaded ones (<minUtil).
- *   2. Move stops from over to under until both are within the target band.
- *   3. Attempt to eliminate near-empty routes by merging them into others.
- */
-function fleetBalancePass(routeList,opts){
-  const capPct=(opts.capacityPct||solutionDials.capacityPct)/100;
-  const minUtil=0.45; // routes below 45% utilisation are candidates for merging
-
-  let balanceIterations=0;
-  while(balanceIterations<40){
-    balanceIterations++;
-    const over=routeList.filter(r=>r.stops.length&&r.cases/r.maxCases>capPct);
-    const under=routeList.filter(r=>r.stops.length&&r.cases/r.maxCases<minUtil);
-    if(!over.length&&!under.length)break;
-
-    let moved=false;
-    // Move stops from over-loaded routes to under-loaded ones
-    for(const overRoute of over){
-      for(let si=overRoute.stops.length-1;si>=0;si--){
-        const stop=overRoute.stops[si];
-        const receiver=under.find(r=>
-          r!==overRoute&&
-          r.cases+stop.cases<=r.maxCases&&
-          r.cube+stop.cube<=r.maxCube&&
-          r.weight+stop.weight<=r.maxWeight
-        );
-        if(receiver){
-          overRoute.stops.splice(si,1);
-          overRoute.cases-=stop.cases;overRoute.cube-=stop.cube;overRoute.weight-=stop.weight;
-          receiver.stops.push(stop);
-          receiver.cases+=stop.cases;receiver.cube+=stop.cube;receiver.weight+=stop.weight;
-          stop.routeId=receiver.id;stop.assignedRoute=receiver.name;stop.newRoute=receiver.name;
-          moved=true;
-          break;
-        }
-      }
-      if(moved)break;
-    }
-
-    // Attempt to merge near-empty routes into other routes
-    for(const smallRoute of routeList.filter(r=>r.stops.length&&r.cases/r.maxCases<minUtil)){
-      const allFit=smallRoute.stops.every(stop=>
-        routeList.some(r=>
-          r!==smallRoute&&
-          r.stops.length&&
-          r.cases+stop.cases<=r.maxCases&&
-          r.cube+(stop.cube||0)<=r.maxCube&&
-          r.weight+(stop.weight||0)<=r.maxWeight
-        )
-      );
-      if(allFit){
-        for(const stop of smallRoute.stops){
-          const receiver=routeList.find(r=>
-            r!==smallRoute&&
-            r.stops.length&&
-            r.cases+stop.cases<=r.maxCases&&
-            r.cube+(stop.cube||0)<=r.maxCube&&
-            r.weight+(stop.weight||0)<=r.maxWeight
-          );
-          if(receiver){
-            receiver.stops.push(stop);
-            receiver.cases+=stop.cases;receiver.cube+=stop.cube;receiver.weight+=stop.weight;
-            stop.routeId=receiver.id;stop.assignedRoute=receiver.name;stop.newRoute=receiver.name;
-          }
-        }
-        smallRoute.stops=[];smallRoute.cases=0;smallRoute.cube=0;smallRoute.weight=0;
-        moved=true;
-      }
-    }
-    if(!moved)break;
-  }
-
-  // Recompute mileage for all routes after balance moves
-  routeList.forEach(r=>{r.miles=routeMiles(r);r.hours=estimateHours(r.miles,r.stops.length);});
-}
-
-/* ============================================================
-   ROUTE GEOMETRY & MATH
-   ============================================================ */
-function placeStop(r,o){
-  r.stops.push(o);
-  o.routeId=r.id;o.assignedRoute=r.name;o.newRoute=r.name;o.depotName=r.depotName;
-  o.routeChanged=o.standardRoute&&o.standardRoute!==r.routeKey?'Yes':'No';
-  o.suggestedDepot=o.depotKey;
-  o.depotChanged=o.originalDepot&&o.originalDepot!==o.depotKey?'Yes':'No';
-  r.cases+=o.cases;r.cube+=o.cube||0;r.weight+=o.weight||0;
+  r.stops.forEach((s,i)=>s.sequence=i+1);
   r.miles=routeMiles(r);r.hours=estimateHours(r.miles,r.stops.length);
 }
-
-function sequenceRoute(r){
-  // Sort by explicit sequence if available, otherwise nearest-neighbour from depot
-  r.stops.sort((a,b)=>{
-    if(a.sequence&&b.sequence&&a.sequence!==b.sequence)return a.sequence-b.sequence;
-    const da=haversine(r.depotLat,r.depotLng,a.lat,a.lng);
-    const db=haversine(r.depotLat,r.depotLng,b.lat,b.lng);
-    return da-db;
-  });
-  r.stops.forEach((s,i)=>s.sequence=i+1);
-  r.miles=routeMiles(r);
-  r.hours=estimateHours(r.miles,r.stops.length);
+function nearestNeighborFromDepot(r,stopList){
+  const remaining=[...stopList];
+  const ordered=[];
+  let current={lat:r.depotLat,lng:r.depotLng};
+  while(remaining.length){
+    let best=0,bestDist=Infinity;
+    remaining.forEach((s,i)=>{const d=haversine(current.lat,current.lng,s.lat,s.lng);if(d<bestDist){bestDist=d;best=i;}});
+    const next=remaining.splice(best,1)[0];ordered.push(next);current=next;
+  }
+  return ordered;
 }
-
-function routeMiles(r){
-  if(!r.stops.length||!r.depotLat||!r.depotLng)return 0;
-  let miles=0,prev={lat:r.depotLat,lng:r.depotLng};
-  r.stops.forEach(s=>{
-    if(s.lat&&s.lng){miles+=haversine(prev.lat,prev.lng,s.lat,s.lng)*1.25;prev=s;}
-  });
-  miles+=haversine(prev.lat,prev.lng,r.depotLat,r.depotLng)*1.25;
-  return miles;
+function twoOptRoute(r,stopList){
+  let best=[...stopList],bestMiles=routeMiles({...r,stops:best}),improved=true,loops=0;
+  while(improved&&loops<20){
+    improved=false;loops++;
+    for(let i=0;i<best.length-2;i++){
+      for(let j=i+2;j<best.length;j++){
+        const candidate=best.slice(0,i+1).concat(best.slice(i+1,j+1).reverse(),best.slice(j+1));
+        const miles=routeMiles({...r,stops:candidate});
+        if(miles+0.01<bestMiles){best=candidate;bestMiles=miles;improved=true;}
+      }
+    }
+  }
+  return best;
 }
-
-function estimateMilesIfAdded(r,o){return routeMiles({...r,stops:[...r.stops,o]});}
-function estimateHours(miles,stopCount){return miles/35+(stopCount*8/60)+0.5;}
-function haversine(lat1,lng1,lat2,lng2){
-  const R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
-  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+function mergeWasteRoutes(routeList,opts){
+  const active=()=>routeList.filter(r=>r.stops.length).sort((a,b)=>routeCapacityPct(a)-routeCapacityPct(b));
+  let changed=true,loops=0;
+  while(changed&&loops<20){
+    changed=false;loops++;
+    const low=active()[0];
+    if(!low||routeCapacityPct(low)>=35||active().length<=1)break;
+    const moves=[...low.stops];
+    const receivers=routeList.filter(r=>r!==low&&r.depotKey===low.depotKey);
+    const plan=[];
+    for(const stop of moves){
+      const best=receivers.filter(r=>canFit(r,stop,opts,{ignoreRuntime:true,ignoreCluster:true})).map(r=>({r,score:routeScore(r,stop,'Reduce Routes',opts)})).sort((a,b)=>a.score-b.score)[0];
+      if(!best){plan.length=0;break;}plan.push({stop,r:best.r});
+    }
+    if(plan.length===moves.length){
+      low.stops=[];low.cases=0;low.cube=0;low.weight=0;low.miles=0;low.hours=0;
+      plan.forEach(x=>placeStop(x.r,x.stop));changed=true;
+    }
+  }
 }
-function findDepot(key){return depotLocations.find(d=>d.key===key)||depotLocations[0];}
-function distToDepot(o,key){const d=findDepot(key);return d&&d.lat&&d.lng&&o.lat&&o.lng?haversine(d.lat,d.lng,o.lat,o.lng):999999;}
-
-/* ============================================================
-   SCENARIO FINALIZATION
-   ============================================================ */
-function finalizeScenario(opts,candidateRoutes,orders){
-  routes=candidateRoutes.filter(r=>r.stops.length);
-  unassignedStops=orders.filter(o=>!o.assignedRoute);
-  optimizedStops=orders.filter(o=>o.assignedRoute);
-
-  const originalRoutes=opts.useRouteTemplates?getRouteTemplatesForDepotDay(opts.depotKey,opts.day).length:0;
-  const miles=routes.reduce((a,r)=>a+r.miles,0);
-  const cases=optimizedStops.reduce((a,s)=>a+s.cases,0);
-  const cube=optimizedStops.reduce((a,s)=>a+(s.cube||0),0);
-  const weight=optimizedStops.reduce((a,s)=>a+(s.weight||0),0);
-  const capAvg=routes.length?routes.reduce((a,r)=>a+routeCapacityPct(r),0)/routes.length:0;
-  const totalCPM=miles>0?cases/miles:0;
-
-  // Compute balance score (std-dev of utilisation) for Fleet Balancing goal
-  const utils=routes.map(r=>routeCapacityPct(r)/100);
-  const avgUtil=utils.length?utils.reduce((a,b)=>a+b,0)/utils.length:0;
-  const balanceScore=utils.length?Math.sqrt(utils.reduce((s,u)=>s+Math.pow(u-avgUtil,2),0)/utils.length):0;
-
-  sessionSummary={
-    mode:opts.mode,options:opts,routeCount:routes.length,originalRoutes,
-    routesCut:Math.max(0,originalRoutes-routes.length),
-    assigned:optimizedStops.length,unassigned:unassignedStops.length,
-    miles,cases,cube,weight,
-    truckCounts:countBy(routes,'truckType'),
-    depots:[...new Set(routes.map(r=>r.depotKey))],
-    avgCapacity:capAvg,
-    avgHours:routes.length?routes.reduce((a,r)=>a+r.hours,0)/routes.length:0,
-    customers:new Set(optimizedStops.map(s=>s.account)).size,
-    fleetCPM:totalCPM,
-    balanceScore,
-    activeGoal:primaryGoal(opts)
-  };
+function unassignedReason(routeList,o,opts){
+  const base=eligibleRoutesForOrder(routeList,o,opts,false);
+  if(!base.length)return 'No route templates were available for this depot/day selection';
+  if(!o.lat||!o.lng)return 'Missing customer latitude/longitude';
+  if(!base.some(r=>r.depotLat&&r.depotLng))return 'Route/depot missing latitude/longitude';
+  const depotLimit=(opts.dials?.depotMiles)||solutionDials.depotMiles;
+  if(depotLimit>0&&!base.some(r=>distToDepot(o,r.depotKey)<=depotLimit))return 'Outside Miles From Depot Limit';
+  if(!base.some(r=>r.cases+o.cases<=r.maxCases&&r.cube+o.cube<=r.maxCube&&r.weight+o.weight<=r.maxWeight))return 'Capacity % hard cap would be exceeded';
+  if(!base.some(r=>estimateHours(estimateMilesIfAdded(r,o),r.stops.length+1)<=r.runtimeHours))return 'Daily run time would be exceeded';
+  return 'No route fit the selected optimization constraints';
 }
+function routeMiles(r){if(!r.stops.length)return 0;let miles=0,prev={lat:r.depotLat,lng:r.depotLng};r.stops.forEach(s=>{miles+=haversine(prev.lat,prev.lng,s.lat,s.lng)*1.25;prev=s;});miles+=haversine(prev.lat,prev.lng,r.depotLat,r.depotLng)*1.25;return miles;}
+function estimateMilesIfAdded(r,o){const copy={...r,stops:[...r.stops,o]};return routeMiles(copy);}function estimateHours(miles,stopCount){return miles/35+(stopCount*8/60)+0.5;}function haversine(lat1,lng1,lat2,lng2){const R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+function findDepot(key){return depotLocations.find(d=>d.key===key)||depotLocations[0];}function distToDepot(o,key){const d=findDepot(key);return d&&d.lat&&d.lng&&o.lat&&o.lng?haversine(d.lat,d.lng,o.lat,o.lng):999999;}
+function finalizeScenario(opts,candidateRoutes,orders){routes=candidateRoutes.filter(r=>r.stops.length);unassignedStops=orders.filter(o=>!o.assignedRoute);optimizedStops=orders.filter(o=>o.assignedRoute);const originalRoutes=opts.useRouteTemplates?getRouteTemplatesForDepotDay(opts.depotKey,opts.day).length:0;const miles=routes.reduce((a,r)=>a+r.miles,0);const cases=optimizedStops.reduce((a,s)=>a+s.cases,0);const cube=optimizedStops.reduce((a,s)=>a+s.cube,0);const weight=optimizedStops.reduce((a,s)=>a+s.weight,0);const capAvg=routes.length?routes.reduce((a,r)=>a+routeCapacityPct(r),0)/routes.length:0;sessionSummary={mode:opts.mode,options:opts,routeCount:routes.length,originalRoutes,routesCut:Math.max(0,originalRoutes-routes.length),assigned:optimizedStops.length,unassigned:unassignedStops.length,miles,cases,cube,weight,truckCounts:countBy(routes,'truckType'),depots:[...new Set(routes.map(r=>r.depotKey))],avgCapacity:capAvg,avgHours:routes.length?routes.reduce((a,r)=>a+r.hours,0)/routes.length:0,customers:new Set(optimizedStops.map(s=>s.account)).size};}
 function countBy(arr,key){return arr.reduce((a,x)=>{a[x[key]]=(a[x[key]]||0)+1;return a;},{});}
 
-/* ============================================================
-   RENDER
-   ============================================================ */
 function render(){renderStats();renderRoutes();renderUnassigned();renderMap();renderLegend();}
-
-function renderStats(){
-  const s=sessionSummary||{};
-  const vals=[
-    ['Routes',s.routeCount||0],
-    ['Assigned',s.assigned||0],
-    ['Unassigned',s.unassigned||0],
-    ['Trucks',Object.values(s.truckCounts||{}).reduce((a,b)=>a+b,0)],
-    ['Depots',(s.depots||[]).length||depotLocations.length],
-    ['Cases',Math.round(s.cases||0).toLocaleString()],
-    ['Weight',Math.round(s.weight||0).toLocaleString()],
-    ['Cube',(s.cube||0).toFixed(1)],
-    ['Miles',(s.miles||0).toFixed(1)],
-    ['Avg Cap %',(s.avgCapacity||0).toFixed(1)+'%'],
-    ['Fleet CPM',(s.fleetCPM||0).toFixed(2)]
-  ];
-  document.getElementById('stats-bar').innerHTML=vals.map(([l,v])=>`<div class="stat"><div class="stat-val">${v}</div><div class="stat-lbl">${l}</div></div>`).join('');
-  document.getElementById('session-pill').textContent=sessionSummary?sessionSummary.mode:'No session';
-}
-
-function depotColor(key){
-  const keys=[...new Set((routes.length?routes.map(r=>r.depotKey):depotLocations.map(d=>d.key)).filter(Boolean))].sort();
-  let idx=keys.indexOf(key);
-  if(idx<0)idx=depotLocations.findIndex(d=>d.key===key);
-  return COLORS[(idx>=0?idx:0)%COLORS.length];
-}
-
+function renderStats(){const s=sessionSummary||{};const vals=[['Routes',s.routeCount||0],['Assigned',s.assigned||0],['Unassigned',s.unassigned||0],['Trucks',Object.values(s.truckCounts||{}).reduce((a,b)=>a+b,0)],['Depots',(s.depots||[]).length||depotLocations.length],['Cases',Math.round(s.cases||0).toLocaleString()],['Weight',Math.round(s.weight||0).toLocaleString()],['Cube',(s.cube||0).toFixed(1)],['Miles',(s.miles||0).toFixed(1)],['Avg Cap %',(s.avgCapacity||0).toFixed(1)+'%'],['Customers',s.customers||0]];document.getElementById('stats-bar').innerHTML=vals.map(([l,v])=>`<div class="stat"><div class="stat-val">${v}</div><div class="stat-lbl">${l}</div></div>`).join('');document.getElementById('session-pill').textContent=sessionSummary?sessionSummary.mode:'No session';}
+function depotColor(key){const keys=[...new Set((routes.length?routes.map(r=>r.depotKey):depotLocations.map(d=>d.key)).filter(Boolean))].sort();let idx=keys.indexOf(key);if(idx<0)idx=depotLocations.findIndex(d=>d.key===key);return COLORS[(idx>=0?idx:0)%COLORS.length];}
 function filteredRoutes(){return activeDepotFilter?routes.filter(r=>r.depotKey===activeDepotFilter):routes;}
 function filteredUnassigned(){return activeDepotFilter?unassignedStops.filter(s=>s.depotKey===activeDepotFilter):unassignedStops;}
 function setDepotFilter(key){activeDepotFilter=key;render();const d=findDepot(key);showToast(`Filtered to ${d?.name||key}.`);}
 function clearDepotFilter(){if(!activeDepotFilter)return;activeDepotFilter=null;render();showToast('Depot filter cleared.');}
-
-function routeDisplayName(r){
-  const day=r.day&&r.day!=='ALL'&&r.day!=='Multi-Day'?r.day:(r.day==='Multi-Day'?'Multi-Day':'');
-  const name=r.name||'Route';
-  return day&&!name.toLowerCase().includes(day.toLowerCase())?`${name} - ${day}`:name;
-}
-function routeCapacityPct(r){
-  return Math.max(
-    (r.cases/Math.max(r.maxCases||1,1))*100,
-    (r.cube/Math.max(r.maxCube||1,1))*100,
-    (r.weight/Math.max(r.maxWeight||1,1))*100
-  );
-}
-function routeCPM(r){return r.miles?r.cases/r.miles:0;}
-function capBarColor(pct){
-  if(pct>=90)return'var(--danger)';
-  if(pct>=70)return'var(--warn)';
-  return'var(--success)';
-}
-
-function sortedFilteredRoutes(){
-  const list=[...filteredRoutes()];
-  if(!routeSort)return list;
-  list.sort((a,b)=>{
-    if(routeSort==='runtime')return(b.hours||0)-(a.hours||0);
-    if(routeSort==='capacity')return routeCapacityPct(b)-routeCapacityPct(a);
-    if(routeSort==='cpm')return routeCPM(b)-routeCPM(a);
-    if(routeSort==='miles')return(b.miles||0)-(a.miles||0);
-    if(routeSort==='stops')return(b.stops?.length||0)-(a.stops?.length||0);
-    return 0;
-  });
-  return list;
-}
+function routeDisplayName(r){const day=r.day&&r.day!=='ALL'&&r.day!=='Multi-Day'?r.day:(r.day==='Multi-Day'?'Multi-Day':'');const name=r.name||'Route';return day&& !name.toLowerCase().includes(day.toLowerCase())?`${name}- ${day}`:name;}
+function routeCapacityPct(r){return Math.max((r.cases/Math.max(r.maxCases||1,1))*100,(r.cube/Math.max(r.maxCube||1,1))*100,(r.weight/Math.max(r.maxWeight||1,1))*100);}
+function routeCPM(r){return r.miles? r.cases/r.miles:0;}
+function sortedFilteredRoutes(){const list=[...filteredRoutes()];if(!routeSort)return list;list.sort((a,b)=>{if(routeSort==='runtime')return (b.hours||0)-(a.hours||0);if(routeSort==='capacity')return routeCapacityPct(b)-routeCapacityPct(a);if(routeSort==='cpm')return routeCPM(b)-routeCPM(a);if(routeSort==='miles')return (b.miles||0)-(a.miles||0);if(routeSort==='stops')return (b.stops?.length||0)-(a.stops?.length||0);return 0;});return list;}
 function setRouteSort(value){routeSort=value;renderRoutes();}
-
-function goalBadgeHTML(goal){
-  if(!goal)return'';
-  const map={'Reduce Routes':'reduce-routes','Increase Cases Per Mile':'cases-per-mile','Reduce Miles':'reduce-miles','Fleet Balancing':'fleet-balance'};
-  const cls=map[goal]||'reduce-routes';
-  return`<span class="opt-badge ${cls}">${esc(goal)}</span>`;
-}
-
-function renderRoutes(){
-  const el=document.getElementById('route-list');
-  const clearBtn=document.getElementById('clear-depot-filter-btn');
-  if(clearBtn)clearBtn.style.display=activeDepotFilter?'inline-flex':'none';
-  const list=sortedFilteredRoutes();
-  const activeGoal=sessionSummary?.activeGoal||'';
-
-  if(!routes.length){el.innerHTML='<div class="empty">Import the template, then run Depot Optimization or Network Optimization.</div>';return;}
-  if(!list.length){el.innerHTML='<div class="empty">No routes for the selected depot filter.</div>';return;}
-
-  el.innerHTML=list.map(r=>{
-    const color=depotColor(r.depotKey);
-    const capPct=routeCapacityPct(r);
-    const cpm=routeCPM(r);
-    return`<div class="route-card">
-      <div class="route-head" onclick="toggleRoute('${r.id}')">
-        <div class="colorbar" style="background:${color}"></div>
-        <div class="route-main">
-          <div class="route-name">${esc(routeDisplayName(r))} <span class="badge badge-blue">${esc(r.truckType)}</span>${goalBadgeHTML(activeGoal)}</div>
-          <div class="route-meta">${esc(r.depotName)} · ${r.stops.length} stops · ${r.cases.toLocaleString()} cases · ${r.miles.toFixed(1)} mi</div>
-          <div class="route-kpis">${r.hours.toFixed(1)} hrs · ${capPct.toFixed(1)}% capacity · ${cpm.toFixed(1)} CPM</div>
-          <div class="cap-bar-wrap"><div class="cap-bar-fill" style="width:${Math.min(capPct,100)}%;background:${capBarColor(capPct)}"></div></div>
-        </div>
-        <div class="route-actions">
-          <button class="btn small-btn" onclick="event.stopPropagation();openRouteManifest('${r.id}')">Manifest</button>
-        </div>
-      </div>
-      <div class="route-stops" id="stops-${r.id}">
-        ${r.stops.map(s=>`<div class="stop-row" onclick="event.stopPropagation();openCustomerDetails('${s.id}')">
-          <span class="seq">${s.sequence}</span>
-          <span class="dot" style="background:${color}"></span>
-          <div class="sinfo">
-            <div class="sname">${esc(s.name)}</div>
-            <div class="smeta">${esc(s.city)}, ${esc(s.state)} · ${s.cases} cases · ${esc(s.day||'')}</div>
-          </div>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function renderUnassigned(){
-  const el=document.getElementById('unassigned-list');
-  const pill=document.getElementById('ua-pill');
-  const list=filteredUnassigned();
-  if(pill)pill.textContent=String(list.length);
-  if(!unassignedStops.length){el.innerHTML='<div class="empty">No unassigned stops.</div>';return;}
-  if(!list.length){el.innerHTML='<div class="empty">No unassigned stops for the selected depot.</div>';return;}
-  el.innerHTML=list.map(s=>`<div class="ua-row" onclick="zoomStop('${s.id}')">
-    <span class="dot" style="background:#ef4444"></span>
-    <div class="sinfo">
-      <div class="sname">${esc(s.name)}</div>
-      <div class="smeta">${esc(s.city)}, ${esc(s.state)} · ${s.cases} cases · ${esc(s.depotKey)}</div>
-      <div class="ua-reason">${esc(s.unassignedReason||'No route fit')}</div>
-    </div>
-    <button class="btn small-btn" title="Customer details" onclick="event.stopPropagation();openCustomerDetails('${s.id}')">📝</button>
-  </div>`).join('');
-}
-
+function renderRoutes(){const el=document.getElementById('route-list');const clearBtn=document.getElementById('clear-depot-filter-btn');if(clearBtn)clearBtn.style.display=activeDepotFilter?'inline-flex':'none';const list=sortedFilteredRoutes();if(!routes.length){el.innerHTML='<div class="empty">Import the template, then run Depot Optimization or Network Optimization.</div>';return;}if(!list.length){el.innerHTML='<div class="empty">No routes for the selected depot filter.</div>';return;}el.innerHTML=list.map((r)=>{const color=depotColor(r.depotKey);return `<div class="route-card"><div class="route-head" onclick="toggleRoute('${r.id}')"><div class="colorbar" style="background:${color}"></div><div class="route-main"><div class="route-name">${esc(routeDisplayName(r))} <span class="badge badge-blue">${esc(r.truckType)}</span></div><div class="route-meta">${esc(r.depotName)} · ${r.stops.length} stops · ${r.cases.toLocaleString()} cases · ${r.miles.toFixed(1)} mi</div><div class="route-kpis">${r.hours.toFixed(1)} hrs · ${routeCapacityPct(r).toFixed(1)}% capacity · ${routeCPM(r).toFixed(1)} CPM</div></div><div class="route-actions"><button class="btn small-btn" onclick="event.stopPropagation();openRouteManifest('${r.id}')">Manifest</button></div></div><div class="route-stops" id="stops-${r.id}">${r.stops.map(s=>`<div class="stop-row" onclick="event.stopPropagation();openCustomerDetails('${s.id}')"><span class="seq">${s.sequence}</span><span class="dot" style="background:${color}"></span><div class="sinfo"><div class="sname">${esc(s.name)}</div><div class="smeta">${esc(s.city)}, ${esc(s.state)} · ${s.cases} cases · ${esc(s.day||'')}</div></div></div>`).join('')}</div></div>`;}).join('');}
+function renderUnassigned(){const el=document.getElementById('unassigned-list');const pill=document.getElementById('ua-pill');const list=filteredUnassigned();if(pill)pill.textContent=String(list.length);if(!unassignedStops.length){el.innerHTML='<div class="empty">No unassigned stops.</div>';return;}if(!list.length){el.innerHTML='<div class="empty">No unassigned stops for the selected depot.</div>';return;}el.innerHTML=list.map(s=>`<div class="ua-row" onclick="zoomStop('${s.id}')"><span class="dot" style="background:#ef4444"></span><div class="sinfo"><div class="sname">${esc(s.name)}</div><div class="smeta">${esc(s.city)}, ${esc(s.state)} · ${s.cases} cases · ${esc(s.depotKey)}</div><div class="ua-reason">${esc(s.unassignedReason||'No route fit')}</div></div><button class="btn small-btn" title="Customer details" onclick="event.stopPropagation();openCustomerDetails('${s.id}')">📝</button></div>`).join('');}
 function toggleRoute(id){const el=document.getElementById('stops-'+id);if(el)el.classList.toggle('open');}
-
-/* ============================================================
-   MAP
-   ============================================================ */
 function clearMap(){markers.forEach(m=>map.removeLayer(m));lines.forEach(l=>map.removeLayer(l));markers=[];lines=[];}
-
-function renderMap(){
-  if(!map)return;
-  clearMap();
-  const list=filteredRoutes();
-  const depotMarkers=new Set();
-  list.forEach(r=>{
-    const color=depotColor(r.depotKey);
-    if(showDepotMarkers&&r.depotLat&&r.depotLng&&!depotMarkers.has(r.depotKey)){
-      depotMarkers.add(r.depotKey);
-      const active=activeDepotFilter===r.depotKey?' active':'';
-      const icon=L.divIcon({className:'',html:`<div class="depot-label${active}" style="color:${color}"><span class="depot-building">▦</span><span>${esc(r.depotName)}</span></div>`,iconSize:[180,30],iconAnchor:[10,15]});
-      const m=L.marker([r.depotLat,r.depotLng],{icon}).addTo(map);
-      m.on('click',()=>setDepotFilter(r.depotKey));
-      m.bindPopup(`<b>${esc(r.depotName)}</b><br>Click the depot label to filter routes and stops.`);
-      markers.push(m);
-    }
-    const pts=[];
-    if(r.depotLat&&r.depotLng)pts.push([r.depotLat,r.depotLng]);
-    r.stops.forEach(s=>{
-      if(!s.lat||!s.lng)return;
-      pts.push([s.lat,s.lng]);
-      const cm=L.circleMarker([s.lat,s.lng],{radius:6,color,fillColor:color,fillOpacity:.85,weight:2}).addTo(map);
-      cm.on('click',()=>openCustomerDetails(s.id));
-      cm.bindTooltip(`${esc(s.name)} · ${esc(routeDisplayName(r))}`,{direction:'top'});
-      markers.push(cm);
-    });
-    if(r.depotLat&&r.depotLng)pts.push([r.depotLat,r.depotLng]);
-    if(showRouteLines&&pts.length>1)lines.push(L.polyline(pts,{color,weight:3,opacity:.72}).addTo(map));
-  });
-  if(showUnassignedMarkers){
-    filteredUnassigned().forEach(s=>{
-      if(s.lat&&s.lng){
-        const cm=L.circleMarker([s.lat,s.lng],{radius:5,color:'#ef4444',fillColor:'#ef4444',fillOpacity:.8,weight:2}).addTo(map);
-        cm.on('click',()=>openCustomerDetails(s.id));
-        cm.bindTooltip(`Unassigned · ${esc(s.name)}`,{direction:'top'});
-        markers.push(cm);
-      }
-    });
-  }
-  fitAll(false);
-}
+function renderMap(){if(!map)return;clearMap();const list=filteredRoutes();const depotMarkers=new Set();list.forEach((r)=>{const color=depotColor(r.depotKey);if(showDepotMarkers&&r.depotLat&&r.depotLng&&!depotMarkers.has(r.depotKey)){depotMarkers.add(r.depotKey);const active=activeDepotFilter===r.depotKey?' active':'';const icon=L.divIcon({className:'',html:`<div class="depot-label${active}" style="color:${color}"><span class="depot-building">▦</span><span>${esc(r.depotName)}</span></div>`,iconSize:[180,30],iconAnchor:[10,15]});const m=L.marker([r.depotLat,r.depotLng],{icon}).addTo(map);m.on('click',()=>setDepotFilter(r.depotKey));m.bindPopup(`<b>${esc(r.depotName)}</b><br>Click the depot label to filter routes and stops.`);markers.push(m);}const pts=[];if(r.depotLat&&r.depotLng)pts.push([r.depotLat,r.depotLng]);r.stops.forEach(s=>{pts.push([s.lat,s.lng]);const cm=L.circleMarker([s.lat,s.lng],{radius:6,color,fillColor:color,fillOpacity:.85,weight:2}).addTo(map);cm.on('click',()=>openCustomerDetails(s.id));cm.bindTooltip(`${esc(s.name)} · ${esc(routeDisplayName(r))}`,{direction:'top'});markers.push(cm);});if(r.depotLat&&r.depotLng)pts.push([r.depotLat,r.depotLng]);if(showRouteLines&&pts.length>1)lines.push(L.polyline(pts,{color,weight:3,opacity:.72}).addTo(map));});if(showUnassignedMarkers){filteredUnassigned().forEach(s=>{if(s.lat&&s.lng){const cm=L.circleMarker([s.lat,s.lng],{radius:5,color:'#ef4444',fillColor:'#ef4444',fillOpacity:.8,weight:2}).addTo(map);cm.on('click',()=>openCustomerDetails(s.id));cm.bindTooltip(`Unassigned · ${esc(s.name)}`,{direction:'top'});markers.push(cm);}});}fitAll(false);}
 
 function switchMapLayer(layerName){
   currentMapLayer=layerName;
   if(!map||!darkTileLayer||!satelliteTileLayer)return;
-  if(layerName==='satellite'){if(map.hasLayer(darkTileLayer))map.removeLayer(darkTileLayer);if(!map.hasLayer(satelliteTileLayer))satelliteTileLayer.addTo(map);showToast('Satellite map enabled.');}
-  else{if(map.hasLayer(satelliteTileLayer))map.removeLayer(satelliteTileLayer);if(!map.hasLayer(darkTileLayer))darkTileLayer.addTo(map);showToast('Black map enabled.');}
+  if(layerName==='satellite'){
+    if(map.hasLayer(darkTileLayer))map.removeLayer(darkTileLayer);
+    if(!map.hasLayer(satelliteTileLayer))satelliteTileLayer.addTo(map);
+    showToast('Satellite map enabled.');
+  }else{
+    if(map.hasLayer(satelliteTileLayer))map.removeLayer(satelliteTileLayer);
+    if(!map.hasLayer(darkTileLayer))darkTileLayer.addTo(map);
+    showToast('Black map enabled.');
+  }
 }
-
-function fitAll(showMsg=true){
-  const pts=[];
-  filteredRoutes().forEach(r=>{if(r.depotLat&&r.depotLng)pts.push([r.depotLat,r.depotLng]);r.stops.forEach(s=>s.lat&&s.lng&&pts.push([s.lat,s.lng]));});
-  filteredUnassigned().forEach(s=>s.lat&&s.lng&&pts.push([s.lat,s.lng]));
-  if(pts.length){map.fitBounds(pts,{padding:[45,45],maxZoom:10});if(showMsg)showToast(activeDepotFilter?'Map fitted to selected depot.':'Map fitted to scenario.');}
-}
-function toggleDepots(){showDepotMarkers=!showDepotMarkers;renderMap();}
-function toggleUnassigned(){showUnassignedMarkers=!showUnassignedMarkers;renderMap();}
-function toggleRouteLines(){showRouteLines=!showRouteLines;const btn=document.getElementById('route-lines-btn');if(btn)btn.textContent=showRouteLines?'Route Lines: On':'Route Lines: Off';renderMap();}
-function zoomStop(id){const s=optimizedStops.concat(unassignedStops).find(x=>x.id===id);if(s&&s.lat&&s.lng)map.setView([s.lat,s.lng],12);}
-
-function renderLegend(){
-  const depotKeys=[...new Set(routes.map(r=>r.depotKey))];
-  const items=depotKeys.map(k=>{
-    const d=findDepot(k);
-    const active=activeDepotFilter===k?' <span class="badge badge-green">Filtered</span>':'';
-    return`<div class="legend-item" style="cursor:pointer" onclick="setDepotFilter('${esc(k)}')"><span class="dot" style="background:${depotColor(k)}"></span>${esc(d?.name||k)}${active}</div>`;
-  }).join('');
-  document.getElementById('legend-items').innerHTML=items
-    +(unassignedStops.length?`<div class="legend-item"><span class="dot" style="background:#ef4444"></span>Unassigned Stops</div>`:'')
-    +(activeDepotFilter?`<div class="legend-item" style="cursor:pointer;color:#93c5fd" onclick="clearDepotFilter()">Clear depot filter</div>`:'');
-}
-
-/* ============================================================
-   MODALS — MANIFEST, CUSTOMER DETAIL, SESSION DATA
-   ============================================================ */
-function openCustomerDetails(id){
-  const s=optimizedStops.concat(unassignedStops).find(x=>x.id===id);
-  if(!s)return;
-  zoomStop(id);
-  const r=routes.find(x=>x.id===s.routeId);
-  document.getElementById('customer-detail-title').textContent=s.name||'Customer Details';
-  const fields=[
-    ['Assigned Route',r?routeDisplayName(r):'Unassigned'],
-    ['Depot',s.depotName||s.depotKey||''],
-    ['Suggested Depot',s.suggestedDepot||s.depotKey||''],
-    ['Depot Changed?',s.depotChanged||'No'],
-    ['Delivery Day',s.day||''],
-    ['Suggested Changed Delivery Day',s.suggestedChangedDay||''],
-    ['Day Changed?',s.dayChanged||'No'],
-    ['Sequence',s.sequence||''],
-    ['Account',s.account||''],
-    ['Order Number',s.orderNumber||''],
-    ['Preferred Resource',s.preferredResource||''],
-    ['Restrict Preferred Resource',s.restrictResource?'Yes':'No'],
-    ['Total Cases',s.cases||0],
-    ['Dry Cases',s.dryCases||0],
-    ['Cooler Cases',s.coolerCases||0],
-    ['Frozen Cases',s.frozenCases||0],
-    ['Package Cases',s.pkgCases||0],
-    ['Cube',s.cube||0],
-    ['Weight',s.weight||0],
-    ['Window Start',s.earliest||''],
-    ['Window End',s.latest||''],
-    ['Address',s.address||''],
-    ['City',s.city||''],
-    ['State',s.state||''],
-    ['Latitude',s.lat||''],
-    ['Longitude',s.lng||''],
-    ['Unassigned Reason',s.unassignedReason||'']
-  ];
-  document.getElementById('customer-detail-body').innerHTML='<div class="detail-grid">'+fields.map(([l,val])=>`<div class="detail-field"><div class="lbl">${esc(l)}</div><div class="val">${esc(val)}</div></div>`).join('')+'</div>';
-  modal('customer-detail-modal');
-}
-
-function openRouteManifest(routeId){
-  const r=routes.find(x=>x.id===routeId);
-  if(!r)return;
-  document.getElementById('manifest-title').textContent=`Route Manifest - ${routeDisplayName(r)}`;
-  document.getElementById('manifest-summary').innerHTML=`
-    <strong>Depot:</strong> ${esc(r.depotName)}<br>
-    <strong>Truck:</strong> ${esc(r.truckType)}<br>
-    <strong>Stops:</strong> ${r.stops.length}<br>
-    <strong>Cases:</strong> ${r.cases.toLocaleString()}<br>
-    <strong>Miles:</strong> ${r.miles.toFixed(1)}<br>
-    <strong>Run Time:</strong> ${r.hours.toFixed(1)} hrs<br>
-    <strong>Capacity:</strong> ${routeCapacityPct(r).toFixed(1)}%<br>
-    <strong>CPM:</strong> ${routeCPM(r).toFixed(1)}`;
-  const rows=[`<div class="manifest-row header"><div>Seq</div><div>Customer</div><div>City/State</div><div>Cases</div><div>Cube</div><div>Weight</div><div>Window</div><div>Standard Route</div></div>`]
-    .concat(r.stops.map(s=>`<div class="manifest-row" onclick="openCustomerDetails('${s.id}')">
-      <div>${s.sequence}</div>
-      <div><strong>${esc(s.name)}</strong><br><span style="color:var(--text3);font-size:9px">${esc(s.address||'')}</span></div>
-      <div>${esc(s.city)}, ${esc(s.state)}</div>
-      <div>${s.cases}</div>
-      <div>${(s.cube||0).toFixed(1)}</div>
-      <div>${(s.weight||0).toFixed(0)}</div>
-      <div>${esc(s.earliest||'')} - ${esc(s.latest||'')}</div>
-      <div>${esc(s.standardRoute||'')}</div>
-    </div>`));
-  document.getElementById('manifest-list').innerHTML=rows.join('');
-  modal('manifest-modal');
-}
-
 function openSessionData(){
   const sheetCounts=Object.keys(rawSheets||{}).map(k=>`<tr><td>${esc(k)}</td><td>${Array.isArray(rawSheets[k])?rawSheets[k].length:0}</td></tr>`).join('')||'<tr><td colspan="2">No imported sheets loaded.</td></tr>';
-  const s=sessionSummary;
-  const scenario=s?`<div class="result-box" style="margin-bottom:10px">
-    <strong>Last Scenario:</strong> ${esc(s.mode||'')}<br>
-    <strong>Active Goal:</strong> ${esc(s.activeGoal||'')}<br>
-    <strong>Selected Depot(s):</strong> ${esc((s.depots||[]).join(', '))}<br>
-    <strong>Goals:</strong> ${esc((s.options?.goals||[]).join(', '))}<br>
-    <strong>Capacity %:</strong> ${esc(s.options?.capacityPct||solutionDials.capacityPct)}<br>
-    <strong>Fleet CPM:</strong> ${(s.fleetCPM||0).toFixed(2)}<br>
-    <strong>Balance Score (lower=better):</strong> ${(s.balanceScore||0).toFixed(3)}<br>
-    <strong>Depot Miles Limit:</strong> ${esc(solutionDials.depotMiles)}<br>
-    <strong>Customer Cluster Miles:</strong> ${esc(solutionDials.clusterMiles)}
-  </div>`:'<div class="result-box" style="margin-bottom:10px">No optimization has been run yet.</div>';
-  const counts=`<div class="grid4" style="margin-bottom:10px">
-    <div class="detail-field"><div class="lbl">Customers</div><div class="val">${customers.length}</div></div>
-    <div class="detail-field"><div class="lbl">Route Templates</div><div class="val">${routeTemplates.length}</div></div>
-    <div class="detail-field"><div class="lbl">Stop/Order Templates</div><div class="val">${stopsTemplates.length}</div></div>
-    <div class="detail-field"><div class="lbl">Depot Locations</div><div class="val">${depotLocations.length}</div></div>
-    <div class="detail-field"><div class="lbl">Optimized Routes</div><div class="val">${routes.length}</div></div>
-    <div class="detail-field"><div class="lbl">Assigned Stops</div><div class="val">${optimizedStops.length}</div></div>
-    <div class="detail-field"><div class="lbl">Unassigned Stops</div><div class="val">${unassignedStops.length}</div></div>
-    <div class="detail-field"><div class="lbl">Trucks</div><div class="val">${trucks.length}</div></div>
-  </div>`;
-  const fleet=`<table class="mini-table"><thead><tr><th>Truck Type</th><th>Count (Current Pass)</th></tr></thead><tbody>${TRUCK_TYPES.map(t=>`<tr><td>${esc(t)}</td><td>${esc(solutionDials.fleet[t]||0)}</td></tr>`).join('')}</tbody></table>`;
+  const scenario=lastScenario?`<div class="result-box" style="margin-bottom:10px"><strong>Last Scenario:</strong> ${esc(lastScenario.mode||sessionSummary?.mode||'') }<br><strong>Selected Depot(s):</strong> ${esc((lastScenario.depots||sessionSummary?.depots||[]).join(', ')||'') }<br><strong>Goals:</strong> ${esc((lastScenario.goals||solutionDials.goals||[]).join(', '))}<br><strong>Capacity %:</strong> ${esc(lastScenario.capacityPct||solutionDials.capacityPct)}<br><strong>Depot Miles Limit:</strong> ${esc(solutionDials.depotMiles)}<br><strong>Customer Cluster Miles:</strong> ${esc(solutionDials.clusterMiles)}</div>`:'<div class="result-box" style="margin-bottom:10px">No optimization has been run yet. Imported data is still shown below.</div>';
+  const counts=`<div class="grid4" style="margin-bottom:10px"><div class="detail-field"><div class="lbl">Customers</div><div class="val">${customers.length}</div></div><div class="detail-field"><div class="lbl">Route Templates</div><div class="val">${routeTemplates.length}</div></div><div class="detail-field"><div class="lbl">Stop/Order Templates</div><div class="val">${stopsTemplates.length}</div></div><div class="detail-field"><div class="lbl">Depot Locations</div><div class="val">${depotLocations.length}</div></div><div class="detail-field"><div class="lbl">Optimized Routes</div><div class="val">${routes.length}</div></div><div class="detail-field"><div class="lbl">Assigned Stops</div><div class="val">${optimizedStops.length}</div></div><div class="detail-field"><div class="lbl">Unassigned Stops</div><div class="val">${unassignedStops.length}</div></div><div class="detail-field"><div class="lbl">Trucks</div><div class="val">${trucks.length}</div></div></div>`;
+  const fleet=`<table class="mini-table"><thead><tr><th>Truck Type</th><th>Count Available / Current Pass</th></tr></thead><tbody>${TRUCK_TYPES.map(t=>`<tr><td>${esc(t)}</td><td>${esc(solutionDials.fleet[t]||0)}</td></tr>`).join('')}</tbody></table>`;
   const sheets=`<div class="section-title">Imported Sheet Row Counts</div><table class="mini-table"><thead><tr><th>Sheet</th><th>Rows</th></tr></thead><tbody>${sheetCounts}</tbody></table>`;
   document.getElementById('session-data-body').innerHTML=scenario+counts+'<div class="section-title">Current Fleet Dials</div>'+fleet+sheets;
   modal('session-data-modal');
 }
 
-/* ============================================================
-   RESULTS
-   ============================================================ */
-function showResults(){
-  const s=sessionSummary;
-  if(!s)return;
-  const goalNotes={
-    'Reduce Routes':`Routes opened: <strong>${s.routeCount}</strong> (cut ${s.routesCut} from ${s.originalRoutes} templates)`,
-    'Increase Cases Per Mile':`Fleet Cases Per Mile: <strong>${s.fleetCPM.toFixed(2)}</strong>`,
-    'Reduce Miles':`Total Miles: <strong>${s.miles.toFixed(1)}</strong>`,
-    'Fleet Balancing':`Balance Score (std-dev): <strong>${s.balanceScore.toFixed(3)}</strong> — lower is better`
-  };
-  const goalNote=goalNotes[s.activeGoal]||'';
-  document.getElementById('result-title').textContent=`Optimization Results — ${s.activeGoal||s.mode}`;
-  document.getElementById('result-body').innerHTML=`
-    <strong>Job:</strong> ${esc(s.mode)}<br>
-    <strong>Active Goal:</strong> ${esc(s.activeGoal||'')}<br>
-    ${goalNote?goalNote+'<br>':''}
-    <strong>Routes Used:</strong> ${s.routeCount}<br>
-    <strong>Assigned / Unassigned:</strong> ${s.assigned} / ${s.unassigned}<br>
-    <strong>Miles Covered:</strong> ${s.miles.toFixed(1)}<br>
-    <strong>Fleet CPM:</strong> ${s.fleetCPM.toFixed(2)}<br>
-    <strong>Average Capacity:</strong> ${s.avgCapacity.toFixed(1)}%<br>
-    <strong>Average Route Time:</strong> ${s.avgHours.toFixed(1)} hrs<br>
-    <strong>Truck Mix:</strong> ${Object.entries(s.truckCounts).map(([k,v])=>`${k}: ${v}`).join(', ')||'None'}<br>
-    <strong>Customers:</strong> ${s.customers}`;
-  modal('result-modal');
-}
+function fitAll(showMsg=true){const pts=[];filteredRoutes().forEach(r=>{if(r.depotLat&&r.depotLng)pts.push([r.depotLat,r.depotLng]);r.stops.forEach(s=>pts.push([s.lat,s.lng]));});filteredUnassigned().forEach(s=>s.lat&&s.lng&&pts.push([s.lat,s.lng]));if(pts.length){map.fitBounds(pts,{padding:[45,45],maxZoom:10});if(showMsg)showToast(activeDepotFilter?'Map fitted to selected depot.':'Map fitted to scenario.');}}
+function toggleDepots(){showDepotMarkers=!showDepotMarkers;renderMap();}function toggleUnassigned(){showUnassignedMarkers=!showUnassignedMarkers;renderMap();}
+function toggleRouteLines(){showRouteLines=!showRouteLines;const btn=document.getElementById('route-lines-btn');if(btn)btn.textContent=showRouteLines?'Route Lines: On':'Route Lines: Off';renderMap();}
+function zoomStop(id){const s=optimizedStops.concat(unassignedStops).find(x=>x.id===id);if(s)map.setView([s.lat,s.lng],12);}
+function openCustomerDetails(id){const s=optimizedStops.concat(unassignedStops).find(x=>x.id===id);if(!s)return;zoomStop(id);const r=routes.find(x=>x.id===s.routeId);document.getElementById('customer-detail-title').textContent=s.name||'Customer Details';const fields=[['Assigned Route',r?routeDisplayName(r):'Unassigned'],['Depot',s.depotName||s.depotKey||''],['Suggested Depot',s.suggestedDepot||s.depotKey||''],['Depot Changed?',s.depotChanged||'No'],['Delivery Day',s.day||''],['Suggested Changed Delivery Day',s.suggestedChangedDay||''],['Day Changed?',s.dayChanged||'No'],['Sequence',s.sequence||''],['Account',s.account||''],['Customer Number',s.customerNumber||''],['Ship To',s.shipTo||''],['Order Number',s.orderNumber||''],['Routing Attribute',s.routingAttribute||s.routingAttributes||''],['Preferred Resource',s.preferredResource||''],['Restrict Preferred Resource',s.restrictResource?'Yes':'No'],['Restrict Route Position',s.restrictPosition?'Yes':'No'],['Cases',s.cases||0],['Cube',s.cube||0],['Weight',s.weight||0],['Window Start',s.earliest||''],['Window End',s.latest||''],['Address',s.address||''],['City',s.city||''],['State',s.state||''],['Latitude',s.lat||''],['Longitude',s.lng||''],['Unassigned Reason',s.unassignedReason||'']];document.getElementById('customer-detail-body').innerHTML='<div class="detail-grid">'+fields.map(([l,v])=>`<div class="detail-field"><div class="lbl">${esc(l)}</div><div class="val">${esc(v)}</div></div>`).join('')+'</div>';modal('customer-detail-modal');}
+function openRouteManifest(routeId){const r=routes.find(x=>x.id===routeId);if(!r)return;document.getElementById('manifest-title').textContent=`Route Manifest - ${routeDisplayName(r)}`;document.getElementById('manifest-summary').innerHTML=`<strong>Depot:</strong> ${esc(r.depotName)}<br><strong>Truck:</strong> ${esc(r.truckType)}<br><strong>Stops:</strong> ${r.stops.length}<br><strong>Cases:</strong> ${r.cases.toLocaleString()}<br><strong>Miles:</strong> ${r.miles.toFixed(1)}<br><strong>Run Time:</strong> ${r.hours.toFixed(1)} hrs<br><strong>Capacity:</strong> ${routeCapacityPct(r).toFixed(1)}%<br><strong>CPM:</strong> ${routeCPM(r).toFixed(1)}`;const rows=[`<div class="manifest-row header"><div>Seq</div><div>Customer</div><div>City/State</div><div>Cases</div><div>Cube</div><div>Weight</div><div>Window</div><div>Routing Attr</div></div>`].concat(r.stops.map(s=>`<div class="manifest-row" onclick="openCustomerDetails('${s.id}')"><div>${s.sequence}</div><div><strong>${esc(s.name)}</strong><br><span style="color:var(--text3);font-size:9px">${esc(s.address||'')}</span></div><div>${esc(s.city)}, ${esc(s.state)}</div><div>${s.cases}</div><div>${s.cube}</div><div>${s.weight}</div><div>${esc(s.earliest||'')} - ${esc(s.latest||'')}</div><div>${esc(s.routingAttribute||s.routingAttributes||'')}</div></div>`));document.getElementById('manifest-list').innerHTML=rows.join('');modal('manifest-modal');}
+function renderLegend(){const depotKeys=[...new Set(routes.map(r=>r.depotKey))];const items=depotKeys.map(k=>{const d=findDepot(k);const active=activeDepotFilter===k?' <span class="badge badge-green">Filtered</span>':'';return `<div class="legend-item" style="cursor:pointer" onclick="setDepotFilter('${esc(k)}')"><span class="dot" style="background:${depotColor(k)}"></span>${esc(d?.name||k)}${active}</div>`;}).join('');document.getElementById('legend-items').innerHTML=items+(unassignedStops.length?`<div class="legend-item"><span class="dot" style="background:#ef4444"></span>Unassigned Stops</div>`:'')+(activeDepotFilter?`<div class="legend-item" style="cursor:pointer;color:#93c5fd" onclick="clearDepotFilter()">Clear depot filter</div>`:'');}
+function showResults(){const s=sessionSummary;if(!s)return;document.getElementById('result-body').innerHTML=`<strong>Job:</strong> ${esc(s.mode)}<br><strong>Routes Used:</strong> ${s.routeCount}<br><strong>Routes Cut:</strong> ${s.routesCut}<br><strong>Assigned / Unassigned:</strong> ${s.assigned} / ${s.unassigned}<br><strong>Miles Covered:</strong> ${s.miles.toFixed(1)}<br><strong>Truck Mix:</strong> ${Object.entries(s.truckCounts).map(([k,v])=>`${k}: ${v}`).join(', ')||'None'}<br><strong>Average Capacity:</strong> ${s.avgCapacity.toFixed(1)}%<br><strong>Average Route Time:</strong> ${s.avgHours.toFixed(1)} hrs<br><strong>Customers:</strong> ${s.customers}`;modal('result-modal');}
+function clearSession(){if(!confirm('Clear imported and scenario data?'))return;rawSheets={};trucks=[];stopsTemplates=[];customers=[];routeTemplates=[];depotLocations=[];routes=[];optimizedStops=[];unassignedStops=[];sessionSummary=null;lastScenario=null;activeDepotFilter=null;render();showToast('Session cleared.');}
 
-/* ============================================================
-   CLEAR SESSION
-   ============================================================ */
-function clearSession(){
-  if(!confirm('Clear imported and scenario data?'))return;
-  rawSheets={};trucks=[];stopsTemplates=[];customers=[];routeTemplates=[];depotLocations=[];
-  routes=[];optimizedStops=[];unassignedStops=[];sessionSummary=null;lastScenario=null;activeDepotFilter=null;
-  render();showToast('Session cleared.');
-}
-
-/* ============================================================
-   EXPORT
-   ============================================================ */
-function exportExcel(){
-  if(!sessionSummary){showToast('Run an optimization before exporting.');return;}
-  const wb=XLSX.utils.book_new();
-
-  // Summary sheet
-  const summary=[
-    ['Session Summary',''],
-    ['Job Ran',sessionSummary.mode],
-    ['Active Goal',sessionSummary.activeGoal||''],
-    ['Routes Used',sessionSummary.routeCount],
-    ['Original Routes',sessionSummary.originalRoutes],
-    ['Routes Cut',sessionSummary.routesCut],
-    ['Assigned Stops',sessionSummary.assigned],
-    ['Unassigned Stops',sessionSummary.unassigned],
-    ['Miles Covered',sessionSummary.miles],
-    ['Fleet Cases Per Mile',sessionSummary.fleetCPM],
-    ['Cases',sessionSummary.cases],
-    ['Weight',sessionSummary.weight],
-    ['Cube',sessionSummary.cube],
-    ['Average Capacity %',sessionSummary.avgCapacity],
-    ['Average Route Hours',sessionSummary.avgHours],
-    ['Balance Score (std-dev)',sessionSummary.balanceScore],
-    ['Depots Used',sessionSummary.depots.join(', ')],
-    ['Truck Mix',Object.entries(sessionSummary.truckCounts).map(([k,v])=>`${k}:${v}`).join(', ')],
-    [],
-    ['Selected Options',JSON.stringify(cleanOptions(sessionSummary.options))]
-  ];
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(summary),'Session Summary');
-
-  // Route summary
-  const routeSummary=routes.map(r=>({
-    'Day':r.day,'Depot':r.depotKey,'Route':routeDisplayName(r),'Truck Type':r.truckType,
-    'Total Stops':r.stops.length,'Cases':r.cases,'Weight':r.weight,'Cube':r.cube,
-    'Estimated Hours':r.hours,'Estimated Miles':r.miles,
-    'Cases Per Mile':r.miles?r.cases/r.miles:0,'Capacity %':routeCapacityPct(r)
-  }));
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(routeSummary),'Route Summary');
-
-  // Full manifest
-  const manifest=[];
-  routes.forEach(r=>r.stops.forEach(s=>manifest.push({
-    'Route':routeDisplayName(r),'Sequence':s.sequence,'Truck Type':r.truckType,'Depot':r.depotKey,
-    'Customer':s.name,'Account':s.account,'Order Number':s.orderNumber,
-    'Address':s.address,'City':s.city,'State':s.state,'Latitude':s.lat,'Longitude':s.lng,
-    'Total Cases':s.cases,'Dry Cases':s.dryCases||0,'Cooler Cases':s.coolerCases||0,
-    'Frozen Cases':s.frozenCases||0,'Package Cases':s.pkgCases||0,
-    'Cube':s.cube||0,'Weight':s.weight||0,
-    'Delivery Day':s.day,'Window Start':s.earliest,'Window End':s.latest,
-    'Standard Route':s.standardRoute||'','New Route':s.newRoute||'','Route Changed?':s.routeChanged||'No'
-  })));
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(manifest),'Route Manifest');
-
-  // Updated customer list
-  const newCust=customers.map(c=>{
-    const match=optimizedStops.find(s=>String(s.account)===String(c.account));
-    return{...c.raw,'Suggested Depot':match?.suggestedDepot||c.depot,'Depot Changed?':match?.depotChanged||'No','Suggested Changed Delivery Day':match?.suggestedChangedDay||'','Day Changed?':match?.dayChanged||'No'};
-  });
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(newCust),'New Customer List');
-
-  // Updated stops template
-  const stopRows=(rawSheets['Stops Templates']||[]).map(row=>{
-    const match=optimizedStops.find(s=>String(s.orderNumber)===String(row.ORDER_NUMBER));
-    return{...row,'Route Changed?':match?.routeChanged||'No','New Route':match?.newRoute||''};
-  });
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(stopRows),'Stops Templates');
-
-  // Unassigned stops
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(unassignedStops.map(s=>({
-    'Customer':s.name,'Account':s.account,'Order Number':s.orderNumber,'Depot':s.depotKey,
-    'Reason':s.unassignedReason||'No route fit','Latitude':s.lat,'Longitude':s.lng,
-    'Cases':s.cases,'Cube':s.cube||0,'Weight':s.weight||0
-  }))),'Unassigned Stops');
-
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rawSheets['Depot Locations']||[]),'Depot Locations');
-  XLSX.writeFile(wb,`NetworkOptDesk_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
-}
-
+function exportExcel(){if(!sessionSummary){showToast('Run an optimization before exporting.');return;}const wb=XLSX.utils.book_new();const summary=[['Session Summary',''],['Job Ran',sessionSummary.mode],['Routes Used',sessionSummary.routeCount],['Original Routes',sessionSummary.originalRoutes],['Routes Cut',sessionSummary.routesCut],['Assigned Stops',sessionSummary.assigned],['Unassigned Stops',sessionSummary.unassigned],['Miles Covered',sessionSummary.miles],['Cases',sessionSummary.cases],['Weight',sessionSummary.weight],['Cube',sessionSummary.cube],['Average Capacity %',sessionSummary.avgCapacity],['Average Route Hours',sessionSummary.avgHours],['Depots Used',sessionSummary.depots.join(', ')],['Truck Mix',Object.entries(sessionSummary.truckCounts).map(([k,v])=>`${k}:${v}`).join(', ')],[],['Selected Options',JSON.stringify(cleanOptions(sessionSummary.options))]];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(summary),'Session Summary');const routeSummary=routes.map(r=>({'Day':r.day,'Depot':r.depotKey,'Route':routeDisplayName(r),'Truck Type':r.truckType,'Total Stops':r.stops.length,'Cases':r.cases,'Weight':r.weight,'Cube':r.cube,'Estimated Hours':r.hours,'Estimated Miles':r.miles,'Estimated Cases Per Mile':r.miles?r.cases/r.miles:0,'Capacity %':routeCapacityPct(r)}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(routeSummary),'Route Summary');const manifest=[];routes.forEach(r=>r.stops.forEach(s=>manifest.push({'Route':routeDisplayName(r),'Sequence':s.sequence,'Truck Type':r.truckType,'Depot':r.depotKey,'Customer':s.name,'Account':s.account,'Order Number':s.orderNumber,'Address':s.address,'City':s.city,'State':s.state,'Latitude':s.lat,'Longitude':s.lng,'Cases':s.cases,'Cube':s.cube,'Weight':s.weight,'Delivery Day':s.day,'Window Start':s.earliest,'Window End':s.latest})));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(manifest),'Route Manifest');const newCust=customers.map(c=>{const match=optimizedStops.find(s=>String(s.account)===String(c.account));return{...c.raw,'Suggested Depot':match?.suggestedDepot||c.depot,'Depot Changed?':match?.depotChanged||'No','Suggested Changed Delivery Day':match?.suggestedChangedDay||'','Day Changed?':match?.dayChanged||'No'};});XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(newCust),'New Customer List');const stopRows=(rawSheets['Stops Templates']||[]).map(row=>{const match=optimizedStops.find(s=>String(s.orderNumber)===String(row.ORDER_NUMBER));return{...row,'Route Changed?':match?.routeChanged||'No','New Route':match?.newRoute||''};});XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(stopRows),'Stops Templates');XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(unassignedStops.map(s=>({'Customer':s.name,'Account':s.account,'Order Number':s.orderNumber,'Depot':s.depotKey,'Reason':s.unassignedReason||'No route fit','Latitude':s.lat,'Longitude':s.lng,'Cases':s.cases,'Cube':s.cube,'Weight':s.weight}))), 'Unassigned Stops');XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rawSheets['Depot Locations']||[]),'Depot Locations');XLSX.writeFile(wb,`NetworkOptDesk_Export_${new Date().toISOString().slice(0,10)}.xlsx`);}
 function cleanOptions(o){const copy={...o};delete copy.depots;delete copy.fleet;return copy;}
 </script>
 </body>
