@@ -2891,7 +2891,16 @@ function dayNameFromAny(value){
 function routeDayName(route){return dayNameFromAny(route?.udfString2||'')||HOLIDAY_DAYS.find(d=>HOLIDAY_DAY_CODES[d]===(route?.udfString2||'').toString().toUpperCase().trim())||'';}
 function routeMatchesHolidayDay(route,day){return routeDayName(route)===day || (route?.udfString2||'').toString().toUpperCase().trim()===HOLIDAY_DAY_CODES[day];}
 function holidayDeliveryActive(row){return isYesFlag(gc(row,['Delivery Day','DeliveryDay']));}
-function holidayCustomerDay(row){return dayNameFromAny(gc(row,['Day Of Week_1','Day Of Week 1','Day Of Week Text','Day Name']))||dayNameFromAny(gc(row,['Day Of Week','DayOfWeek']));}
+function holidayCustomerActive(row){
+  const status=sval(gc(row,['Account: Account Status','Account Status','Status'])).toLowerCase();
+  return status==='active';
+}
+function holidayCustomerDay(row){
+  // Holiday template: column K is imported by XLSX as "Day Of Week.1" when column F is also named "Day Of Week".
+  // Column K is the text delivery day. Fall back to the numeric Day Of Week column if needed.
+  return dayNameFromAny(gc(row,['Day Of Week.1','Day Of Week_1','Day Of Week 1','Day Of Week Text','Day Name']))
+    || dayNameFromAny(gc(row,['Day Of Week','DayOfWeek']));
+}
 function holidayCustomerKey(row,day){return `${sval(gc(row,['Tandem Account Number']))}|${day}`;}
 function confirmHolidayImport(btn,originalText){
   try{
@@ -2907,9 +2916,11 @@ function confirmHolidayImport(btn,originalText){
       return {name,data,type:detectImportSheetType(name,data)};
     }).filter(x=>x.data.length);
 
-    const dep=sheets.find(x=>x.name.toLowerCase().trim()==='depot locations'||x.type==='depots');
-    const rt=sheets.find(x=>x.name.toLowerCase().trim()==='route templates'||x.type==='routes');
-    const cust=sheets.find(x=>x.name.toLowerCase().trim()==='customer list'||x.type==='holiday customers');
+    // Holiday import intentionally ignores extra tabs such as Sheet1.
+    // Only the three named data tabs are used for this workflow.
+    const dep=sheets.find(x=>x.name.toLowerCase().trim()==='depot locations');
+    const rt=sheets.find(x=>x.name.toLowerCase().trim()==='route templates');
+    const cust=sheets.find(x=>x.name.toLowerCase().trim()==='customer list');
     if(dep)importDepots(dep.data);
     if(rt){clearRouteDayFilter();importRoutes(rt.data);}
     let sc=0;
@@ -2936,6 +2947,8 @@ function importHolidayCustomers(data,holidayDate,holidayDay){
   let imported=0, affected=0;
   const seen=new Set();
   data.forEach(row=>{
+    // Only active customers with Delivery Day = TRUE/Yes are included.
+    if(!holidayCustomerActive(row))return;
     if(!holidayDeliveryActive(row))return;
     const day=holidayCustomerDay(row);
     if(!day)return;
@@ -2997,6 +3010,46 @@ function holidayRouteLimitMap(){
 function holidayExcludedDays(){return Array.from(document.querySelectorAll('.holiday-exclude-day:checked')).map(x=>x.value);}
 function routeDepotPoint(route){const d=routeInitialDepot(route)||routeFinalDepot(route);if(d&&d.lat&&d.lng)return {lat:d.lat,lng:d.lng};return null;}
 function stopToRouteDepotMiles(stop,route){const d=routeDepotPoint(route);return d?haversine(stop.lat,stop.lng,d.lat,d.lng):999999;}
+function holidayRouteWindowMinutes(route){
+  let start=timeToMinutes(route.earliestStartTime||route.latestStartTime||'06:00');
+  let end=timeToMinutes(route.latestEndTime||'18:00');
+  if(start===null)start=360;
+  if(end===null)end=start+600;
+  if(end<=start)end+=1440;
+  return Math.max(0,end-start);
+}
+function holidayStopServiceMinutes(stop){
+  const fixed=nval(stop.fixedServiceTime);
+  const variable=nval(stop.variableServiceTime);
+  const fixedMins=fixed>300?fixed/60:fixed;
+  const variableMins=variable>300?variable/60:variable;
+  return Math.max(1,fixedMins+(variableMins*Math.max(1,tCases(stop))));
+}
+function holidayEstimateRouteMinutes(route,assignedStops){
+  const start=routeDepotPoint(route);
+  if(!start||!assignedStops.length)return durationToMinutes(route.startupTime)+durationToMinutes(route.windupTime);
+  const remaining=assignedStops.filter(s=>s.lat&&s.lng).slice();
+  let current={lat:start.lat,lng:start.lng};
+  let total=durationToMinutes(route.startupTime);
+  while(remaining.length){
+    let bestIndex=0,bestDistance=Infinity;
+    remaining.forEach((stop,index)=>{
+      const d=haversine(current.lat,current.lng,stop.lat,stop.lng);
+      if(d<bestDistance){bestDistance=d;bestIndex=index;}
+    });
+    const next=remaining.splice(bestIndex,1)[0];
+    total+=driveMinutesForMiles(bestDistance)+holidayStopServiceMinutes(next);
+    current={lat:next.lat,lng:next.lng};
+  }
+  total+=driveMinutesForMiles(haversine(current.lat,current.lng,start.lat,start.lng));
+  total+=durationToMinutes(route.windupTime);
+  return total;
+}
+function holidayRouteCanAccept(route,assignedStops,stop){
+  const maxMinutes=holidayRouteWindowMinutes(route);
+  const nextStops=(assignedStops||[]).concat([stop]);
+  return holidayEstimateRouteMinutes(route,nextStops)<=maxMinutes;
+}
 function planHoliday(){
   if(!holidaySession.active){showToast('Import Holiday Routing data first.');return;}
   const excluded=new Set(holidayExcludedDays());
@@ -3012,19 +3065,29 @@ function planHoliday(){
   });
   const availableRoutes=Object.values(availableByDay).flat();
   if(!availableRoutes.length){showToast('No available routes. Uncheck at least one planning day or import route templates.');return;}
-  const routeLoads={};availableRoutes.forEach(r=>routeLoads[r.id]=0);
+
+  const routeLoads={};
+  const routeAssignedStops={};
+  availableRoutes.forEach(r=>{routeLoads[r.id]=0;routeAssignedStops[r.id]=[];});
+
   holidaySuggestions=[];
-  stops.filter(s=>s.holidayPlanning&&s.holidayAffected).forEach(s=>{s.routeId=null;s.seq=0;s.suggestedDeliveryDay='';s.suggestedRouteName='';s.suggestedRouteId='';s.holidayReason='';});
+  stops.filter(s=>s.holidayPlanning&&s.holidayAffected).forEach(s=>{
+    s.routeId=null;s.seq=0;s.suggestedDeliveryDay='';s.suggestedRouteName='';s.suggestedRouteId='';s.holidayReason='';
+  });
+
   const affected=stops.filter(s=>s.holidayPlanning&&s.holidayAffected&&s.lat&&s.lng);
   const targetPerRoute=Math.max(1,Math.ceil(affected.length/availableRoutes.length));
   affected.sort((a,b)=>a.city.localeCompare(b.city)||a.customerName.localeCompare(b.customerName)).forEach(s=>{
     const candidates=[];
     Object.entries(availableByDay).forEach(([day,dayRoutes])=>{
       dayRoutes.forEach(r=>{
+        const currentStops=routeAssignedStops[r.id]||[];
+        if(!holidayRouteCanAccept(r,currentStops,s))return;
         const dist=stopToRouteDepotMiles(s,r);
         const load=routeLoads[r.id]||0;
         const over=Math.max(0,load-targetPerRoute);
-        candidates.push({day,route:r,score:dist+(load*8)+(over*50)});
+        const runtimePct=holidayEstimateRouteMinutes(r,currentStops.concat([s]))/Math.max(1,holidayRouteWindowMinutes(r));
+        candidates.push({day,route:r,score:dist+(load*8)+(over*50)+(runtimePct*20)});
       });
     });
     candidates.sort((a,b)=>a.score-b.score);
@@ -3035,13 +3098,15 @@ function planHoliday(){
       s.suggestedDeliveryDay=pick.day;
       s.suggestedRouteName=pick.route.name;
       s.suggestedRouteId=pick.route.id;
-      s.holidayReason=`Moved from ${s.originalDeliveryDay} holiday to ${pick.day}. Chosen by closest route depot and route balance.`;
+      s.holidayReason=`Moved from ${s.originalDeliveryDay} holiday to ${pick.day}. Chosen by closest route depot, route balance, and route template time window.`;
       routeLoads[pick.route.id]=(routeLoads[pick.route.id]||0)+1;
+      routeAssignedStops[pick.route.id].push(s);
     }else{
-      s.holidayReason='No available route/day found.';
+      s.holidayReason='No available route/day found within the route template time window.';
     }
     holidaySuggestions.push(s);
   });
+
   const affectedRouteIds=new Set(holidaySuggestions.filter(s=>s.routeId).map(s=>s.routeId));
   affectedRouteIds.forEach(routeId=>{expanded.add(routeId);resequnceRouteByDistance(routeId);});
   reseq();
@@ -3051,7 +3116,7 @@ function planHoliday(){
   holidaySuggestions.filter(s=>s.routeId).forEach(s=>visibleStopIds.add(s.id));
   render();
   closeModal('holiday-dials-modal');
-  showJob('Holiday Plan Complete',`<strong>Affected Customers Planned:</strong> ${holidaySuggestions.filter(s=>s.routeId).length.toLocaleString()} / ${holidaySuggestions.length.toLocaleString()}<br/><strong>Routes Used:</strong> ${affectedRouteIds.size.toLocaleString()}<br/><strong>Excluded Days:</strong> ${Array.from(excluded).join(', ')}<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, or use the map/route tools to manually adjust the routed stops.`);
+  showJob('Holiday Plan Complete',`<strong>Affected Customers Planned:</strong> ${holidaySuggestions.filter(s=>s.routeId).length.toLocaleString()} / ${holidaySuggestions.length.toLocaleString()}<br/><strong>Routes Used:</strong> ${affectedRouteIds.size.toLocaleString()}<br/><strong>Excluded Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Route Time Rule:</strong> Route template start/end times were used as the hard runtime limit.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, or use the map/route tools to manually adjust the routed stops.`);
 }
 function openSuggestedDaysResults(){
   if(!holidaySession.active){showToast('Import Holiday Routing data first.');return;}
