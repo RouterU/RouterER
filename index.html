@@ -719,6 +719,13 @@ function uid(){return '_'+Math.random().toString(36).slice(2,9)+Date.now().toStr
 function escapeHtml(value){
   return (value??'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+function sval(value){
+  return (value??'').toString().trim();
+}
+function nval(value){
+  const n=parseFloat(value);
+  return Number.isFinite(n)?n:0;
+}
 function routeColor(routeId){const i=routes.findIndex(r=>r.id===routeId);return i>=0?COLORS[i%COLORS.length]:'#5c6480';}
 function tCases(s){return(s.dryCases||0)+(s.coolerCases||0)+(s.frozenCases||0)+(s.pkgCases||0);}
 function tWeight(s){return(s.dryWeight||0)+(s.coolerWeight||0)+(s.frozenWeight||0)+(s.pkgWeight||0);}
