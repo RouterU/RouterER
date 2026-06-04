@@ -627,7 +627,7 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
 // ============================================================
 const COLORS=['#4f8cff','#3ecf8e','#f59e0b','#ef4444','#a78bfa','#fb923c','#38bdf8','#f472b6','#34d399','#fbbf24','#60a5fa','#86efac'];
 let routes=[], stops=[], trucks=[], depotLocations=[];
-let holidaySession={active:false,holidayDate:'',holidayDay:'',dayCounts:{},affectedCount:0,customerRows:0,planned:false};
+let holidaySession={active:false,holidayDate:'',holidayDay:'',dayCounts:{},affectedCount:0,planningNeededCount:0,noneNeededCount:0,customerRows:0,planned:false};
 let holidaySuggestions=[];
 let holidayCustomerPool=[];
 let mapCleared=false;
@@ -2956,31 +2956,52 @@ function confirmHolidayImport(btn,originalText){
 }
 function importHolidayCustomers(data,holidayDate,holidayDay){
   const counts={};HOLIDAY_DAYS.forEach(d=>counts[d]=0);
-  let imported=0, affected=0;
+  let imported=0, affected=0, planningNeeded=0, noneNeeded=0;
   const seen=new Set();
   holidayCustomerPool=[];
+
+  // First pass: only Active customers + Delivery Day = True/Yes.
+  // Count all available True delivery days by customer so the Holiday job can skip customers
+  // that already have more than 2 delivery options.
+  const activeRows=[];
+  const activeDaysByAccount={};
   data.forEach(row=>{
-    // Only active customers with Delivery Day = TRUE/Yes are included.
     if(!holidayCustomerActive(row))return;
     if(!holidayDeliveryActive(row))return;
     const day=holidayCustomerDay(row);
     if(!day)return;
-    const key=holidayCustomerKey(row,day);
+    const account=sval(gc(row,['Tandem Account Number']));
+    if(!account)return;
+    activeRows.push({row,day,account});
+    if(!activeDaysByAccount[account])activeDaysByAccount[account]=new Set();
+    activeDaysByAccount[account].add(day);
+  });
+
+  // Second pass: create one normalized customer/day record per active delivery day.
+  activeRows.forEach(({row,day,account})=>{
+    const key=`${account}|${day}`;
     if(seen.has(key))return;
     seen.add(key);
+
+    const activeDayList=Array.from(activeDaysByAccount[account]||[]).sort((a,b)=>HOLIDAY_DAYS.indexOf(a)-HOLIDAY_DAYS.indexOf(b));
+    const activeDayCount=activeDayList.length;
+    const isHolidayAffected=day===holidayDay;
+    const needsHolidayPlanning=isHolidayAffected && activeDayCount<=2;
+    const noReplacementNeeded=isHolidayAffected && activeDayCount>2;
+
     counts[day]=(counts[day]||0)+1;
-    if(day===holidayDay)affected++;
+    if(isHolidayAffected)affected++;
+    if(needsHolidayPlanning)planningNeeded++;
+    if(noReplacementNeeded)noneNeeded++;
 
     const lat=parseFloat(gc(row,['Latitude','latitude','Lat','lat']));
     const lng=parseFloat(gc(row,['Longitude','longitude','Long','long','Lng','lng']));
-    const account=sval(gc(row,['Tandem Account Number']));
     const fixed=nval(gc(row,['Fixed ServiceTime','Fixed Service Time','FixedServiceTime']));
     const variable=nval(gc(row,['Variable ServiceTime','Variable Service Time','VariableServiceTime']));
 
-    // Store normalized customer rows only. Do not create thousands of DOM stop rows during import.
-    // The actual planning orders are created only when the user clicks Holiday Dials > Run Plan.
     holidayCustomerPool.push({
-      id:uid(),holidayDate,originalDeliveryDay:day,holidayAffected:day===holidayDay,
+      id:uid(),holidayDate,originalDeliveryDay:day,holidayAffected:isHolidayAffected,
+      needsHolidayPlanning,noReplacementNeeded,activeDeliveryDayCount:activeDayCount,activeDeliveryDays:activeDayList,
       account,lat:isNaN(lat)?null:lat,lng:isNaN(lng)?null:lng,
       fixedServiceTime:fixed,variableServiceTime:variable,
       customerName:sval(gc(row,['Account: Account Name','Customer Name','Name']))||`Customer ${account}`,
@@ -2995,13 +3016,13 @@ function importHolidayCustomers(data,holidayDate,holidayDay){
     });
     imported++;
   });
-  holidaySession={active:true,holidayDate,holidayDay,dayCounts:counts,affectedCount:affected,customerRows:imported,planned:false};
+  holidaySession={active:true,holidayDate,holidayDay,dayCounts:counts,affectedCount:affected,planningNeededCount:planningNeeded,noneNeededCount:noneNeeded,customerRows:imported,planned:false};
   return imported;
 }
 function holidayImportSummaryHtml(){
   const h=holidaySession;
   const rows=HOLIDAY_DAYS.map(d=>`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:3px 0;"><span>${d}${d===h.holidayDay?' <strong style="color:var(--warn);">(Holiday)</strong>':''}</span><strong>${(h.dayCounts[d]||0).toLocaleString()}</strong></div>`).join('');
-  return `<strong>Holiday Date:</strong> ${escapeHtml(h.holidayDate)} (${escapeHtml(h.holidayDay)})<br/><strong>Route Templates Loaded:</strong> ${routes.length.toLocaleString()}<br/><strong>Active Customer Delivery Rows Loaded:</strong> ${h.customerRows.toLocaleString()}<br/><strong>Affected Customers Needing a New Day:</strong> <span style="color:var(--warn);font-weight:800;">${h.affectedCount.toLocaleString()}</span><br/><br/><strong>Customers Per Active Delivery Day</strong><br/>${rows}<br/><span style="color:var(--text3);">Close this summary to review the weekly route templates. Affected planning orders will be created when you open Holiday Dials and click Run Plan.</span>`;
+  return `<strong>Holiday Date:</strong> ${escapeHtml(h.holidayDate)} (${escapeHtml(h.holidayDay)})<br/><strong>Route Templates Loaded:</strong> ${routes.length.toLocaleString()}<br/><strong>Active Customer Delivery Rows Loaded:</strong> ${h.customerRows.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> <span style="color:var(--warn);font-weight:800;">${(h.affectedCount||0).toLocaleString()}</span><br/><strong>Need Suggested Replacement Day:</strong> <span style="color:var(--accent);font-weight:800;">${(h.planningNeededCount||0).toLocaleString()}</span><br/><strong>No Replacement Needed (&gt;2 True Delivery Days):</strong> <span style="color:var(--success);font-weight:800;">${(h.noneNeededCount||0).toLocaleString()}</span><br/><br/><strong>Customers Per Active Delivery Day</strong><br/>${rows}<br/><span style="color:var(--text3);">Customers with more than 2 active delivery days are included in affected results, but their Suggested Day will show None Needed and they will not be routed by the Holiday Plan.</span>`;
 }
 function openHolidayDials(){
   if(!holidaySession.active){showToast('Import the Holiday Routing template first.');return;}
@@ -3069,8 +3090,10 @@ function holidayRouteCanAccept(route,assignedStops,stop){
 function createHolidayPlanningStop(c){
   return {
     id:uid(),routeId:null,seq:0,uiChecked:false,
-    holidayPlanning:true,holidayAffected:true,holidayDate:c.holidayDate,originalDeliveryDay:c.originalDeliveryDay,
+    holidayPlanning:true,holidayAffected:true,needsHolidayPlanning:true,noReplacementNeeded:false,
+    holidayDate:c.holidayDate,originalDeliveryDay:c.originalDeliveryDay,
     suggestedDeliveryDay:'',suggestedRouteName:'',suggestedRouteId:'',holidayReason:'',
+    activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[],
     orderNumber:`HOL-${c.account}-${c.originalDeliveryDay.slice(0,3).toUpperCase()}`,shipToId:c.account,customerNumber:c.account,
     customerName:c.customerName,routingAttribute:c.routingAttribute,routingAttributeId:c.routingAttributeId,deliveryGroupId:c.deliveryGroupId,
     address:c.address,city:c.city,state:c.state,zip:c.zip,country:'',lat:c.lat,lng:c.lng,
@@ -3079,6 +3102,18 @@ function createHolidayPlanningStop(c){
     dryCases:10,dryCube:9.95,dryWeight:100,
     comment:`Holiday Routing generated order. Original delivery day: ${c.originalDeliveryDay} (Holiday affected)`,
     raw:c.raw||{}
+  };
+}
+function createHolidayNoneNeededResult(c){
+  return {
+    id:'',routeId:null,seq:0,
+    holidayPlanning:false,holidayAffected:true,needsHolidayPlanning:false,noReplacementNeeded:true,
+    holidayDate:c.holidayDate,originalDeliveryDay:c.originalDeliveryDay,
+    suggestedDeliveryDay:'None Needed',suggestedRouteName:'None Needed',suggestedRouteId:'',
+    holidayReason:`Customer has ${c.activeDeliveryDayCount||0} active delivery days (${(c.activeDeliveryDays||[]).join(', ')}), so the holiday delivery can be skipped without a replacement planning route.`,
+    activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[],
+    customerNumber:c.account,shipToId:c.account,customerName:c.customerName,
+    city:c.city,state:c.state,raw:c.raw||{}
   };
 }
 function resequenceRouteByDistanceSilent(routeId){
@@ -3142,7 +3177,10 @@ function planHoliday(){
     routeAssignedStops[r.id]=[];
   });
 
-  const affectedCustomers=holidayCustomerPool.filter(c=>c.holidayAffected);
+  const noneNeededResults=holidayCustomerPool.filter(c=>c.holidayAffected&&c.noReplacementNeeded).map(c=>createHolidayNoneNeededResult(c));
+  holidaySuggestions.push(...noneNeededResults);
+
+  const affectedCustomers=holidayCustomerPool.filter(c=>c.holidayAffected&&c.needsHolidayPlanning);
   const affected=affectedCustomers.map(c=>createHolidayPlanningStop(c));
   const targetPerRoute=Math.max(1,Math.ceil(Math.max(1,affected.length)/availableRoutes.length));
 
@@ -3197,16 +3235,21 @@ function planHoliday(){
   // Do not auto-draw hundreds/thousands of route markers. User can display selected routes/stops as needed.
   mapCleared=true;visibleRouteIds.clear();visibleStopIds.clear();
   render();
-  showJob('Holiday Plan Complete',`<strong>Affected Customers Planned:</strong> ${holidaySuggestions.filter(s=>s.routeId).length.toLocaleString()} / ${holidaySuggestions.length.toLocaleString()}<br/><strong>Routes Used:</strong> ${affectedRouteIds.size.toLocaleString()}<br/><strong>Excluded Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Route Time Rule:</strong> Route template start/end times were used as the hard runtime limit.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, or use the map/route tools to manually adjust the routed stops.`);
+  showJob('Holiday Plan Complete',`<strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${holidaySuggestions.filter(s=>s.routeId).length.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (&gt;2 True Delivery Days):</strong> ${noneNeededResults.length.toLocaleString()}<br/><strong>Routes Used:</strong> ${affectedRouteIds.size.toLocaleString()}<br/><strong>Excluded Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Route Time Rule:</strong> Route template start/end times were used as the hard runtime limit.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, or use the map/route tools to manually adjust the routed stops.`);
 }
 function openSuggestedDaysResults(){
   if(!holidaySession.active){showToast('Import Holiday Routing data first.');return;}
-  const rows=(holidaySuggestions.length?holidaySuggestions:holidayCustomerPool.filter(c=>c.holidayAffected).map(c=>({customerNumber:c.account,shipToId:c.account,customerName:c.customerName,raw:c.raw||{},originalDeliveryDay:c.originalDeliveryDay,suggestedDeliveryDay:'Not planned',suggestedRouteName:'Unassigned',city:c.city,state:c.state,holidayReason:'Holiday plan has not been run yet.',routeId:null,id:''})));
-  const assigned=rows.filter(s=>s.routeId).length;
-  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${assigned.toLocaleString()}<br/><strong>Not Routed:</strong> ${(rows.length-assigned).toLocaleString()}`;
+  const rows=(holidaySuggestions.length?holidaySuggestions:holidayCustomerPool.filter(c=>c.holidayAffected).map(c=>{
+    if(c.noReplacementNeeded)return createHolidayNoneNeededResult(c);
+    return {customerNumber:c.account,shipToId:c.account,customerName:c.customerName,raw:c.raw||{},originalDeliveryDay:c.originalDeliveryDay,suggestedDeliveryDay:'Not planned',suggestedRouteName:'Unassigned',city:c.city,state:c.state,holidayReason:'Holiday plan has not been run yet.',routeId:null,id:'',activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[]};
+  }));
+  const planned=rows.filter(s=>s.routeId).length;
+  const noneNeeded=rows.filter(s=>s.noReplacementNeeded||s.suggestedDeliveryDay==='None Needed').length;
+  const notRouted=rows.length-planned-noneNeeded;
+  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${planned.toLocaleString()}<br/><strong>None Needed:</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}`;
   document.getElementById('suggested-days-list').innerHTML=`
-    <div class="manifest-row header" style="grid-template-columns:170px 300px 120px 100px 140px 220px 180px 280px;min-width:1510px;"><div>Account</div><div>Customer</div><div>Depot</div><div>Original Day</div><div>Suggested Day</div><div>Suggested Route</div><div>City / State</div><div>Reason</div></div>
-    ${rows.map(s=>`<div class="manifest-row stop" style="grid-template-columns:170px 300px 120px 100px 140px 220px 180px 280px;min-width:1510px;" onclick="openStopDetail('${s.id}')"><div>${escapeHtml(s.customerNumber||s.shipToId||'')}</div><div>${escapeHtml(s.customerName||'')}</div><div>${escapeHtml(s.raw?.Depot||'')}</div><div>${escapeHtml(s.originalDeliveryDay||'')}</div><div>${escapeHtml(s.suggestedDeliveryDay||'Not planned')}</div><div>${escapeHtml(s.suggestedRouteName||'Unassigned')}</div><div>${escapeHtml((s.city||'')+', '+(s.state||''))}</div><div>${escapeHtml(s.holidayReason||'')}</div></div>`).join('')||'<div class="manifest-row"><div>No affected customers found.</div></div>'}`;
+    <div class="manifest-row header" style="grid-template-columns:150px 280px 100px 95px 130px 190px 150px 120px 280px;min-width:1495px;"><div>Account</div><div>Customer</div><div>Depot</div><div>Original Day</div><div>Suggested Day</div><div>Suggested Route</div><div>City / State</div><div>True Days</div><div>Reason</div></div>
+    ${rows.map(s=>`<div class="manifest-row stop" style="grid-template-columns:150px 280px 100px 95px 130px 190px 150px 120px 280px;min-width:1495px;" ${s.id?`onclick="openStopDetail('${s.id}')"`:''}><div>${escapeHtml(s.customerNumber||s.shipToId||'')}</div><div>${escapeHtml(s.customerName||'')}</div><div>${escapeHtml(s.raw?.Depot||'')}</div><div>${escapeHtml(s.originalDeliveryDay||'')}</div><div>${escapeHtml(s.suggestedDeliveryDay||'Not planned')}</div><div>${escapeHtml(s.suggestedRouteName||'Unassigned')}</div><div>${escapeHtml((s.city||'')+', '+(s.state||''))}</div><div>${escapeHtml((s.activeDeliveryDays||[]).join(', ')||String(s.activeDeliveryDayCount||''))}</div><div>${escapeHtml(s.holidayReason||'')}</div></div>`).join('')||'<div class="manifest-row"><div>No affected customers found.</div></div>'}`;
   document.getElementById('suggested-days-modal').style.display='flex';
 }
 
@@ -3343,7 +3386,7 @@ function clearSession(){
   if(impConfirm) impConfirm.style.display='none';
 
   pendingWB = null;
-  holidaySession={active:false,holidayDate:'',holidayDay:'',dayCounts:{},affectedCount:0,customerRows:0,planned:false};
+  holidaySession={active:false,holidayDate:'',holidayDay:'',dayCounts:{},affectedCount:0,planningNeededCount:0,noneNeededCount:0,customerRows:0,planned:false};
   holidaySuggestions=[];
   holidayCustomerPool=[];
 
