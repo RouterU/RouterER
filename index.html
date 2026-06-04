@@ -1078,12 +1078,15 @@ function renderRoutes(){
 function renderUA(){
   const el=document.getElementById('ua-list');
   const ua=stops.filter(s=>!s.routeId).filter(stopMatchesFilter);
+  const holidayListIsLarge=holidaySession&&holidaySession.active&&!holidaySession.planned&&!activeStopFilterId&&ua.length>300;
+  const displayUA=holidayListIsLarge?ua.slice(0,300):ua;
   document.getElementById('ua-badge').innerHTML=activeStopFilterId?`<span class="filter-pill" onclick="activeStopFilterId=null;renderRoutes();renderUA()">Stop Filter ×</span>`:ua.length+' stops';
   if(!ua.length){
     el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p>All stops assigned!</p></div>';
     return;
   }
-  el.innerHTML=ua.map(s=>{
+  const holidayLimitNote=holidayListIsLarge?`<div class="job-result" style="margin:6px 8px;line-height:1.5;"><strong>Holiday Routing data loaded.</strong><br/>${ua.length.toLocaleString()} unassigned customer orders are in the session. Showing the first 300 here to keep the browser responsive. The Holiday Dials plan uses all ${ua.length.toLocaleString()} orders.</div>`:'';
+  el.innerHTML=holidayLimitNote+displayUA.map(s=>{
     const pc=potColors[s.id];
     const hasPref=!!(s.preferredResourceKey&&s.preferredResourceKey.toString().trim());
     const isWC=s.willCallIndicator==='Y'||s.willCallIndicator==='1'||s.willCallIndicator===1||s.willCallIndicator===true;
