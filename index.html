@@ -321,6 +321,16 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
         <div class="q-header">
           <span class="q-title">Routes</span>
           <button class="btn" style="padding:2px 7px;font-size:9px;" onclick="showSelectedRoutesOnMap()">Show Selected</button>
+          <select id="route-day-display-filter" class="route-sort" onchange="setRouteDayDisplayFilter(this.value)" title="Filter routes by day of week">
+            <option value="">All Days</option>
+            <option value="Monday">Monday</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Wednesday">Wednesday</option>
+            <option value="Thursday">Thursday</option>
+            <option value="Friday">Friday</option>
+            <option value="Saturday">Saturday</option>
+            <option value="Sunday">Sunday</option>
+          </select>
           <select id="route-sort" class="route-sort" onchange="setRouteSort(this.value)" title="Optional route sorting">
             <option value="">Sort By...</option>
             <option value="name">Name</option>
@@ -660,6 +670,7 @@ let contextStopId=null;
 let potColors={}; // stopId -> color
 let potRouteSuggestions={}; // stopId -> suggested routeId from Potential Routes job
 let routeSort=""; // optional route sort; blank keeps import/original order
+let routeDayDisplayFilter=""; // optional left-panel route day filter; blank shows all days
 let activeRouteFilterId=null;
 let activeStopFilterId=null;
 
@@ -1034,16 +1045,25 @@ function sortedRoutesForDisplay(){
   return list;
 }
 function setRouteSort(value){routeSort=value;renderRoutes();}
+function setRouteDayDisplayFilter(value){routeDayDisplayFilter=value||'';renderRoutes();}
+function routeMatchesDayDisplayFilter(route){
+  if(!routeDayDisplayFilter)return true;
+  return routeDayName(route)===routeDayDisplayFilter;
+}
 function renderRoutes(){
   const el=document.getElementById('routes-list');
   const sortSelect=document.getElementById('route-sort');
   if(sortSelect)sortSelect.value=routeSort;
-  document.getElementById('route-badge').innerHTML=activeRouteFilterId?`<span class="filter-pill" onclick="activeRouteFilterId=null;renderRoutes()">Route Filter ×</span>`:routes.length+' routes';
+  const dayFilterSelect=document.getElementById('route-day-display-filter');
+  if(dayFilterSelect)dayFilterSelect.value=routeDayDisplayFilter;
+  const displayCount=routes.filter(routeMatchesDayDisplayFilter).filter(routeMatchesFilter).length;
+  const badgeText=routeDayDisplayFilter?`${displayCount} ${routeDayDisplayFilter} route(s)`:routes.length+' routes';
+  document.getElementById('route-badge').innerHTML=activeRouteFilterId?`<span class="filter-pill" onclick="activeRouteFilterId=null;renderRoutes()">Route Filter ×</span>`:badgeText;
   if(!routes.length){
     el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4"/></svg><p>No routes yet — import or create one</p></div>';
     return;
   }
-  const displayRoutes=sortedRoutesForDisplay().filter(routeMatchesFilter);
+  const displayRoutes=sortedRoutesForDisplay().filter(routeMatchesDayDisplayFilter).filter(routeMatchesFilter);
   el.innerHTML=displayRoutes.map((r)=>{
     const ri=routes.findIndex(x=>x.id===r.id);
     const color=COLORS[ri%COLORS.length];
@@ -2582,8 +2602,13 @@ function detectImportSheetType(name,data){
   // They are intentionally ignored by the import process.
   if(sheetLower.includes('day code') || sheetLower.includes('reference'))return 'reference only';
 
-  const looksHolidayCustomers=keys.some(k=>k==='tandem account number')&&keys.some(k=>k==='delivery day')&&keys.some(k=>k==='depot')&&keys.some(k=>k==='account: account name');
+  const looksHolidayCustomers=
+    keys.some(k=>k==='tandem account number'||k==='account number'||k==='customer number') &&
+    keys.some(k=>k==='delivery day'||k==='deliveryday') &&
+    keys.some(k=>k==='account: account status'||k==='account status'||k==='status') &&
+    keys.some(k=>k==='account: account name'||k==='account name'||k==='customer name'||k==='name');
   if(sheetLower.includes('customer list')&&looksHolidayCustomers)return 'holiday customers';
+  if(sheetLower.includes('customer list'))return 'holiday customers';
 
   const looksRoutes=keys.some(k=>
     k.includes('routetemplatekey')||
@@ -3394,6 +3419,7 @@ function clearSession(){
   potRouteSuggestions = {};
 
   routeSort = "";
+  routeDayDisplayFilter = "";
   activeRouteFilterId = null;
   activeStopFilterId = null;
 
