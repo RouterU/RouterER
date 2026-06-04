@@ -3214,13 +3214,24 @@ function holidayRouteTruckLookupKey(route){
   const parts=raw.split('_').map(x=>x.trim()).filter(Boolean);
   return parts.length?parts[parts.length-1]:raw;
 }
+function holidayTruckKeyDigits(value){
+  return sval(value).toUpperCase().replace(/[^0-9A-Z]/g,'');
+}
 function holidayTruckForRoute(route){
   const raw=sval(route?.truckKey||'');
-  const key=holidayRouteTruckLookupKey(route);
-  if(!raw&&!key)return null;
-  return trucks.find(t=>sval(t.truckKey)===raw)
-    || trucks.find(t=>sval(t.truckKey)===key)
-    || trucks.find(t=>raw.endsWith('_'+sval(t.truckKey)));
+  const suffix=sval(holidayRouteTruckLookupKey(route));
+  const rawNorm=holidayTruckKeyDigits(raw);
+  const suffixNorm=holidayTruckKeyDigits(suffix);
+  if(!raw&&!suffix)return null;
+
+  // Route Templates TruckKey can look like a market-coded value ending in _26.
+  // The Trucks Template may store either the full TruckKey, the suffix, or the truck size in VehicleType.
+  // Match in that order so _26 correctly picks the 26FT row and its Measure2/Measure3 limits.
+  return trucks.find(t=>holidayTruckKeyDigits(t.truckKey)===rawNorm)
+    || trucks.find(t=>holidayTruckKeyDigits(t.truckKey)===suffixNorm)
+    || trucks.find(t=>rawNorm.endsWith(holidayTruckKeyDigits(t.truckKey)) && holidayTruckKeyDigits(t.truckKey))
+    || trucks.find(t=>holidayTruckKeyDigits(t.vehicleType)===suffixNorm)
+    || trucks.find(t=>suffixNorm && holidayTruckKeyDigits(t.requirements).includes(suffixNorm));
 }
 function holidayRouteCapacity(route){
   const truck=holidayTruckForRoute(route);
@@ -3232,10 +3243,20 @@ function holidayRouteLoad(assignedStops){
 }
 function holidayCapacityCheck(route,assignedStops,stop){
   const cap=holidayRouteCapacity(route);
-  if(!cap.truck||(!cap.cube&&!cap.weight))return {ok:true,cap,load:holidayRouteLoad(assignedStops),nextCube:tCube(stop),nextWeight:tWeight(stop),reason:''};
   const load=holidayRouteLoad(assignedStops);
   const nextCube=load.cube+tCube(stop);
   const nextWeight=load.weight+tWeight(stop);
+
+  // If no truck row is found, do not falsely allow an overloaded route silently.
+  // Time rules can still run, but the reason will expose the missing truck match in Suggested Results.
+  if(!cap.truck){
+    return {ok:false,cap,load,nextCube,nextWeight,reason:`no truck capacity found for Route TruckKey ${sval(route?.truckKey||'—')}`};
+  }
+
+  if(!cap.cube&&!cap.weight){
+    return {ok:false,cap,load,nextCube,nextWeight,reason:`truck ${sval(cap.truck.truckKey||cap.truck.vehicleType||'')} has no cube/weight capacity loaded`};
+  }
+
   const cubeOk=!cap.cube||nextCube<=cap.cube;
   const weightOk=!cap.weight||nextWeight<=cap.weight;
   const parts=[];
