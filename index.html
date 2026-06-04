@@ -771,35 +771,12 @@ function excelTimeToHHMM(value){
   }
   const str=value.toString().trim();
   if(!str)return '';
-
-  // Handles updated Customer List time fields such as "6:00 AM", "2:00 PM", and "14:30".
-  const ampm=str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
-  if(ampm){
-    let h=parseInt(ampm[1],10);
-    const m=ampm[2];
-    const ap=ampm[3].toUpperCase();
-    if(ap==='PM'&&h<12)h+=12;
-    if(ap==='AM'&&h===12)h=0;
-    return String(h).padStart(2,'0')+':'+m;
-  }
-
-  const dateTime=str.match(/(?:\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{1,2}-\d{1,2})\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?/i);
-  if(dateTime){
-    let h=parseInt(dateTime[1],10);
-    const m=dateTime[2];
-    const ap=(dateTime[3]||'').toUpperCase();
-    if(ap==='PM'&&h<12)h+=12;
-    if(ap==='AM'&&h===12)h=0;
-    return String(h).padStart(2,'0')+':'+m;
-  }
-
   if(/^0?\.\d+$/.test(str)){
     const num=parseFloat(str);
     const mins=Math.round(num*24*60);
     return String(Math.floor(mins/60)%24).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');
   }
-  const hhm=str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?/);
-  if(hhm)return String(parseInt(hhm[1],10)).padStart(2,'0')+':'+hhm[2];
+  if(/^\d{1,2}:\d{2}/.test(str))return str.slice(0,5);
   const num=parseFloat(str);
   if(isFinite(num)&&num>=0&&num<1.000001){
     const mins=Math.round(num*24*60);
@@ -1387,38 +1364,11 @@ function openStopDetail(stopId){
     ${detailInput('ed-s-address','Address',s.address)}
     ${detailInput('ed-s-city','City',s.city)}
     ${detailInput('ed-s-state','State',s.state)}
-    ${detailInput('ed-s-zip','Postal Code',s.zip)}
+    ${detailInput('ed-s-zip','Zip',s.zip)}
     ${detailInput('ed-s-lat','Latitude',s.lat,'number')}
     ${detailInput('ed-s-lng','Longitude',s.lng,'number')}
     ${detailInput('ed-s-earliestTimeWindow','Earliest Time Window',cleanTimeValue(s.earliestTimeWindow),'time')}
     ${detailInput('ed-s-latestTimeWindow','Latest Time Window',cleanTimeValue(s.latestTimeWindow),'time')}
-    ${detailInput('ed-s-earliestDeliveryTime','Earliest Delivery Time',cleanTimeValue(s.earliestDeliveryTime||s.earliestTimeWindow),'time')}
-    ${detailInput('ed-s-latestDeliveryTime','Latest Delivery Time',cleanTimeValue(s.latestDeliveryTime||s.latestTimeWindow),'time')}
-    ${detailInput('ed-s-deliveryWindowStart','Delivery Window Start',cleanTimeValue(s.deliveryWindowStart||s.earliestTimeWindow),'time')}
-    ${detailInput('ed-s-deliveryWindowEnd','Delivery Window End',cleanTimeValue(s.deliveryWindowEnd||s.latestTimeWindow),'time')}
-
-    ${s.holidayPlanning||s.holidayAffected?'<div class="shdr" style="grid-column:1/-1;margin-top:4px;">Holiday / Customer Assignment Details</div>':''}
-    ${detailInput('ed-s-originalDeliveryDay','Original Delivery Day',s.originalDeliveryDay||'')}
-    ${detailInput('ed-s-suggestedDeliveryDay','Suggested Delivery Day',s.suggestedDeliveryDay||'')}
-    ${detailInput('ed-s-suggestedRouteName','Suggested Route',s.suggestedRouteName||'')}
-    ${detailInput('ed-s-activeDeliveryDays','True Delivery Days',(s.activeDeliveryDays||[]).join(', '))}
-    ${detailInput('ed-s-routeLock','Route Lock',s.routeLock||'')}
-    ${detailInput('ed-s-originalRoute','Original Route',s.originalRoute||'')}
-    ${detailInput('ed-s-sequenceLock','Sequence Lock',s.sequenceLock||'')}
-    ${detailInput('ed-s-originalSequence','Original Sequence',s.originalSequence||'')}
-    ${detailInput('ed-s-deliveryGroupId','Delivery Group ID',s.deliveryGroupId||'')}
-    ${detailInput('ed-s-parentCustomer','Parent Customer',s.parentCustomer||'')}
-    ${detailInput('ed-s-crossDockCode','Cross Dock Code',s.crossDockCode||'')}
-    ${detailInput('ed-s-crossDockDivision','Cross Dock Division',s.crossDockDivision||'')}
-    ${detailInput('ed-s-daysToDeliver','Days to Deliver',s.daysToDeliver||'')}
-    ${detailInput('ed-s-driverAccessRequirement','Driver Access Requirement',s.driverAccessRequirement||'')}
-    ${detailInput('ed-s-equipmentSizeRequirement','Equipment Size Requirement',s.equipmentSizeRequirement||'')}
-    ${detailInput('ed-s-equipmentType','Equipment Type',s.equipmentType||'')}
-    ${detailInput('ed-s-keyDrop','Key Drop',s.keyDrop||'')}
-    ${detailInput('ed-s-accountOwner','Account Owner',s.accountOwner||'')}
-    ${detailInput('ed-s-midnightWindowFlag','Midnight Window Flag',s.midnightWindowFlag||'')}
-    ${detailInput('ed-s-accountRecordType','Account Record Type',s.accountRecordType||'')}
-
     ${detailInput('ed-s-dryCases','DRY Cases',s.dryCases||0,'number')}
     ${detailInput('ed-s-dryWeight','DRY Weight',s.dryWeight||0,'number')}
     ${detailInput('ed-s-dryCube','DRY Cube',s.dryCube||0,'number')}
@@ -1435,7 +1385,6 @@ function openStopDetail(stopId){
     ${detailInput('ed-s-orderStatus','Order Status',s.orderStatus)}
     ${detailInput('ed-s-district','District',s.district)}
     ${detailInput('ed-s-willCallIndicator','Will Call',s.willCallIndicator)}
-    ${detailTextArea('ed-s-holidayReason','Holiday Reason',s.holidayReason||'')}
     ${detailTextArea('ed-s-comment','Comment',s.comment)}
   </div>`;
   document.getElementById('stop-detail-modal').style.display='flex';
@@ -1461,30 +1410,6 @@ function saveStopDetail(){
   s.lng=lng;
   s.earliestTimeWindow=strVal('ed-s-earliestTimeWindow');
   s.latestTimeWindow=strVal('ed-s-latestTimeWindow');
-  s.earliestDeliveryTime=strVal('ed-s-earliestDeliveryTime');
-  s.latestDeliveryTime=strVal('ed-s-latestDeliveryTime');
-  s.deliveryWindowStart=strVal('ed-s-deliveryWindowStart');
-  s.deliveryWindowEnd=strVal('ed-s-deliveryWindowEnd');
-  s.originalDeliveryDay=strVal('ed-s-originalDeliveryDay');
-  s.suggestedDeliveryDay=strVal('ed-s-suggestedDeliveryDay');
-  s.suggestedRouteName=strVal('ed-s-suggestedRouteName');
-  s.routeLock=strVal('ed-s-routeLock');
-  s.originalRoute=strVal('ed-s-originalRoute');
-  s.sequenceLock=strVal('ed-s-sequenceLock');
-  s.originalSequence=strVal('ed-s-originalSequence');
-  s.deliveryGroupId=strVal('ed-s-deliveryGroupId');
-  s.parentCustomer=strVal('ed-s-parentCustomer');
-  s.crossDockCode=strVal('ed-s-crossDockCode');
-  s.crossDockDivision=strVal('ed-s-crossDockDivision');
-  s.daysToDeliver=strVal('ed-s-daysToDeliver');
-  s.driverAccessRequirement=strVal('ed-s-driverAccessRequirement');
-  s.equipmentSizeRequirement=strVal('ed-s-equipmentSizeRequirement');
-  s.equipmentType=strVal('ed-s-equipmentType');
-  s.keyDrop=strVal('ed-s-keyDrop');
-  s.accountOwner=strVal('ed-s-accountOwner');
-  s.midnightWindowFlag=strVal('ed-s-midnightWindowFlag');
-  s.accountRecordType=strVal('ed-s-accountRecordType');
-  s.holidayReason=strVal('ed-s-holidayReason');
   s.dryCases=numVal('ed-s-dryCases');
   s.dryWeight=numVal('ed-s-dryWeight');
   s.dryCube=numVal('ed-s-dryCube');
@@ -1516,33 +1441,48 @@ function openRouteDetail(routeId){
   if(!r)return;
   activeDetailRouteId=routeId;
   const init=routeInitialDepot(r), fin=routeFinalDepot(r);
+  const routeDay=routeDayName(r)||dayNameFromAny(r.udfString2)||'';
+  const driverName=[r.driverFirstName,r.driverLastName].filter(Boolean).join(' ');
   document.getElementById('route-detail-title').textContent=`Edit Route Template Details: ${r.name||'Route'}`;
   document.getElementById('route-detail-body').innerHTML=`<div class="stop-detail-grid">
-    ${detailInput('ed-r-name','Route Name',r.name)}
+    <div class="shdr" style="grid-column:1/-1;margin-top:4px;">Route Template</div>
+    ${detailInput('ed-r-name','Name',r.name)}
     ${detailInput('ed-r-routeTemplateKey','RouteTemplateKey',r.routeTemplateKey)}
     ${detailInput('ed-r-scheduleKey','ScheduleKey',r.scheduleKey)}
-    ${detailInput('ed-r-udfNumber1','UDFNumber1',r.udfNumber1)}
+    ${detailInput('ed-r-udfNumber1','UDFNumber1 / Route Number',r.udfNumber1)}
     ${detailInput('ed-r-udfString2','UDFString2 / Route Day',r.udfString2)}
+    <div class="stop-detail-field"><div class="lbl">Resolved Route Day</div><div class="val">${escapeHtml(routeDay||'—')}</div></div>
+
+    <div class="shdr" style="grid-column:1/-1;margin-top:4px;">Depot / Location Keys</div>
     ${detailInput('ed-r-initialLocationKey','InitialLocationKey',r.initialLocationKey)}
     ${detailInput('ed-r-finalLocationKey','FinalLocationKey',r.finalLocationKey)}
-    ${detailInput('ed-r-driverKey','DriverKey',r.driverKey)}
-    ${detailInput('ed-r-truckKey','TruckKey',r.truckKey)}
-    ${detailInput('ed-r-trailerKey','TrailerKey',r.trailerKey)}
-    ${detailInput('ed-r-driverFirstName','Driver First Name',r.driverFirstName)}
-    ${detailInput('ed-r-driverLastName','Driver Last Name',r.driverLastName)}
-    ${detailInput('ed-r-earliestStartTime','Earliest Start Time',cleanTimeValue(r.earliestStartTime),'time')}
-    ${detailInput('ed-r-latestStartTime','Latest Start Time',cleanTimeValue(r.latestStartTime),'time')}
-    ${detailInput('ed-r-latestEndTime','Latest End Time',cleanTimeValue(r.latestEndTime),'time')}
-    ${detailInput('ed-r-startupTime','Startup Time',r.startupTime||0,'number')}
-    ${detailInput('ed-r-windupTime','Windup Time',r.windupTime||0,'number')}
-    ${detailInput('ed-r-routingParameterKey','Routing Parameter Key',r.routingParameterKey)}
-    ${detailInput('ed-r-requirements','Requirements',r.requirements)}
-    ${detailInput('ed-r-work1Duration','Work1Duration',r.work1Duration)}
     <div class="stop-detail-field"><div class="lbl">Initial Depot Match</div><div class="val">${escapeHtml(init?depotLabel(init,'Depot'):'No matching depot found')}</div></div>
     <div class="stop-detail-field"><div class="lbl">Final Depot Match</div><div class="val">${escapeHtml(fin?depotLabel(fin,'Depot'):'No matching depot found')}</div></div>
+
+    <div class="shdr" style="grid-column:1/-1;margin-top:4px;">Driver / Equipment</div>
+    ${detailInput('ed-r-driverKey','DriverKey',r.driverKey)}
+    ${detailInput('ed-r-driverFirstName','DriverFirstName',r.driverFirstName)}
+    ${detailInput('ed-r-driverLastName','DriverLastName',r.driverLastName)}
+    <div class="stop-detail-field"><div class="lbl">Driver Name</div><div class="val">${escapeHtml(driverName||'—')}</div></div>
+    ${detailInput('ed-r-truckKey','TruckKey',r.truckKey)}
+    ${detailInput('ed-r-trailerKey','TrailerKey',r.trailerKey)}
+    ${detailInput('ed-r-requirements','Requirements',r.requirements)}
+    ${detailInput('ed-r-routingParameterKey','RoutingParameterKey',r.routingParameterKey)}
+
+    <div class="shdr" style="grid-column:1/-1;margin-top:4px;">Timing</div>
+    ${detailInput('ed-r-earliestStartTime','EarliestStartTime',cleanTimeValue(r.earliestStartTime),'time')}
+    ${detailInput('ed-r-latestStartTime','LatestStartTime',cleanTimeValue(r.latestStartTime),'time')}
+    ${detailInput('ed-r-latestEndTime','LatestEndTime',cleanTimeValue(r.latestEndTime),'time')}
+    ${detailInput('ed-r-startupTime','StartupTime',r.startupTime||0,'number')}
+    ${detailInput('ed-r-windupTime','WindupTime',r.windupTime||0,'number')}
+    <div class="stop-detail-field"><div class="lbl">Route Time Window</div><div class="val">${escapeHtml(cleanTimeValue(r.earliestStartTime)||'—')} - ${escapeHtml(cleanTimeValue(r.latestEndTime)||'—')}</div></div>
+    <div class="stop-detail-field"><div class="lbl">Estimated Current Run Time</div><div class="val">${escapeHtml(fmtMinutes(routeTotalMinutes(r.id)))}</div></div>
+
+    ${detailInput('ed-r-work1Duration','Work1Duration',r.work1Duration)}
   </div>`;
   document.getElementById('route-detail-modal').style.display='flex';
 }
+
 function saveRouteDetail(){
   const r=routes.find(x=>x.id===activeDetailRouteId);
   if(!r)return;
@@ -1560,20 +1500,42 @@ function saveRouteDetail(){
   r.trailerKey=strVal('ed-r-trailerKey');
   r.driverFirstName=strVal('ed-r-driverFirstName');
   r.driverLastName=strVal('ed-r-driverLastName');
-  r.earliestStartTime=strVal('ed-r-earliestStartTime');
-  r.latestStartTime=strVal('ed-r-latestStartTime');
-  r.latestEndTime=strVal('ed-r-latestEndTime');
+  r.earliestStartTime=cleanTimeValue(strVal('ed-r-earliestStartTime'));
+  r.latestStartTime=cleanTimeValue(strVal('ed-r-latestStartTime'));
+  r.latestEndTime=cleanTimeValue(strVal('ed-r-latestEndTime'));
   r.startupTime=numVal('ed-r-startupTime');
   r.windupTime=numVal('ed-r-windupTime');
   r.routingParameterKey=strVal('ed-r-routingParameterKey');
   r.requirements=strVal('ed-r-requirements');
   r.work1Duration=strVal('ed-r-work1Duration');
+  r.routeTemplateDetails={
+    scheduleKey:r.scheduleKey,
+    routeTemplateKey:r.routeTemplateKey,
+    name:r.name,
+    udfNumber1:r.udfNumber1,
+    udfString2:r.udfString2,
+    initialLocationKey:r.initialLocationKey,
+    finalLocationKey:r.finalLocationKey,
+    driverKey:r.driverKey,
+    driverFirstName:r.driverFirstName,
+    driverLastName:r.driverLastName,
+    truckKey:r.truckKey,
+    trailerKey:r.trailerKey,
+    earliestStartTime:r.earliestStartTime,
+    latestStartTime:r.latestStartTime,
+    latestEndTime:r.latestEndTime,
+    startupTime:r.startupTime,
+    windupTime:r.windupTime,
+    requirements:r.requirements,
+    routingParameterKey:r.routingParameterKey
+  };
   enrichRouteDepots();
   expanded.add(r.id);
   render();
   closeModal('route-detail-modal');
   showToast('Route template details updated');
 }
+
 function openRouteManifestFromDetail(){
   const routeId=activeDetailRouteId;
   closeModal('route-detail-modal');
@@ -2836,38 +2798,74 @@ function importDepots(data){
   enrichRouteDepots();
 }
 
+function routeTemplateField(row,keys){
+  return sval(gc(row,keys));
+}
+function routeTemplateNumberField(row,keys){
+  const n=parseFloat(gc(row,keys));
+  return Number.isFinite(n)?n:0;
+}
+function routeTemplateTimeField(row,keys){
+  return excelTimeToHHMM(gc(row,keys));
+}
+function routeTemplateOriginalFields(row){
+  return {
+    scheduleKey:routeTemplateField(row,['ScheduleKey','Schedule Key']),
+    routeTemplateKey:routeTemplateField(row,['RouteTemplateKey','Route Template Key']),
+    name:routeTemplateField(row,['Name','RouteName','Route Name']),
+    udfNumber1:routeTemplateField(row,['UDFNumber1','UDF Number 1','UDF Number1','UDFNumber 1']),
+    udfString2:routeTemplateField(row,['UDFString2','UDF String 2','UDFString 2','UDF String2']),
+    initialLocationKey:routeTemplateField(row,['InitialLocationKey','Initial Location Key']),
+    finalLocationKey:routeTemplateField(row,['FinalLocationKey','Final Location Key']),
+    driverKey:routeTemplateField(row,['DriverKey','Driver Key']),
+    driverFirstName:routeTemplateField(row,['DriverFirstName','Driver First Name']),
+    driverLastName:routeTemplateField(row,['DriverLastName','Driver Last Name']),
+    truckKey:routeTemplateField(row,['TruckKey','Truck Key']),
+    trailerKey:routeTemplateField(row,['TrailerKey','Trailer Key']),
+    earliestStartTime:routeTemplateTimeField(row,['EarliestStartTime','Earliest Start Time']),
+    latestStartTime:routeTemplateTimeField(row,['LatestStartTime','Latest Start Time']),
+    latestEndTime:routeTemplateTimeField(row,['LatestEndTime','Latest End Time']),
+    startupTime:routeTemplateNumberField(row,['StartupTime','Startup Time']),
+    windupTime:routeTemplateNumberField(row,['WindupTime','Windup Time']),
+    requirements:routeTemplateField(row,['Requirements']),
+    routingParameterKey:routeTemplateField(row,['RoutingParameterKey','Routing Parameter Key'])
+  };
+}
+
 function importRoutes(data){
   let imported=0;
   data.forEach(row=>{
     if(!routeMatchesSelectedDay(row))return;
-    const key=(gc(row,['RouteTemplateKey','Route Template Key'])||'').toString();
-    const name=(gc(row,['Name','name','RouteName','Route Name'])||key||'').toString().trim();
+    const details=routeTemplateOriginalFields(row);
+    const key=details.routeTemplateKey;
+    const name=(details.name||key||'').toString().trim();
     if(!name)return;
     const existing=routes.find(r=>r.routeTemplateKey&&r.routeTemplateKey===key)||routes.find(r=>r.name===name);
     const obj={
       id:existing?existing.id:uid(),
       name,
       routeTemplateKey:key,
-      scheduleKey:(gc(row,['ScheduleKey','Schedule Key'])||'').toString(),
-      udfNumber1:(gc(row,['UDFNumber1','UDF Number 1','UDF Number1','UDFNumber 1'])||'').toString(),
-      udfString2:(gc(row,['UDFString2','UDF String 2','UDFString 2','UDF String2'])||'').toString(),
-      initialLocationKey:(gc(row,['InitialLocationKey','Initial Location Key'])||'').toString(),
-      finalLocationKey:(gc(row,['FinalLocationKey','Final Location Key'])||'').toString(),
+      scheduleKey:details.scheduleKey,
+      udfNumber1:details.udfNumber1,
+      udfString2:details.udfString2,
+      initialLocationKey:details.initialLocationKey,
+      finalLocationKey:details.finalLocationKey,
       depotLat:parseFloat(gc(row,['DepotLatitude','Depot Latitude','InitialLatitude','Initial Latitude','Start Latitude']))||null,
       depotLng:parseFloat(gc(row,['DepotLongitude','Depot Longitude','InitialLongitude','Initial Longitude','Start Longitude']))||null,
-      earliestStartTime:excelTimeToHHMM(gc(row,['EarliestStartTime','Earliest Start Time'])),
-      latestStartTime:excelTimeToHHMM(gc(row,['LatestStartTime','Latest Start Time'])),
-      latestEndTime:excelTimeToHHMM(gc(row,['LatestEndTime','Latest End Time'])),
-      startupTime:parseFloat(gc(row,['StartupTime','Startup Time']))||0,
-      windupTime:parseFloat(gc(row,['WindupTime','Windup Time']))||0,
-      driverKey:(gc(row,['DriverKey','Driver Key'])||'').toString(),
-      driverFirstName:(gc(row,['DriverFirstName','Driver First Name'])||'').toString(),
-      driverLastName:(gc(row,['DriverLastName','Driver Last Name'])||'').toString(),
-      truckKey:(gc(row,['TruckKey','Truck Key'])||'').toString(),
-      trailerKey:(gc(row,['TrailerKey','Trailer Key'])||'').toString(),
-      requirements:(gc(row,['Requirements'])||'').toString(),
+      earliestStartTime:details.earliestStartTime,
+      latestStartTime:details.latestStartTime,
+      latestEndTime:details.latestEndTime,
+      startupTime:details.startupTime,
+      windupTime:details.windupTime,
+      driverKey:details.driverKey,
+      driverFirstName:details.driverFirstName,
+      driverLastName:details.driverLastName,
+      truckKey:details.truckKey,
+      trailerKey:details.trailerKey,
+      requirements:details.requirements,
+      routingParameterKey:details.routingParameterKey,
       work1Duration:(gc(row,['Work1Duration','Work1 Duration'])||'').toString(),
-      routingParameterKey:(gc(row,['RoutingParameterKey','Routing Parameter Key'])||'').toString(),
+      routeTemplateDetails:details,
       selected:false,
     };
     if(existing)Object.assign(existing,obj); else routes.push(obj);
@@ -3007,56 +3005,6 @@ function holidayCustomerDay(row){
     || dayNameFromAny(gc(row,['Day Of Week','DayOfWeek']));
 }
 function holidayCustomerKey(row,day){return `${sval(gc(row,['Tandem Account Number']))}|${day}`;}
-
-function holidayCustomerField(row,keys){return sval(gc(row,keys));}
-function holidayCustomerBoolField(row,keys){return isYesFlag(gc(row,keys));}
-function holidayCustomerNumberField(row,keys){
-  const v=gc(row,keys);
-  const n=parseFloat(v);
-  return Number.isFinite(n)?n:'';
-}
-function holidayCustomerOriginalFields(row){
-  const earliestDelivery=excelTimeToHHMM(gc(row,['Earliest Delivery Time','EarliestDeliveryTime']));
-  const latestDelivery=excelTimeToHHMM(gc(row,['Latest Delivery Time','LatestDeliveryTime']));
-  const windowStart=excelTimeToHHMM(gc(row,['Delivery Window Start','DeliveryWindowStart']));
-  const windowEnd=excelTimeToHHMM(gc(row,['Delivery Window End','DeliveryWindowEnd']));
-  return {
-    divisionNumber:holidayCustomerField(row,['Division Number','DivisionNumber']),
-    accountNumber:holidayCustomerField(row,['Tandem Account Number','Account Number','Customer Number']),
-    accountName:holidayCustomerField(row,['Account: Account Name','Customer Name','Name']),
-    numericDayOfWeek:holidayCustomerField(row,['Day Of Week','DayOfWeek']),
-    dayOfWeekName:holidayCustomerDay(row),
-    deliveryDayFlag:holidayCustomerField(row,['Delivery Day','DeliveryDay']),
-    routeLock:holidayCustomerField(row,['Route Lock','RouteLock']),
-    route:holidayCustomerField(row,['Route']),
-    sequenceLock:holidayCustomerField(row,['Sequence Lock','SequenceLock']),
-    sequence:holidayCustomerField(row,['Sequence']),
-    deliveryGroupId:holidayCustomerField(row,['Delivery Group ID','DeliveryGroupID']),
-    earliestDeliveryTime:earliestDelivery,
-    latestDeliveryTime:latestDelivery,
-    deliveryWindowStart:windowStart,
-    deliveryWindowEnd:windowEnd,
-    parentCustomer:holidayCustomerField(row,['Parent Customer','ParentCustomer']),
-    crossDockCode:holidayCustomerField(row,['Cross Dock Code','CrossDockCode']),
-    crossDockDivision:holidayCustomerField(row,['Cross Dock Division','CrossDockDivision']),
-    daysToDeliver:holidayCustomerField(row,['Days to Deliver','Days To Deliver','DaysToDeliver']),
-    driverAccessRequirement:holidayCustomerField(row,['Driver Access Requirement','DriverAccessRequirement']),
-    equipmentSizeRequirement:holidayCustomerField(row,['Equipment Size Requirement','EquipmentSizeRequirement']),
-    equipmentType:holidayCustomerField(row,['Equipment Type','EquipmentType']),
-    keyDrop:holidayCustomerField(row,['Key Drop','KeyDrop']),
-    addressLine1:holidayCustomerField(row,['Address Line 1','Address','Ship Address']),
-    city:holidayCustomerField(row,['City']),
-    state:holidayCustomerField(row,['State']),
-    postalCode:holidayCustomerField(row,['Postal Code','PostalCode','Zip','ZIP']),
-    latitude:holidayCustomerField(row,['Latitude','Lat']),
-    longitude:holidayCustomerField(row,['Longitude','Long','Lng']),
-    accountOwner:holidayCustomerField(row,['Account: Account Owner','Account Owner']),
-    accountStatus:holidayCustomerField(row,['Account: Account Status','Account Status','Status']),
-    midnightWindowFlag:holidayCustomerField(row,['Midnight Window Flag','MidnightWindowFlag']),
-    accountRecordType:holidayCustomerField(row,['Account: Account Record Type','Account Record Type'])
-  };
-}
-
 function confirmHolidayImport(btn,originalText){
   try{
     const holidayDate=document.getElementById('holiday-date')?.value||document.getElementById('route-date')?.value||new Date().toISOString().slice(0,10);
@@ -3113,7 +3061,7 @@ function importHolidayCustomers(data,holidayDate,holidayDay){
     if(!holidayDeliveryActive(row))return;
     const day=holidayCustomerDay(row);
     if(!day)return;
-    const account=sval(gc(row,['Tandem Account Number','Account Number','Customer Number']));
+    const account=sval(gc(row,['Tandem Account Number']));
     if(!account)return;
     activeRows.push({row,day,account});
     if(!activeDaysByAccount[account])activeDaysByAccount[account]=new Set();
@@ -3126,7 +3074,6 @@ function importHolidayCustomers(data,holidayDate,holidayDay){
     if(seen.has(key))return;
     seen.add(key);
 
-    const details=holidayCustomerOriginalFields(row);
     const activeDayList=Array.from(activeDaysByAccount[account]||[]).sort((a,b)=>HOLIDAY_DAYS.indexOf(a)-HOLIDAY_DAYS.indexOf(b));
     const activeDayCount=activeDayList.length;
     const isHolidayAffected=day===holidayDay;
@@ -3138,8 +3085,8 @@ function importHolidayCustomers(data,holidayDate,holidayDay){
     if(needsHolidayPlanning)planningNeeded++;
     if(noReplacementNeeded)noneNeeded++;
 
-    const lat=parseFloat(details.latitude);
-    const lng=parseFloat(details.longitude);
+    const lat=parseFloat(gc(row,['Latitude','latitude','Lat','lat']));
+    const lng=parseFloat(gc(row,['Longitude','longitude','Long','long','Lng','lng']));
     const fixed=nval(gc(row,['Fixed ServiceTime','Fixed Service Time','FixedServiceTime']));
     const variable=nval(gc(row,['Variable ServiceTime','Variable Service Time','VariableServiceTime']));
 
@@ -3148,34 +3095,14 @@ function importHolidayCustomers(data,holidayDate,holidayDay){
       needsHolidayPlanning,noReplacementNeeded,activeDeliveryDayCount:activeDayCount,activeDeliveryDays:activeDayList,
       account,lat:isNaN(lat)?null:lat,lng:isNaN(lng)?null:lng,
       fixedServiceTime:fixed,variableServiceTime:variable,
-      customerName:details.accountName||`Customer ${account}`,
+      customerName:sval(gc(row,['Account: Account Name','Customer Name','Name']))||`Customer ${account}`,
       routingAttribute:sval(gc(row,['Routing Attributes: Routing Attributes Number'])),
       routingAttributeId:sval(gc(row,['Routing Attributes: ID'])),
-      deliveryGroupId:details.deliveryGroupId,
-      routeLock:details.routeLock,
-      originalRoute:details.route,
-      sequenceLock:details.sequenceLock,
-      originalSequence:details.sequence,
-      parentCustomer:details.parentCustomer,
-      crossDockCode:details.crossDockCode,
-      crossDockDivision:details.crossDockDivision,
-      daysToDeliver:details.daysToDeliver,
-      driverAccessRequirement:details.driverAccessRequirement,
-      equipmentSizeRequirement:details.equipmentSizeRequirement,
-      equipmentType:details.equipmentType,
-      keyDrop:details.keyDrop,
-      accountOwner:details.accountOwner,
-      midnightWindowFlag:details.midnightWindowFlag,
-      accountRecordType:details.accountRecordType,
-      address:details.addressLine1,
-      city:details.city,state:details.state,zip:details.postalCode,
-      earliestTimeWindow:details.deliveryWindowStart||details.earliestDeliveryTime||'06:00',
-      latestTimeWindow:details.deliveryWindowEnd||details.latestDeliveryTime||'18:00',
-      earliestDeliveryTime:details.earliestDeliveryTime,
-      latestDeliveryTime:details.latestDeliveryTime,
-      deliveryWindowStart:details.deliveryWindowStart,
-      deliveryWindowEnd:details.deliveryWindowEnd,
-      customerDetails:details,
+      deliveryGroupId:sval(gc(row,['Delivery Group ID'])),
+      address:[sval(gc(row,['Address Line 1'])),sval(gc(row,['Address Line 2']))].filter(Boolean).join(' '),
+      city:sval(gc(row,['City'])),state:sval(gc(row,['State'])),zip:sval(gc(row,['Zip','ZIP'])),
+      earliestTimeWindow:excelTimeToHHMM(gc(row,['Earliest Delivery Time','Delivery Window Start']))||'06:00',
+      latestTimeWindow:excelTimeToHHMM(gc(row,['Latest Delivery Time','Delivery Window End']))||'18:00',
       raw:{...row}
     });
     imported++;
@@ -3252,7 +3179,6 @@ function holidayRouteCanAccept(route,assignedStops,stop){
   return holidayEstimateRouteMinutes(route,nextStops)<=maxMinutes;
 }
 function createHolidayPlanningStop(c){
-  const details=c.customerDetails||{};
   return {
     id:uid(),routeId:null,seq:0,uiChecked:false,
     holidayPlanning:true,holidayAffected:true,needsHolidayPlanning:true,noReplacementNeeded:false,
@@ -3261,18 +3187,11 @@ function createHolidayPlanningStop(c){
     activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[],
     orderNumber:`HOL-${c.account}-${c.originalDeliveryDay.slice(0,3).toUpperCase()}`,shipToId:c.account,customerNumber:c.account,
     customerName:c.customerName,routingAttribute:c.routingAttribute,routingAttributeId:c.routingAttributeId,deliveryGroupId:c.deliveryGroupId,
-    routeLock:c.routeLock,originalRoute:c.originalRoute,sequenceLock:c.sequenceLock,originalSequence:c.originalSequence,
-    parentCustomer:c.parentCustomer,crossDockCode:c.crossDockCode,crossDockDivision:c.crossDockDivision,daysToDeliver:c.daysToDeliver,
-    driverAccessRequirement:c.driverAccessRequirement,equipmentSizeRequirement:c.equipmentSizeRequirement,equipmentType:c.equipmentType,
-    keyDrop:c.keyDrop,accountOwner:c.accountOwner,midnightWindowFlag:c.midnightWindowFlag,accountRecordType:c.accountRecordType,
     address:c.address,city:c.city,state:c.state,zip:c.zip,country:'',lat:c.lat,lng:c.lng,
     earliestTimeWindow:c.earliestTimeWindow,latestTimeWindow:c.latestTimeWindow,
-    earliestDeliveryTime:c.earliestDeliveryTime,latestDeliveryTime:c.latestDeliveryTime,
-    deliveryWindowStart:c.deliveryWindowStart,deliveryWindowEnd:c.deliveryWindowEnd,
     fixedServiceTime:c.fixedServiceTime,variableServiceTime:c.variableServiceTime,
     dryCases:10,dryCube:9.95,dryWeight:100,
     comment:`Holiday Routing generated order. Original delivery day: ${c.originalDeliveryDay} (Holiday affected)`,
-    customerDetails:details,
     raw:c.raw||{}
   };
 }
@@ -3285,11 +3204,7 @@ function createHolidayNoneNeededResult(c){
     holidayReason:`Customer has ${c.activeDeliveryDayCount||0} active delivery days (${(c.activeDeliveryDays||[]).join(', ')}), so the holiday delivery can be skipped without a replacement planning route.`,
     activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[],
     customerNumber:c.account,shipToId:c.account,customerName:c.customerName,
-    routeLock:c.routeLock,originalRoute:c.originalRoute,sequenceLock:c.sequenceLock,originalSequence:c.originalSequence,
-    parentCustomer:c.parentCustomer,crossDockCode:c.crossDockCode,crossDockDivision:c.crossDockDivision,daysToDeliver:c.daysToDeliver,
-    driverAccessRequirement:c.driverAccessRequirement,equipmentSizeRequirement:c.equipmentSizeRequirement,equipmentType:c.equipmentType,
-    keyDrop:c.keyDrop,accountOwner:c.accountOwner,midnightWindowFlag:c.midnightWindowFlag,accountRecordType:c.accountRecordType,
-    city:c.city,state:c.state,raw:c.raw||{},customerDetails:c.customerDetails||{}
+    city:c.city,state:c.state,raw:c.raw||{}
   };
 }
 function resequenceRouteByDistanceSilent(routeId){
