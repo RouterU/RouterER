@@ -1441,48 +1441,33 @@ function openRouteDetail(routeId){
   if(!r)return;
   activeDetailRouteId=routeId;
   const init=routeInitialDepot(r), fin=routeFinalDepot(r);
-  const routeDay=routeDayName(r)||dayNameFromAny(r.udfString2)||'';
-  const driverName=[r.driverFirstName,r.driverLastName].filter(Boolean).join(' ');
   document.getElementById('route-detail-title').textContent=`Edit Route Template Details: ${r.name||'Route'}`;
   document.getElementById('route-detail-body').innerHTML=`<div class="stop-detail-grid">
-    <div class="shdr" style="grid-column:1/-1;margin-top:4px;">Route Template</div>
-    ${detailInput('ed-r-name','Name',r.name)}
+    ${detailInput('ed-r-name','Route Name',r.name)}
     ${detailInput('ed-r-routeTemplateKey','RouteTemplateKey',r.routeTemplateKey)}
     ${detailInput('ed-r-scheduleKey','ScheduleKey',r.scheduleKey)}
-    ${detailInput('ed-r-udfNumber1','UDFNumber1 / Route Number',r.udfNumber1)}
+    ${detailInput('ed-r-udfNumber1','UDFNumber1',r.udfNumber1)}
     ${detailInput('ed-r-udfString2','UDFString2 / Route Day',r.udfString2)}
-    <div class="stop-detail-field"><div class="lbl">Resolved Route Day</div><div class="val">${escapeHtml(routeDay||'—')}</div></div>
-
-    <div class="shdr" style="grid-column:1/-1;margin-top:4px;">Depot / Location Keys</div>
     ${detailInput('ed-r-initialLocationKey','InitialLocationKey',r.initialLocationKey)}
     ${detailInput('ed-r-finalLocationKey','FinalLocationKey',r.finalLocationKey)}
-    <div class="stop-detail-field"><div class="lbl">Initial Depot Match</div><div class="val">${escapeHtml(init?depotLabel(init,'Depot'):'No matching depot found')}</div></div>
-    <div class="stop-detail-field"><div class="lbl">Final Depot Match</div><div class="val">${escapeHtml(fin?depotLabel(fin,'Depot'):'No matching depot found')}</div></div>
-
-    <div class="shdr" style="grid-column:1/-1;margin-top:4px;">Driver / Equipment</div>
     ${detailInput('ed-r-driverKey','DriverKey',r.driverKey)}
-    ${detailInput('ed-r-driverFirstName','DriverFirstName',r.driverFirstName)}
-    ${detailInput('ed-r-driverLastName','DriverLastName',r.driverLastName)}
-    <div class="stop-detail-field"><div class="lbl">Driver Name</div><div class="val">${escapeHtml(driverName||'—')}</div></div>
     ${detailInput('ed-r-truckKey','TruckKey',r.truckKey)}
     ${detailInput('ed-r-trailerKey','TrailerKey',r.trailerKey)}
+    ${detailInput('ed-r-driverFirstName','Driver First Name',r.driverFirstName)}
+    ${detailInput('ed-r-driverLastName','Driver Last Name',r.driverLastName)}
+    ${detailInput('ed-r-earliestStartTime','Earliest Start Time',cleanTimeValue(r.earliestStartTime),'time')}
+    ${detailInput('ed-r-latestStartTime','Latest Start Time',cleanTimeValue(r.latestStartTime),'time')}
+    ${detailInput('ed-r-latestEndTime','Latest End Time',cleanTimeValue(r.latestEndTime),'time')}
+    ${detailInput('ed-r-startupTime','Startup Time',r.startupTime||0,'number')}
+    ${detailInput('ed-r-windupTime','Windup Time',r.windupTime||0,'number')}
+    ${detailInput('ed-r-routingParameterKey','Routing Parameter Key',r.routingParameterKey)}
     ${detailInput('ed-r-requirements','Requirements',r.requirements)}
-    ${detailInput('ed-r-routingParameterKey','RoutingParameterKey',r.routingParameterKey)}
-
-    <div class="shdr" style="grid-column:1/-1;margin-top:4px;">Timing</div>
-    ${detailInput('ed-r-earliestStartTime','EarliestStartTime',cleanTimeValue(r.earliestStartTime),'time')}
-    ${detailInput('ed-r-latestStartTime','LatestStartTime',cleanTimeValue(r.latestStartTime),'time')}
-    ${detailInput('ed-r-latestEndTime','LatestEndTime',cleanTimeValue(r.latestEndTime),'time')}
-    ${detailInput('ed-r-startupTime','StartupTime',r.startupTime||0,'number')}
-    ${detailInput('ed-r-windupTime','WindupTime',r.windupTime||0,'number')}
-    <div class="stop-detail-field"><div class="lbl">Route Time Window</div><div class="val">${escapeHtml(cleanTimeValue(r.earliestStartTime)||'—')} - ${escapeHtml(cleanTimeValue(r.latestEndTime)||'—')}</div></div>
-    <div class="stop-detail-field"><div class="lbl">Estimated Current Run Time</div><div class="val">${escapeHtml(fmtMinutes(routeTotalMinutes(r.id)))}</div></div>
-
     ${detailInput('ed-r-work1Duration','Work1Duration',r.work1Duration)}
+    <div class="stop-detail-field"><div class="lbl">Initial Depot Match</div><div class="val">${escapeHtml(init?depotLabel(init,'Depot'):'No matching depot found')}</div></div>
+    <div class="stop-detail-field"><div class="lbl">Final Depot Match</div><div class="val">${escapeHtml(fin?depotLabel(fin,'Depot'):'No matching depot found')}</div></div>
   </div>`;
   document.getElementById('route-detail-modal').style.display='flex';
 }
-
 function saveRouteDetail(){
   const r=routes.find(x=>x.id===activeDetailRouteId);
   if(!r)return;
@@ -1500,42 +1485,20 @@ function saveRouteDetail(){
   r.trailerKey=strVal('ed-r-trailerKey');
   r.driverFirstName=strVal('ed-r-driverFirstName');
   r.driverLastName=strVal('ed-r-driverLastName');
-  r.earliestStartTime=cleanTimeValue(strVal('ed-r-earliestStartTime'));
-  r.latestStartTime=cleanTimeValue(strVal('ed-r-latestStartTime'));
-  r.latestEndTime=cleanTimeValue(strVal('ed-r-latestEndTime'));
+  r.earliestStartTime=strVal('ed-r-earliestStartTime');
+  r.latestStartTime=strVal('ed-r-latestStartTime');
+  r.latestEndTime=strVal('ed-r-latestEndTime');
   r.startupTime=numVal('ed-r-startupTime');
   r.windupTime=numVal('ed-r-windupTime');
   r.routingParameterKey=strVal('ed-r-routingParameterKey');
   r.requirements=strVal('ed-r-requirements');
   r.work1Duration=strVal('ed-r-work1Duration');
-  r.routeTemplateDetails={
-    scheduleKey:r.scheduleKey,
-    routeTemplateKey:r.routeTemplateKey,
-    name:r.name,
-    udfNumber1:r.udfNumber1,
-    udfString2:r.udfString2,
-    initialLocationKey:r.initialLocationKey,
-    finalLocationKey:r.finalLocationKey,
-    driverKey:r.driverKey,
-    driverFirstName:r.driverFirstName,
-    driverLastName:r.driverLastName,
-    truckKey:r.truckKey,
-    trailerKey:r.trailerKey,
-    earliestStartTime:r.earliestStartTime,
-    latestStartTime:r.latestStartTime,
-    latestEndTime:r.latestEndTime,
-    startupTime:r.startupTime,
-    windupTime:r.windupTime,
-    requirements:r.requirements,
-    routingParameterKey:r.routingParameterKey
-  };
   enrichRouteDepots();
   expanded.add(r.id);
   render();
   closeModal('route-detail-modal');
   showToast('Route template details updated');
 }
-
 function openRouteManifestFromDetail(){
   const routeId=activeDetailRouteId;
   closeModal('route-detail-modal');
@@ -2798,74 +2761,40 @@ function importDepots(data){
   enrichRouteDepots();
 }
 
-function routeTemplateField(row,keys){
-  return sval(gc(row,keys));
-}
-function routeTemplateNumberField(row,keys){
-  const n=parseFloat(gc(row,keys));
-  return Number.isFinite(n)?n:0;
-}
-function routeTemplateTimeField(row,keys){
-  return excelTimeToHHMM(gc(row,keys));
-}
-function routeTemplateOriginalFields(row){
-  return {
-    scheduleKey:routeTemplateField(row,['ScheduleKey','Schedule Key']),
-    routeTemplateKey:routeTemplateField(row,['RouteTemplateKey','Route Template Key']),
-    name:routeTemplateField(row,['Name','RouteName','Route Name']),
-    udfNumber1:routeTemplateField(row,['UDFNumber1','UDF Number 1','UDF Number1','UDFNumber 1']),
-    udfString2:routeTemplateField(row,['UDFString2','UDF String 2','UDFString 2','UDF String2']),
-    initialLocationKey:routeTemplateField(row,['InitialLocationKey','Initial Location Key']),
-    finalLocationKey:routeTemplateField(row,['FinalLocationKey','Final Location Key']),
-    driverKey:routeTemplateField(row,['DriverKey','Driver Key']),
-    driverFirstName:routeTemplateField(row,['DriverFirstName','Driver First Name']),
-    driverLastName:routeTemplateField(row,['DriverLastName','Driver Last Name']),
-    truckKey:routeTemplateField(row,['TruckKey','Truck Key']),
-    trailerKey:routeTemplateField(row,['TrailerKey','Trailer Key']),
-    earliestStartTime:routeTemplateTimeField(row,['EarliestStartTime','Earliest Start Time']),
-    latestStartTime:routeTemplateTimeField(row,['LatestStartTime','Latest Start Time']),
-    latestEndTime:routeTemplateTimeField(row,['LatestEndTime','Latest End Time']),
-    startupTime:routeTemplateNumberField(row,['StartupTime','Startup Time']),
-    windupTime:routeTemplateNumberField(row,['WindupTime','Windup Time']),
-    requirements:routeTemplateField(row,['Requirements']),
-    routingParameterKey:routeTemplateField(row,['RoutingParameterKey','Routing Parameter Key'])
-  };
-}
-
 function importRoutes(data){
   let imported=0;
   data.forEach(row=>{
     if(!routeMatchesSelectedDay(row))return;
-    const details=routeTemplateOriginalFields(row);
-    const key=details.routeTemplateKey;
-    const name=(details.name||key||'').toString().trim();
+    const key=(gc(row,['RouteTemplateKey','Route Template Key'])||'').toString();
+    const name=(gc(row,['Name','name','RouteName','Route Name'])||key||'').toString().trim();
     if(!name)return;
     const existing=routes.find(r=>r.routeTemplateKey&&r.routeTemplateKey===key)||routes.find(r=>r.name===name);
     const obj={
       id:existing?existing.id:uid(),
       name,
       routeTemplateKey:key,
-      scheduleKey:details.scheduleKey,
-      udfNumber1:details.udfNumber1,
-      udfString2:details.udfString2,
-      initialLocationKey:details.initialLocationKey,
-      finalLocationKey:details.finalLocationKey,
+      scheduleKey:(gc(row,['ScheduleKey','Schedule Key'])||'').toString(),
+      udfNumber1:(gc(row,['UDFNumber1','UDF Number 1','UDF Number1','UDFNumber 1'])||'').toString(),
+      udfString2:(gc(row,['UDFString2','UDF String 2','UDFString 2','UDF String2'])||'').toString(),
+      udfString3:(gc(row,['UDFString3','UDF String 3','UDFString 3','UDF String3'])||'').toString(),
+      udfString4:(gc(row,['UDFString4','UDF String 4','UDFString 4','UDF String4'])||'').toString(),
+      initialLocationKey:(gc(row,['InitialLocationKey','Initial Location Key'])||'').toString(),
+      finalLocationKey:(gc(row,['FinalLocationKey','Final Location Key'])||'').toString(),
       depotLat:parseFloat(gc(row,['DepotLatitude','Depot Latitude','InitialLatitude','Initial Latitude','Start Latitude']))||null,
       depotLng:parseFloat(gc(row,['DepotLongitude','Depot Longitude','InitialLongitude','Initial Longitude','Start Longitude']))||null,
-      earliestStartTime:details.earliestStartTime,
-      latestStartTime:details.latestStartTime,
-      latestEndTime:details.latestEndTime,
-      startupTime:details.startupTime,
-      windupTime:details.windupTime,
-      driverKey:details.driverKey,
-      driverFirstName:details.driverFirstName,
-      driverLastName:details.driverLastName,
-      truckKey:details.truckKey,
-      trailerKey:details.trailerKey,
-      requirements:details.requirements,
-      routingParameterKey:details.routingParameterKey,
+      earliestStartTime:excelTimeToHHMM(gc(row,['EarliestStartTime','Earliest Start Time'])),
+      latestStartTime:excelTimeToHHMM(gc(row,['LatestStartTime','Latest Start Time'])),
+      latestEndTime:excelTimeToHHMM(gc(row,['LatestEndTime','Latest End Time'])),
+      startupTime:parseFloat(gc(row,['StartupTime','Startup Time']))||0,
+      windupTime:parseFloat(gc(row,['WindupTime','Windup Time']))||0,
+      driverKey:(gc(row,['DriverKey','Driver Key'])||'').toString(),
+      driverFirstName:(gc(row,['DriverFirstName','Driver First Name'])||'').toString(),
+      driverLastName:(gc(row,['DriverLastName','Driver Last Name'])||'').toString(),
+      truckKey:(gc(row,['TruckKey','Truck Key'])||'').toString(),
+      trailerKey:(gc(row,['TrailerKey','Trailer Key'])||'').toString(),
+      requirements:(gc(row,['Requirements'])||'').toString(),
       work1Duration:(gc(row,['Work1Duration','Work1 Duration'])||'').toString(),
-      routeTemplateDetails:details,
+      routingParameterKey:(gc(row,['RoutingParameterKey','Routing Parameter Key'])||'').toString(),
       selected:false,
     };
     if(existing)Object.assign(existing,obj); else routes.push(obj);
@@ -3051,9 +2980,6 @@ function importHolidayCustomers(data,holidayDate,holidayDay){
   const seen=new Set();
   holidayCustomerPool=[];
 
-  // First pass: only Active customers + Delivery Day = True/Yes.
-  // Count all available True delivery days by customer so the Holiday job can skip customers
-  // that already have more than 2 delivery options.
   const activeRows=[];
   const activeDaysByAccount={};
   data.forEach(row=>{
@@ -3061,14 +2987,13 @@ function importHolidayCustomers(data,holidayDate,holidayDay){
     if(!holidayDeliveryActive(row))return;
     const day=holidayCustomerDay(row);
     if(!day)return;
-    const account=sval(gc(row,['Tandem Account Number']));
+    const account=sval(gc(row,['Tandem Account Number','Account Number','Customer Number']));
     if(!account)return;
     activeRows.push({row,day,account});
     if(!activeDaysByAccount[account])activeDaysByAccount[account]=new Set();
     activeDaysByAccount[account].add(day);
   });
 
-  // Second pass: create one normalized customer/day record per active delivery day.
   activeRows.forEach(({row,day,account})=>{
     const key=`${account}|${day}`;
     if(seen.has(key))return;
@@ -3077,8 +3002,8 @@ function importHolidayCustomers(data,holidayDate,holidayDay){
     const activeDayList=Array.from(activeDaysByAccount[account]||[]).sort((a,b)=>HOLIDAY_DAYS.indexOf(a)-HOLIDAY_DAYS.indexOf(b));
     const activeDayCount=activeDayList.length;
     const isHolidayAffected=day===holidayDay;
-    const needsHolidayPlanning=isHolidayAffected && activeDayCount<=2;
-    const noReplacementNeeded=isHolidayAffected && activeDayCount>2;
+    const needsHolidayPlanning=isHolidayAffected && activeDayCount<3;
+    const noReplacementNeeded=isHolidayAffected && activeDayCount>=3;
 
     counts[day]=(counts[day]||0)+1;
     if(isHolidayAffected)affected++;
@@ -3098,11 +3023,16 @@ function importHolidayCustomers(data,holidayDate,holidayDay){
       customerName:sval(gc(row,['Account: Account Name','Customer Name','Name']))||`Customer ${account}`,
       routingAttribute:sval(gc(row,['Routing Attributes: Routing Attributes Number'])),
       routingAttributeId:sval(gc(row,['Routing Attributes: ID'])),
-      deliveryGroupId:sval(gc(row,['Delivery Group ID'])),
-      address:[sval(gc(row,['Address Line 1'])),sval(gc(row,['Address Line 2']))].filter(Boolean).join(' '),
-      city:sval(gc(row,['City'])),state:sval(gc(row,['State'])),zip:sval(gc(row,['Zip','ZIP'])),
-      earliestTimeWindow:excelTimeToHHMM(gc(row,['Earliest Delivery Time','Delivery Window Start']))||'06:00',
-      latestTimeWindow:excelTimeToHHMM(gc(row,['Latest Delivery Time','Delivery Window End']))||'18:00',
+      deliveryGroupId:sval(gc(row,['Delivery Group ID','DeliveryGroupID'])),
+      routeLock:sval(gc(row,['Route Lock','RouteLock'])),
+      originalRoute:sval(gc(row,['Route','Original Route','Standard Route'])),
+      sequenceLock:sval(gc(row,['Sequence Lock','SequenceLock'])),
+      originalSequence:sval(gc(row,['Sequence','Original Sequence','Standard Sequence'])),
+      daysToDeliver:sval(gc(row,['Days to Deliver','Days To Deliver','DaysToDeliver'])),
+      address:[sval(gc(row,['Address Line 1','Address','Ship Address'])),sval(gc(row,['Address Line 2']))].filter(Boolean).join(' '),
+      city:sval(gc(row,['City'])),state:sval(gc(row,['State'])),zip:sval(gc(row,['Zip','ZIP','Postal Code'])),
+      earliestTimeWindow:excelTimeToHHMM(gc(row,['Delivery Window Start','Earliest Delivery Time','EarliestDeliveryTime']))||'06:00',
+      latestTimeWindow:excelTimeToHHMM(gc(row,['Delivery Window End','Latest Delivery Time','LatestDeliveryTime']))||'18:00',
       raw:{...row}
     });
     imported++;
@@ -3110,10 +3040,11 @@ function importHolidayCustomers(data,holidayDate,holidayDay){
   holidaySession={active:true,holidayDate,holidayDay,dayCounts:counts,affectedCount:affected,planningNeededCount:planningNeeded,noneNeededCount:noneNeeded,customerRows:imported,planned:false};
   return imported;
 }
+
 function holidayImportSummaryHtml(){
   const h=holidaySession;
   const rows=HOLIDAY_DAYS.map(d=>`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:3px 0;"><span>${d}${d===h.holidayDay?' <strong style="color:var(--warn);">(Holiday)</strong>':''}</span><strong>${(h.dayCounts[d]||0).toLocaleString()}</strong></div>`).join('');
-  return `<strong>Holiday Date:</strong> ${escapeHtml(h.holidayDate)} (${escapeHtml(h.holidayDay)})<br/><strong>Route Templates Loaded:</strong> ${routes.length.toLocaleString()}<br/><strong>Active Customer Delivery Rows Loaded:</strong> ${h.customerRows.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> <span style="color:var(--warn);font-weight:800;">${(h.affectedCount||0).toLocaleString()}</span><br/><strong>Need Suggested Replacement Day:</strong> <span style="color:var(--accent);font-weight:800;">${(h.planningNeededCount||0).toLocaleString()}</span><br/><strong>No Replacement Needed (&gt;2 True Delivery Days):</strong> <span style="color:var(--success);font-weight:800;">${(h.noneNeededCount||0).toLocaleString()}</span><br/><br/><strong>Customers Per Active Delivery Day</strong><br/>${rows}<br/><span style="color:var(--text3);">Customers with more than 2 active delivery days are included in affected results, but their Suggested Day will show None Needed and they will not be routed by the Holiday Plan.</span>`;
+  return `<strong>Holiday Date:</strong> ${escapeHtml(h.holidayDate)} (${escapeHtml(h.holidayDay)})<br/><strong>Route Templates Loaded:</strong> ${routes.length.toLocaleString()}<br/><strong>Active Customer Delivery Rows Loaded:</strong> ${h.customerRows.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> <span style="color:var(--warn);font-weight:800;">${(h.affectedCount||0).toLocaleString()}</span><br/><strong>Need Suggested Replacement Day:</strong> <span style="color:var(--accent);font-weight:800;">${(h.planningNeededCount||0).toLocaleString()}</span><br/><strong>No Replacement Needed (3+ True Delivery Days):</strong> <span style="color:var(--success);font-weight:800;">${(h.noneNeededCount||0).toLocaleString()}</span><br/><br/><strong>Customers Per Active Delivery Day</strong><br/>${rows}<br/><span style="color:var(--text3);">Customers with 3 or more active delivery days are included in affected results, but their Suggested Day will show None Needed and they will not be routed by the Holiday Plan.</span>`;
 }
 function openHolidayDials(){
   if(!holidaySession.active){showToast('Import the Holiday Routing template first.');return;}
@@ -3183,10 +3114,11 @@ function createHolidayPlanningStop(c){
     id:uid(),routeId:null,seq:0,uiChecked:false,
     holidayPlanning:true,holidayAffected:true,needsHolidayPlanning:true,noReplacementNeeded:false,
     holidayDate:c.holidayDate,originalDeliveryDay:c.originalDeliveryDay,
-    suggestedDeliveryDay:'',suggestedRouteName:'',suggestedRouteId:'',holidayReason:'',
+    suggestedDeliveryDay:'',suggestedRouteName:'',suggestedRouteId:'',holidayReason:'',suggestionStep:'',suggestionType:'',
     activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[],
     orderNumber:`HOL-${c.account}-${c.originalDeliveryDay.slice(0,3).toUpperCase()}`,shipToId:c.account,customerNumber:c.account,
     customerName:c.customerName,routingAttribute:c.routingAttribute,routingAttributeId:c.routingAttributeId,deliveryGroupId:c.deliveryGroupId,
+    routeLock:c.routeLock,originalRoute:c.originalRoute,sequenceLock:c.sequenceLock,originalSequence:c.originalSequence,daysToDeliver:c.daysToDeliver,
     address:c.address,city:c.city,state:c.state,zip:c.zip,country:'',lat:c.lat,lng:c.lng,
     earliestTimeWindow:c.earliestTimeWindow,latestTimeWindow:c.latestTimeWindow,
     fixedServiceTime:c.fixedServiceTime,variableServiceTime:c.variableServiceTime,
@@ -3200,13 +3132,15 @@ function createHolidayNoneNeededResult(c){
     id:'',routeId:null,seq:0,
     holidayPlanning:false,holidayAffected:true,needsHolidayPlanning:false,noReplacementNeeded:true,
     holidayDate:c.holidayDate,originalDeliveryDay:c.originalDeliveryDay,
-    suggestedDeliveryDay:'None Needed',suggestedRouteName:'None Needed',suggestedRouteId:'',
+    suggestedDeliveryDay:'None Needed',suggestedRouteName:'None Needed',suggestedRouteId:'',suggestionStep:'Skipped',suggestionType:'3+ True Days',
     holidayReason:`Customer has ${c.activeDeliveryDayCount||0} active delivery days (${(c.activeDeliveryDays||[]).join(', ')}), so the holiday delivery can be skipped without a replacement planning route.`,
     activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[],
     customerNumber:c.account,shipToId:c.account,customerName:c.customerName,
+    routeLock:c.routeLock,originalRoute:c.originalRoute,sequenceLock:c.sequenceLock,originalSequence:c.originalSequence,daysToDeliver:c.daysToDeliver,
     city:c.city,state:c.state,raw:c.raw||{}
   };
 }
+
 function resequenceRouteByDistanceSilent(routeId){
   const route=routes.find(r=>r.id===routeId);
   if(!route)return {ok:false,message:'Route not found'};
@@ -3235,6 +3169,19 @@ function resequenceRouteByDistanceSilent(routeId){
   expanded.add(routeId);
   return {ok:true,count:ordered.length};
 }
+function holidayRouteBlocked(route){return /x/i.test(sval(route?.udfString4||''));}
+function holidayLayoverRoute(route){const v=sval(route?.udfString3||'').toUpperCase();return v.includes('D_2-DAY')||v.includes('D_2_DAY')||v.includes('LAYOVER');}
+function holidayCleanRouteName(value){return sval(value).toLowerCase().replace(/[^a-z0-9]/g,'');}
+function holidayRouteMatchesCustomer(route,customer){const target=holidayCleanRouteName(customer.originalRoute||customer.standardRoute||'');if(!target)return false;const candidates=[route.name,route.routeTemplateKey,route.udfNumber1,route.scheduleKey].map(holidayCleanRouteName).filter(Boolean);return candidates.some(c=>c===target||c.endsWith(target)||target.endsWith(c));}
+function holidayRouteLocked(customer){return isYesFlag(customer.routeLock)||!!sval(customer.originalRoute);}
+function holidayOvernightCustomer(customerOrStop){return nval(customerOrStop.daysToDeliver)>0;}
+function holidayRouteRoomMinutes(route,routeAssignedStops){return holidayRouteWindowMinutes(route)-holidayEstimateRouteMinutes(route,routeAssignedStops||[]);}
+function holidayCandidateFits(route,assignedStops,stop){if(!route||holidayRouteBlocked(route))return false;return holidayRouteCanAccept(route,assignedStops||[],stop);}
+function holidayFindClosestScheduledStop(stop,scheduledStops,maxMiles){if(stop.lat===null||stop.lng===null||isNaN(stop.lat)||isNaN(stop.lng))return null;let best=null;scheduledStops.forEach(candidate=>{if(!candidate.routeId||candidate.lat===null||candidate.lng===null||isNaN(candidate.lat)||isNaN(candidate.lng))return;const route=routes.find(r=>r.id===candidate.routeId);if(!route||holidayRouteBlocked(route))return;const d=haversine(stop.lat,stop.lng,candidate.lat,candidate.lng);if(d<=maxMiles&&(!best||d<best.miles))best={stop:candidate,route,miles:d};});return best;}
+function holidayMakeBaselineStop(c){const s=createHolidayPlanningStop(c);s.holidayPlanning=true;s.holidayAffected=false;s.needsHolidayPlanning=false;s.orderNumber=`BASE-${c.account}-${c.originalDeliveryDay.slice(0,3).toUpperCase()}`;s.suggestedDeliveryDay=c.originalDeliveryDay;s.holidayReason='Baseline weekly route stop used to build the non-holiday plan before placing affected holiday customers.';s.suggestionStep='Step 1';s.suggestionType='Baseline';return s;}
+function holidayPlaceStopOnRoute(stop,route,day,routeAssignedStops,reason,step,type){stop.routeId=route.id;stop.seq=(routeAssignedStops[route.id]||[]).length+1;stop.suggestedDeliveryDay=day||routeDayName(route)||'';stop.suggestedRouteName=route.name;stop.suggestedRouteId=route.id;stop.holidayReason=reason;stop.suggestionStep=step;stop.suggestionType=type;routeAssignedStops[route.id].push(stop);}
+function holidayHeaviestDaySummary(){const dayStats={};HOLIDAY_DAYS.forEach(d=>dayStats[d]={routes:new Set(),customers:0});stops.filter(s=>s.routeId).forEach(s=>{const route=routes.find(r=>r.id===s.routeId);const day=s.suggestedDeliveryDay||routeDayName(route)||'';if(!dayStats[day])return;dayStats[day].customers++;dayStats[day].routes.add(s.routeId);});let bestDay='';HOLIDAY_DAYS.forEach(d=>{if(!bestDay||dayStats[d].customers>dayStats[bestDay].customers)bestDay=d;});return bestDay?`${bestDay} (${dayStats[bestDay].routes.size} routes, ${dayStats[bestDay].customers} customers)`:'';}
+function holidayRoutesNeededEstimate(notRouted,usedRoutes){const routed=holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).length;const avg=routed&&usedRoutes?Math.max(1,Math.ceil(routed/usedRoutes)):10;return notRouted?Math.ceil(notRouted/avg):0;}
 function planHoliday(){
   if(!holidaySession.active){showToast('Import Holiday Routing data first.');return;}
   const excluded=new Set(holidayExcludedDays());
@@ -3243,7 +3190,7 @@ function planHoliday(){
   const availableByDay={};
   HOLIDAY_DAYS.forEach(day=>{
     if(excluded.has(day)){availableByDay[day]=[];return;}
-    let dayRoutes=routes.filter(r=>routeMatchesHolidayDay(r,day));
+    let dayRoutes=routes.filter(r=>routeMatchesHolidayDay(r,day)&&!holidayRouteBlocked(r));
     const lim=limits[day]||0;
     if(lim>0)dayRoutes=dayRoutes.slice(0,lim);
     availableByDay[day]=dayRoutes;
@@ -3253,94 +3200,97 @@ function planHoliday(){
 
   closeModal('holiday-dials-modal');
   showToast('Running holiday plan...');
-
-  // Remove prior holiday planning stops, but leave manually-created/imported non-holiday stops alone.
   stops=stops.filter(s=>!s.holidayPlanning);
   holidaySuggestions=[];
   mapCleared=true;visibleRouteIds.clear();visibleStopIds.clear();
 
-  const routeLoads={};
-  const routeMinutes={};
   const routeAssignedStops={};
-  availableRoutes.forEach(r=>{
-    routeLoads[r.id]=0;
-    routeMinutes[r.id]=durationToMinutes(r.startupTime)+durationToMinutes(r.windupTime);
-    routeAssignedStops[r.id]=[];
+  routes.forEach(r=>{routeAssignedStops[r.id]=[];});
+  let baselineRouted=0,baselineUnrouted=0,overnightTotal=0,overnightRouted=0,sameRoutePlaced=0,closestStopPlaced=0,layoverPlaced=0,generalPlaced=0;
+
+  // Step 1: build the current week first using preferred route/sequence where available.
+  holidayCustomerPool.filter(c=>!c.holidayAffected).forEach(c=>{
+    const s=holidayMakeBaselineStop(c);
+    const day=c.originalDeliveryDay;
+    const locked=routes.filter(r=>routeMatchesHolidayDay(r,day)&&!holidayRouteBlocked(r)&&holidayRouteMatchesCustomer(r,c));
+    let placed=false;
+    for(const route of locked){
+      if(holidayCandidateFits(route,routeAssignedStops[route.id],s)){holidayPlaceStopOnRoute(s,route,day,routeAssignedStops,'Step 1 baseline: assigned to locked/preferred route and day before holiday placement.','Step 1','Baseline current week');stops.push(s);baselineRouted++;placed=true;break;}
+    }
+    if(!placed){
+      const fallback=routes.filter(r=>routeMatchesHolidayDay(r,day)&&!holidayRouteBlocked(r)).sort((a,b)=>stopToRouteDepotMiles(s,a)-stopToRouteDepotMiles(s,b));
+      for(const route of fallback){
+        if(holidayCandidateFits(route,routeAssignedStops[route.id],s)){holidayPlaceStopOnRoute(s,route,day,routeAssignedStops,'Step 1 baseline fallback: assigned to closest available route on current delivery day.','Step 1','Baseline fallback');stops.push(s);baselineRouted++;placed=true;break;}
+      }
+    }
+    if(!placed)baselineUnrouted++;
   });
 
   const noneNeededResults=holidayCustomerPool.filter(c=>c.holidayAffected&&c.noReplacementNeeded).map(c=>createHolidayNoneNeededResult(c));
   holidaySuggestions.push(...noneNeededResults);
+  const affected=holidayCustomerPool.filter(c=>c.holidayAffected&&c.needsHolidayPlanning).map(c=>createHolidayPlanningStop(c));
+  const scheduledStops=()=>stops.filter(x=>x.routeId&&x.lat!==null&&x.lng!==null&&!isNaN(x.lat)&&!isNaN(x.lng));
 
-  const affectedCustomers=holidayCustomerPool.filter(c=>c.holidayAffected&&c.needsHolidayPlanning);
-  const affected=affectedCustomers.map(c=>createHolidayPlanningStop(c));
-  const targetPerRoute=Math.max(1,Math.ceil(Math.max(1,affected.length)/availableRoutes.length));
-
-  affected.sort((a,b)=>(a.city||'').localeCompare(b.city||'')||(a.customerName||'').localeCompare(b.customerName||'')).forEach(s=>{
-    if(s.lat===null||s.lng===null||isNaN(s.lat)||isNaN(s.lng)){
-      s.holidayReason='No latitude/longitude available for routing.';
-      stops.push(s);
-      holidaySuggestions.push(s);
-      return;
+  affected.sort((a,b)=>{const ao=holidayOvernightCustomer(a)?0:1;const bo=holidayOvernightCustomer(b)?0:1;return ao-bo||(a.city||'').localeCompare(b.city||'')||(a.customerName||'').localeCompare(b.customerName||'');}).forEach(s=>{
+    if(holidayOvernightCustomer(s))overnightTotal++;
+    if(s.lat===null||s.lng===null||isNaN(s.lat)||isNaN(s.lng)){s.holidayReason='No latitude/longitude available for routing.';s.suggestionStep='Step 2';s.suggestionType='Not routed';stops.push(s);holidaySuggestions.push(s);return;}
+    let placed=false;
+    if(holidayRouteLocked(s)){
+      const sameRouteCandidates=[];
+      Object.entries(availableByDay).forEach(([day,dayRoutes])=>{dayRoutes.filter(r=>holidayRouteMatchesCustomer(r,s)).forEach(r=>sameRouteCandidates.push({day,route:r}));});
+      sameRouteCandidates.sort((a,b)=>holidayRouteRoomMinutes(b.route,routeAssignedStops[b.route.id])-holidayRouteRoomMinutes(a.route,routeAssignedStops[a.route.id]));
+      for(const cand of sameRouteCandidates){
+        if(holidayCandidateFits(cand.route,routeAssignedStops[cand.route.id],s)){holidayPlaceStopOnRoute(s,cand.route,cand.day,routeAssignedStops,`Step 2: moved from ${s.originalDeliveryDay} holiday to same locked route on ${cand.day}, without exceeding latest end time.`,'Step 2','Same locked route');sameRoutePlaced++;placed=true;break;}
+      }
     }
-
-    let best=null;
-    Object.entries(availableByDay).forEach(([day,dayRoutes])=>{
-      dayRoutes.forEach(r=>{
-        const depot=routeDepotPoint(r);
-        if(!depot)return;
-        const dist=stopToRouteDepotMiles(s,r);
-        const addedMins=driveMinutesForMiles(dist*2)+holidayStopServiceMinutes(s);
-        const nextMins=(routeMinutes[r.id]||0)+addedMins;
-        const maxMins=holidayRouteWindowMinutes(r);
-        if(nextMins>maxMins)return;
-        const load=routeLoads[r.id]||0;
-        const over=Math.max(0,load-targetPerRoute);
-        const runtimePct=nextMins/Math.max(1,maxMins);
-        const score=dist+(load*8)+(over*50)+(runtimePct*20);
-        if(!best||score<best.score)best={day,route:r,score,addedMins,nextMins,dist};
-      });
-    });
-
-    if(best){
-      s.routeId=best.route.id;
-      s.seq=(routeAssignedStops[best.route.id]||[]).length+1;
-      s.suggestedDeliveryDay=best.day;
-      s.suggestedRouteName=best.route.name;
-      s.suggestedRouteId=best.route.id;
-      s.holidayReason=`Moved from ${s.originalDeliveryDay} holiday to ${best.day}. Chosen by closest depot, route balance, and route template time window.`;
-      routeLoads[best.route.id]=(routeLoads[best.route.id]||0)+1;
-      routeMinutes[best.route.id]=best.nextMins;
-      routeAssignedStops[best.route.id].push(s);
-    }else{
-      s.holidayReason='No available route/day found within the route template time window.';
+    if(!placed&&holidayOvernightCustomer(s)){
+      const close=holidayFindClosestScheduledStop(s,scheduledStops(),30);
+      if(close&&holidayCandidateFits(close.route,routeAssignedStops[close.route.id],s)){holidayPlaceStopOnRoute(s,close.route,routeDayName(close.route),routeAssignedStops,`Step 2 overnight: placed with closest scheduled stop within ${close.miles.toFixed(1)} miles.`,'Step 2','Overnight closest stop');overnightRouted++;closestStopPlaced++;placed=true;}
     }
-    stops.push(s);
-    holidaySuggestions.push(s);
+    if(!placed&&holidayOvernightCustomer(s)){
+      const layoverCandidates=availableRoutes.filter(r=>holidayLayoverRoute(r)).sort((a,b)=>stopToRouteDepotMiles(s,a)-stopToRouteDepotMiles(s,b));
+      for(const route of layoverCandidates){if(holidayCandidateFits(route,routeAssignedStops[route.id],s)){holidayPlaceStopOnRoute(s,route,routeDayName(route),routeAssignedStops,'Step 2 overnight fallback: no scheduled stop within 30 miles fit, assigned to available D_2-DAY / layover route.','Step 2','Layover route');overnightRouted++;layoverPlaced++;placed=true;break;}}
+    }
+    if(!placed){
+      const generalCandidates=availableRoutes.slice().sort((a,b)=>{const da=stopToRouteDepotMiles(s,a), db=stopToRouteDepotMiles(s,b);const la=(routeAssignedStops[a.id]||[]).length, lb=(routeAssignedStops[b.id]||[]).length;return da-db||la-lb;});
+      for(const route of generalCandidates){if(holidayCandidateFits(route,routeAssignedStops[route.id],s)){holidayPlaceStopOnRoute(s,route,routeDayName(route),routeAssignedStops,'Step 2 fallback: assigned to closest available route with enough remaining route-template time.','Step 2','Closest route with time');generalPlaced++;placed=true;break;}}
+    }
+    if(!placed){s.holidayReason='No available route/day found within route template latest end time after same-route, overnight, layover, and closest-route checks.';s.suggestionStep='Step 2';s.suggestionType=holidayOvernightCustomer(s)?'Overnight not routed':'Not routed';}
+    stops.push(s);holidaySuggestions.push(s);
   });
 
-  const affectedRouteIds=new Set(holidaySuggestions.filter(s=>s.routeId).map(s=>s.routeId));
+  const affectedRouteIds=new Set(stops.filter(s=>s.routeId).map(s=>s.routeId));
   affectedRouteIds.forEach(routeId=>{expanded.add(routeId);resequenceRouteByDistanceSilent(routeId);});
-  reseq();
-  holidaySession.planned=true;
+  reseq();holidaySession.planned=true;
+  holidaySession.lastPlanStats={baselineRouted,baselineUnrouted,overnightTotal,overnightRouted,sameRoutePlaced,closestStopPlaced,layoverPlaced,generalPlaced,blockedRoutes:routes.filter(holidayRouteBlocked).length};
+  mapCleared=true;visibleRouteIds.clear();visibleStopIds.clear();render();
 
-  // Do not auto-draw hundreds/thousands of route markers. User can display selected routes/stops as needed.
-  mapCleared=true;visibleRouteIds.clear();visibleStopIds.clear();
-  render();
-  showJob('Holiday Plan Complete',`<strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${holidaySuggestions.filter(s=>s.routeId).length.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (&gt;2 True Delivery Days):</strong> ${noneNeededResults.length.toLocaleString()}<br/><strong>Routes Used:</strong> ${affectedRouteIds.size.toLocaleString()}<br/><strong>Excluded Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Route Time Rule:</strong> Route template start/end times were used as the hard runtime limit.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, or use the map/route tools to manually adjust the routed stops.`);
+  const plannedHoliday=holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).length;
+  const noneNeeded=noneNeededResults.length;
+  const notRouted=holidaySuggestions.filter(s=>s.needsHolidayPlanning&&!s.routeId).length;
+  const routesUsed=new Set(holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).map(s=>s.routeId)).size;
+  const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
+  const heavy=holidayHeaviestDaySummary();
+  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
 }
+
 function openSuggestedDaysResults(){
   if(!holidaySession.active){showToast('Import Holiday Routing data first.');return;}
   const rows=(holidaySuggestions.length?holidaySuggestions:holidayCustomerPool.filter(c=>c.holidayAffected).map(c=>{
     if(c.noReplacementNeeded)return createHolidayNoneNeededResult(c);
-    return {customerNumber:c.account,shipToId:c.account,customerName:c.customerName,raw:c.raw||{},originalDeliveryDay:c.originalDeliveryDay,suggestedDeliveryDay:'Not planned',suggestedRouteName:'Unassigned',city:c.city,state:c.state,holidayReason:'Holiday plan has not been run yet.',routeId:null,id:'',activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[]};
+    return {customerNumber:c.account,shipToId:c.account,customerName:c.customerName,raw:c.raw||{},originalDeliveryDay:c.originalDeliveryDay,suggestedDeliveryDay:'Not planned',suggestedRouteName:'Unassigned',city:c.city,state:c.state,holidayReason:'Holiday plan has not been run yet.',routeId:null,id:'',activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[],suggestionStep:'',suggestionType:'Not planned'};
   }));
-  const planned=rows.filter(s=>s.routeId).length;
+  const planned=rows.filter(s=>s.routeId&&s.needsHolidayPlanning).length;
   const noneNeeded=rows.filter(s=>s.noReplacementNeeded||s.suggestedDeliveryDay==='None Needed').length;
-  const notRouted=rows.length-planned-noneNeeded;
-  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${planned.toLocaleString()}<br/><strong>None Needed:</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}`;
+  const notRouted=rows.filter(s=>s.needsHolidayPlanning&&!s.routeId).length;
+  const routesUsed=new Set(rows.filter(s=>s.routeId&&s.needsHolidayPlanning).map(s=>s.routeId)).size;
+  const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
+  const heavy=holidayHeaviestDaySummary();
+  const stats=holidaySession.lastPlanStats||{};
+  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${planned.toLocaleString()}<br/><strong>None Needed:</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${(stats.overnightRouted||0).toLocaleString()} routed / ${(stats.overnightTotal||0).toLocaleString()} total<br/><strong>Excluded Route Templates:</strong> ${(stats.blockedRoutes||0).toLocaleString()} with UDFString4 X/x`;
   document.getElementById('suggested-days-list').innerHTML=`
-    <div class="manifest-row header" style="grid-template-columns:150px 280px 100px 95px 130px 190px 150px 120px 280px;min-width:1495px;"><div>Account</div><div>Customer</div><div>Depot</div><div>Original Day</div><div>Suggested Day</div><div>Suggested Route</div><div>City / State</div><div>True Days</div><div>Reason</div></div>
-    ${rows.map(s=>`<div class="manifest-row stop" style="grid-template-columns:150px 280px 100px 95px 130px 190px 150px 120px 280px;min-width:1495px;" ${s.id?`onclick="openStopDetail('${s.id}')"`:''}><div>${escapeHtml(s.customerNumber||s.shipToId||'')}</div><div>${escapeHtml(s.customerName||'')}</div><div>${escapeHtml(s.raw?.Depot||'')}</div><div>${escapeHtml(s.originalDeliveryDay||'')}</div><div>${escapeHtml(s.suggestedDeliveryDay||'Not planned')}</div><div>${escapeHtml(s.suggestedRouteName||'Unassigned')}</div><div>${escapeHtml((s.city||'')+', '+(s.state||''))}</div><div>${escapeHtml((s.activeDeliveryDays||[]).join(', ')||String(s.activeDeliveryDayCount||''))}</div><div>${escapeHtml(s.holidayReason||'')}</div></div>`).join('')||'<div class="manifest-row"><div>No affected customers found.</div></div>'}`;
+    <div class="manifest-row header" style="grid-template-columns:150px 260px 95px 95px 125px 180px 145px 115px 130px 150px 320px;min-width:1865px;"><div>Account</div><div>Customer</div><div>Depot</div><div>Original Day</div><div>Suggested Day</div><div>Suggested Route</div><div>City / State</div><div>True Days</div><div>Step</div><div>Suggestion</div><div>Reason</div></div>
+    ${rows.map(s=>`<div class="manifest-row stop" style="grid-template-columns:150px 260px 95px 95px 125px 180px 145px 115px 130px 150px 320px;min-width:1865px;" ${s.id?`onclick="openStopDetail('${s.id}')"`:''}><div>${escapeHtml(s.customerNumber||s.shipToId||'')}</div><div>${escapeHtml(s.customerName||'')}</div><div>${escapeHtml(s.raw?.Depot||'')}</div><div>${escapeHtml(s.originalDeliveryDay||'')}</div><div>${escapeHtml(s.suggestedDeliveryDay||'Not planned')}</div><div>${escapeHtml(s.suggestedRouteName||'Unassigned')}</div><div>${escapeHtml((s.city||'')+', '+(s.state||''))}</div><div>${escapeHtml((s.activeDeliveryDays||[]).join(', ')||String(s.activeDeliveryDayCount||''))}</div><div>${escapeHtml(s.suggestionStep||'')}</div><div>${escapeHtml(s.suggestionType||'')}</div><div>${escapeHtml(s.holidayReason||'')}</div></div>`).join('')||'<div class="manifest-row"><div>No affected customers found.</div></div>'}`;
   document.getElementById('suggested-days-modal').style.display='flex';
 }
 
