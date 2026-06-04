@@ -46,8 +46,6 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
 .stat{padding:5px 12px;border-right:1px solid var(--border);text-align:center;min-width:0;}
 .stat-val{font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:var(--text1);}
 .stat-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;}
-.stats-actions{display:flex;align-items:center;gap:6px;margin-left:auto;padding:4px 10px;border-left:1px solid var(--border);background:var(--bg1);}
-.stats-actions .btn{padding:4px 9px;font-size:10px;}
 
 /* Layout */
 .main{display:flex;flex:1;overflow:hidden;}
@@ -281,11 +279,22 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
       Potential Routes
     </button>
+    <button class="btn" onclick="openOptimizationModal('selected')" title="Optimize the checked route(s), or the open route manifest route">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h6l3-9 3 18 3-9h3"/></svg>
+      Optimize Selected
+    </button>
+    <button class="btn" onclick="openOptimizationModal('maximize')" title="Try to consolidate stops into fuller routes while respecting constraints">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16l3-3 2 2 5-7"/></svg>
+      Maximize Routes
+    </button>
     <button class="btn purple" onclick="openHolidayDials()" title="Plan customers affected by a holiday delivery day">
       Holiday Dials
     </button>
     <button class="btn" onclick="openSuggestedDaysResults()" title="Show suggested replacement delivery days and routes">
       Suggested Days Results
+    </button>
+    <button class="btn success" onclick="exportHolidayResults()" title="Export active holiday customer list with suggested day/route results">
+      Holiday Export
     </button>
     <button class="btn success" onclick="exportExcel()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -604,35 +613,17 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
     <div id="holiday-route-limits" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('holiday-dials-modal')">Cancel</button>
-      <button class="btn primary" onclick="planHoliday()">Run Plan</button>
+      <button class="btn primary" onclick="planHoliday()">Plan Holiday</button>
     </div>
   </div>
 </div>
 
 <!-- Suggested Days Results Modal -->
 <div id="suggested-days-modal" style="display:none" class="modal-overlay">
-  <div class="modal manifest-modal"
-       style="
-         width:98vw;
-         max-width:none;
-         height:90vh;
-         display:flex;
-         flex-direction:column;
-       ">
+  <div class="modal manifest-modal">
     <h2>Suggested Days Results</h2>
-
-    <div id="suggested-days-summary"
-         class="job-result"
-         style="margin-bottom:10px;"></div>
-
-    <div id="suggested-days-list"
-         class="manifest-route-list"
-         style="
-           flex:1;
-           overflow:auto;
-           min-height:0;
-         "></div>
-
+    <div id="suggested-days-summary" class="job-result" style="margin-bottom:10px;"></div>
+    <div id="suggested-days-list" class="manifest-route-list"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('suggested-days-modal')">Close</button>
     </div>
@@ -645,9 +636,8 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
 // ============================================================
 const COLORS=['#4f8cff','#3ecf8e','#f59e0b','#ef4444','#a78bfa','#fb923c','#38bdf8','#f472b6','#34d399','#fbbf24','#60a5fa','#86efac'];
 let routes=[], stops=[], trucks=[], depotLocations=[];
-let holidaySession={active:false,holidayDate:'',holidayDay:'',dayCounts:{},affectedCount:0,planningNeededCount:0,noneNeededCount:0,customerRows:0,planned:false};
+let holidaySession={active:false,holidayDate:'',holidayDay:'',dayCounts:{},affectedCount:0,customerRows:0,planned:false};
 let holidaySuggestions=[];
-let holidayCustomerPool=[];
 let mapCleared=false;
 const visibleStopIds=new Set();
 const visibleRouteIds=new Set();
@@ -736,13 +726,6 @@ function initSplitter(){
 function uid(){return '_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36);}
 function escapeHtml(value){
   return (value??'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function sval(value){
-  return (value??'').toString().trim();
-}
-function nval(value){
-  const n=parseFloat(value);
-  return Number.isFinite(n)?n:0;
 }
 function routeColor(routeId){const i=routes.findIndex(r=>r.id===routeId);return i>=0?COLORS[i%COLORS.length]:'#5c6480';}
 function tCases(s){return(s.dryCases||0)+(s.coolerCases||0)+(s.frozenCases||0)+(s.pkgCases||0);}
@@ -1008,16 +991,6 @@ function renderStats(){
     <div class="stat"><div class="stat-val">${tc.toLocaleString()}</div><div class="stat-lbl">Cases</div></div>
     <div class="stat"><div class="stat-val">${Math.round(tw).toLocaleString()}</div><div class="stat-lbl">Weight</div></div>
     <div class="stat"><div class="stat-val">${tcu.toFixed(1)}</div><div class="stat-lbl">Cube</div></div>
-    <div class="stats-actions">
-      <button class="btn" onclick="openOptimizationModal('selected')" title="Optimize the checked route(s), or the open route manifest route">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h6l3-9 3 18 3-9h3"/></svg>
-        Optimize Selected
-      </button>
-      <button class="btn" onclick="openOptimizationModal('maximize')" title="Try to consolidate stops into fuller routes while respecting constraints">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16l3-3 2 2 5-7"/></svg>
-        Maximize Routes
-      </button>
-    </div>
   `;
 }
 
@@ -2938,7 +2911,7 @@ function confirmHolidayImport(btn,originalText){
     const holidayDay=dayNameFromDate(holidayDate);
     if(!holidayDay){showToast('Enter a valid Holiday Date.'); if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';} return;}
 
-    routes=[];stops=[];trucks=[];depotLocations=[];expanded.clear();visibleStopIds.clear();visibleRouteIds.clear();mapCleared=true;potColors={};potRouteSuggestions={};holidaySuggestions=[];holidayCustomerPool=[];
+    routes=[];stops=[];trucks=[];depotLocations=[];expanded.clear();visibleStopIds.clear();visibleRouteIds.clear();mapCleared=true;potColors={};potRouteSuggestions={};holidaySuggestions=[];
 
     const sheets=pendingWB.SheetNames.map(name=>{
       const ws=pendingWB.Sheets[name];
@@ -2974,73 +2947,48 @@ function confirmHolidayImport(btn,originalText){
 }
 function importHolidayCustomers(data,holidayDate,holidayDay){
   const counts={};HOLIDAY_DAYS.forEach(d=>counts[d]=0);
-  let imported=0, affected=0, planningNeeded=0, noneNeeded=0;
+  let imported=0, affected=0;
   const seen=new Set();
-  holidayCustomerPool=[];
-
-  // First pass: only Active customers + Delivery Day = True/Yes.
-  // Count all available True delivery days by customer so the Holiday job can skip customers
-  // that already have more than 2 delivery options.
-  const activeRows=[];
-  const activeDaysByAccount={};
   data.forEach(row=>{
+    // Only active customers with Delivery Day = TRUE/Yes are included.
     if(!holidayCustomerActive(row))return;
     if(!holidayDeliveryActive(row))return;
     const day=holidayCustomerDay(row);
     if(!day)return;
-    const account=sval(gc(row,['Tandem Account Number']));
-    if(!account)return;
-    activeRows.push({row,day,account});
-    if(!activeDaysByAccount[account])activeDaysByAccount[account]=new Set();
-    activeDaysByAccount[account].add(day);
-  });
-
-  // Second pass: create one normalized customer/day record per active delivery day.
-  activeRows.forEach(({row,day,account})=>{
-    const key=`${account}|${day}`;
+    const key=holidayCustomerKey(row,day);
     if(seen.has(key))return;
     seen.add(key);
-
-    const activeDayList=Array.from(activeDaysByAccount[account]||[]).sort((a,b)=>HOLIDAY_DAYS.indexOf(a)-HOLIDAY_DAYS.indexOf(b));
-    const activeDayCount=activeDayList.length;
-    const isHolidayAffected=day===holidayDay;
-    const needsHolidayPlanning=isHolidayAffected && activeDayCount<=2;
-    const noReplacementNeeded=isHolidayAffected && activeDayCount>2;
-
     counts[day]=(counts[day]||0)+1;
-    if(isHolidayAffected)affected++;
-    if(needsHolidayPlanning)planningNeeded++;
-    if(noReplacementNeeded)noneNeeded++;
-
+    if(day===holidayDay)affected++;
     const lat=parseFloat(gc(row,['Latitude','latitude','Lat','lat']));
     const lng=parseFloat(gc(row,['Longitude','longitude','Long','long','Lng','lng']));
+    if(isNaN(lat)||isNaN(lng))return;
+    const account=sval(gc(row,['Tandem Account Number']));
     const fixed=nval(gc(row,['Fixed ServiceTime','Fixed Service Time','FixedServiceTime']));
     const variable=nval(gc(row,['Variable ServiceTime','Variable Service Time','VariableServiceTime']));
-
-    holidayCustomerPool.push({
-      id:uid(),holidayDate,originalDeliveryDay:day,holidayAffected:isHolidayAffected,
-      needsHolidayPlanning,noReplacementNeeded,activeDeliveryDayCount:activeDayCount,activeDeliveryDays:activeDayList,
-      account,lat:isNaN(lat)?null:lat,lng:isNaN(lng)?null:lng,
-      fixedServiceTime:fixed,variableServiceTime:variable,
+    const stop={
+      id:uid(),routeId:null,seq:0,uiChecked:false,
+      holidayPlanning:true,holidayAffected:day===holidayDay,holidayDate,originalDeliveryDay:day,suggestedDeliveryDay:'',suggestedRouteName:'',suggestedRouteId:'',holidayReason:'',
+      orderNumber:`HOL-${account}-${day.slice(0,3).toUpperCase()}`,shipToId:account,customerNumber:account,
       customerName:sval(gc(row,['Account: Account Name','Customer Name','Name']))||`Customer ${account}`,
-      routingAttribute:sval(gc(row,['Routing Attributes: Routing Attributes Number'])),
-      routingAttributeId:sval(gc(row,['Routing Attributes: ID'])),
-      deliveryGroupId:sval(gc(row,['Delivery Group ID'])),
-      address:[sval(gc(row,['Address Line 1'])),sval(gc(row,['Address Line 2']))].filter(Boolean).join(' '),
-      city:sval(gc(row,['City'])),state:sval(gc(row,['State'])),zip:sval(gc(row,['Zip','ZIP'])),
+      routingAttribute:sval(gc(row,['Routing Attributes: Routing Attributes Number'])),routingAttributeId:sval(gc(row,['Routing Attributes: ID'])),deliveryGroupId:sval(gc(row,['Delivery Group ID'])),
+      address:[sval(gc(row,['Address Line 1'])),sval(gc(row,['Address Line 2']))].filter(Boolean).join(' '),city:sval(gc(row,['City'])),state:sval(gc(row,['State'])),zip:sval(gc(row,['Zip','ZIP'])),country:'',lat,lng,
       earliestTimeWindow:excelTimeToHHMM(gc(row,['Earliest Delivery Time','Delivery Window Start']))||'06:00',
       latestTimeWindow:excelTimeToHHMM(gc(row,['Latest Delivery Time','Delivery Window End']))||'18:00',
+      fixedServiceTime:fixed,variableServiceTime:variable,
+      dryCases:10,dryCube:9.95,dryWeight:100,
+      comment:`Holiday Routing generated order. Original delivery day: ${day}${day===holidayDay?' (Holiday affected)':''}`,
       raw:{...row}
-    });
-    imported++;
+    };
+    stops.push(stop);imported++;
   });
-  holidaySession={active:true,holidayDate,holidayDay,dayCounts:counts,affectedCount:affected,planningNeededCount:planningNeeded,noneNeededCount:noneNeeded,customerRows:imported,planned:false};
+  holidaySession={active:true,holidayDate,holidayDay,dayCounts:counts,affectedCount:affected,customerRows:imported,planned:false};
   return imported;
 }
 function holidayImportSummaryHtml(){
   const h=holidaySession;
   const rows=HOLIDAY_DAYS.map(d=>`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:3px 0;"><span>${d}${d===h.holidayDay?' <strong style="color:var(--warn);">(Holiday)</strong>':''}</span><strong>${(h.dayCounts[d]||0).toLocaleString()}</strong></div>`).join('');
-  return `<strong>Holiday Date:</strong> ${escapeHtml(h.holidayDate)} (${escapeHtml(h.holidayDay)})<br/><strong>Route Templates Loaded:</strong> ${routes.length.toLocaleString()}<br/><strong>Active Customer Delivery Rows Loaded:</strong> ${h.customerRows.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> <span style="color:var(--warn);font-weight:800;">${(h.affectedCount||0).toLocaleString()}</span><br/><strong>Need Suggested Replacement Day:</strong> <span style="color:var(--accent);font-weight:800;">${(h.planningNeededCount||0).toLocaleString()}</span><br/><strong>No Replacement Needed (&gt;2 True Delivery Days):</strong> <span style="color:var(--success);font-weight:800;">${(h.noneNeededCount||0).toLocaleString()}</span><br/><br/><strong>Customers Per Active Delivery Day</strong><br/>${rows}<br/><span style="color:var(--text3);">Customers with more than 2 active delivery days are included in affected results, but their Suggested Day will show None Needed and they will not be routed by the Holiday Plan.</span>`;
+  return `<strong>Holiday Date:</strong> ${escapeHtml(h.holidayDate)} (${escapeHtml(h.holidayDay)})<br/><strong>Route Templates Loaded:</strong> ${routes.length.toLocaleString()}<br/><strong>Active Customer Delivery Rows Loaded as Unassigned Orders:</strong> ${h.customerRows.toLocaleString()}<br/><strong>Affected Customers Needing a New Day:</strong> <span style="color:var(--warn);font-weight:800;">${h.affectedCount.toLocaleString()}</span><br/><br/><strong>Customers Per Active Delivery Day</strong><br/>${rows}<br/><span style="color:var(--text3);">Close this summary to review the weekly route templates and unassigned customer orders.</span>`;
 }
 function openHolidayDials(){
   if(!holidaySession.active){showToast('Import the Holiday Routing template first.');return;}
@@ -3105,63 +3053,6 @@ function holidayRouteCanAccept(route,assignedStops,stop){
   const nextStops=(assignedStops||[]).concat([stop]);
   return holidayEstimateRouteMinutes(route,nextStops)<=maxMinutes;
 }
-function createHolidayPlanningStop(c){
-  return {
-    id:uid(),routeId:null,seq:0,uiChecked:false,
-    holidayPlanning:true,holidayAffected:true,needsHolidayPlanning:true,noReplacementNeeded:false,
-    holidayDate:c.holidayDate,originalDeliveryDay:c.originalDeliveryDay,
-    suggestedDeliveryDay:'',suggestedRouteName:'',suggestedRouteId:'',holidayReason:'',
-    activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[],
-    orderNumber:`HOL-${c.account}-${c.originalDeliveryDay.slice(0,3).toUpperCase()}`,shipToId:c.account,customerNumber:c.account,
-    customerName:c.customerName,routingAttribute:c.routingAttribute,routingAttributeId:c.routingAttributeId,deliveryGroupId:c.deliveryGroupId,
-    address:c.address,city:c.city,state:c.state,zip:c.zip,country:'',lat:c.lat,lng:c.lng,
-    earliestTimeWindow:c.earliestTimeWindow,latestTimeWindow:c.latestTimeWindow,
-    fixedServiceTime:c.fixedServiceTime,variableServiceTime:c.variableServiceTime,
-    dryCases:10,dryCube:9.95,dryWeight:100,
-    comment:`Holiday Routing generated order. Original delivery day: ${c.originalDeliveryDay} (Holiday affected)`,
-    raw:c.raw||{}
-  };
-}
-function createHolidayNoneNeededResult(c){
-  return {
-    id:'',routeId:null,seq:0,
-    holidayPlanning:false,holidayAffected:true,needsHolidayPlanning:false,noReplacementNeeded:true,
-    holidayDate:c.holidayDate,originalDeliveryDay:c.originalDeliveryDay,
-    suggestedDeliveryDay:'None Needed',suggestedRouteName:'None Needed',suggestedRouteId:'',
-    holidayReason:`Customer has ${c.activeDeliveryDayCount||0} active delivery days (${(c.activeDeliveryDays||[]).join(', ')}), so the holiday delivery can be skipped without a replacement planning route.`,
-    activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[],
-    customerNumber:c.account,shipToId:c.account,customerName:c.customerName,
-    city:c.city,state:c.state,raw:c.raw||{}
-  };
-}
-function resequenceRouteByDistanceSilent(routeId){
-  const route=routes.find(r=>r.id===routeId);
-  if(!route)return {ok:false,message:'Route not found'};
-  const routeStops=stops.filter(s=>s.routeId===routeId&&s.lat&&s.lng);
-  if(routeStops.length<2){
-    if(routeStops.length===1)routeStops[0].seq=1;
-    return {ok:true,count:routeStops.length};
-  }
-  const start=getRouteDepotPoint(route,routeStops);
-  if(!start)return {ok:false,message:'No depot or geocoded stop found'};
-  const remaining=[...routeStops];
-  const ordered=[];
-  let current={lat:start.lat,lng:start.lng};
-  while(remaining.length){
-    let bestIndex=0;
-    let bestDistance=Infinity;
-    remaining.forEach((stop,index)=>{
-      const distance=haversine(current.lat,current.lng,stop.lat,stop.lng);
-      if(distance<bestDistance){bestDistance=distance;bestIndex=index;}
-    });
-    const next=remaining.splice(bestIndex,1)[0];
-    ordered.push(next);
-    current={lat:next.lat,lng:next.lng};
-  }
-  ordered.forEach((stop,index)=>{stop.seq=index+1;});
-  expanded.add(routeId);
-  return {ok:true,count:ordered.length};
-}
 function planHoliday(){
   if(!holidaySession.active){showToast('Import Holiday Routing data first.');return;}
   const excluded=new Set(holidayExcludedDays());
@@ -3178,96 +3069,66 @@ function planHoliday(){
   const availableRoutes=Object.values(availableByDay).flat();
   if(!availableRoutes.length){showToast('No available routes. Uncheck at least one planning day or import route templates.');return;}
 
-  closeModal('holiday-dials-modal');
-  showToast('Running holiday plan...');
-
-  // Remove prior holiday planning stops, but leave manually-created/imported non-holiday stops alone.
-  stops=stops.filter(s=>!s.holidayPlanning);
-  holidaySuggestions=[];
-  mapCleared=true;visibleRouteIds.clear();visibleStopIds.clear();
-
   const routeLoads={};
-  const routeMinutes={};
   const routeAssignedStops={};
-  availableRoutes.forEach(r=>{
-    routeLoads[r.id]=0;
-    routeMinutes[r.id]=durationToMinutes(r.startupTime)+durationToMinutes(r.windupTime);
-    routeAssignedStops[r.id]=[];
+  availableRoutes.forEach(r=>{routeLoads[r.id]=0;routeAssignedStops[r.id]=[];});
+
+  holidaySuggestions=[];
+  stops.filter(s=>s.holidayPlanning&&s.holidayAffected).forEach(s=>{
+    s.routeId=null;s.seq=0;s.suggestedDeliveryDay='';s.suggestedRouteName='';s.suggestedRouteId='';s.holidayReason='';
   });
 
-  const noneNeededResults=holidayCustomerPool.filter(c=>c.holidayAffected&&c.noReplacementNeeded).map(c=>createHolidayNoneNeededResult(c));
-  holidaySuggestions.push(...noneNeededResults);
-
-  const affectedCustomers=holidayCustomerPool.filter(c=>c.holidayAffected&&c.needsHolidayPlanning);
-  const affected=affectedCustomers.map(c=>createHolidayPlanningStop(c));
-  const targetPerRoute=Math.max(1,Math.ceil(Math.max(1,affected.length)/availableRoutes.length));
-
-  affected.sort((a,b)=>(a.city||'').localeCompare(b.city||'')||(a.customerName||'').localeCompare(b.customerName||'')).forEach(s=>{
-    if(s.lat===null||s.lng===null||isNaN(s.lat)||isNaN(s.lng)){
-      s.holidayReason='No latitude/longitude available for routing.';
-      stops.push(s);
-      holidaySuggestions.push(s);
-      return;
-    }
-
-    let best=null;
+  const affected=stops.filter(s=>s.holidayPlanning&&s.holidayAffected&&s.lat&&s.lng);
+  const targetPerRoute=Math.max(1,Math.ceil(affected.length/availableRoutes.length));
+  affected.sort((a,b)=>a.city.localeCompare(b.city)||a.customerName.localeCompare(b.customerName)).forEach(s=>{
+    const candidates=[];
     Object.entries(availableByDay).forEach(([day,dayRoutes])=>{
       dayRoutes.forEach(r=>{
-        const depot=routeDepotPoint(r);
-        if(!depot)return;
+        const currentStops=routeAssignedStops[r.id]||[];
+        if(!holidayRouteCanAccept(r,currentStops,s))return;
         const dist=stopToRouteDepotMiles(s,r);
-        const addedMins=driveMinutesForMiles(dist*2)+holidayStopServiceMinutes(s);
-        const nextMins=(routeMinutes[r.id]||0)+addedMins;
-        const maxMins=holidayRouteWindowMinutes(r);
-        if(nextMins>maxMins)return;
         const load=routeLoads[r.id]||0;
         const over=Math.max(0,load-targetPerRoute);
-        const runtimePct=nextMins/Math.max(1,maxMins);
-        const score=dist+(load*8)+(over*50)+(runtimePct*20);
-        if(!best||score<best.score)best={day,route:r,score,addedMins,nextMins,dist};
+        const runtimePct=holidayEstimateRouteMinutes(r,currentStops.concat([s]))/Math.max(1,holidayRouteWindowMinutes(r));
+        candidates.push({day,route:r,score:dist+(load*8)+(over*50)+(runtimePct*20)});
       });
     });
-
-    if(best){
-      s.routeId=best.route.id;
-      s.seq=(routeAssignedStops[best.route.id]||[]).length+1;
-      s.suggestedDeliveryDay=best.day;
-      s.suggestedRouteName=best.route.name;
-      s.suggestedRouteId=best.route.id;
-      s.holidayReason=`Moved from ${s.originalDeliveryDay} holiday to ${best.day}. Chosen by closest depot, route balance, and route template time window.`;
-      routeLoads[best.route.id]=(routeLoads[best.route.id]||0)+1;
-      routeMinutes[best.route.id]=best.nextMins;
-      routeAssignedStops[best.route.id].push(s);
+    candidates.sort((a,b)=>a.score-b.score);
+    const pick=candidates[0];
+    if(pick){
+      s.routeId=pick.route.id;
+      s.seq=Math.max(0,...stops.filter(x=>x.routeId===pick.route.id&&x.id!==s.id).map(x=>x.seq||0))+1;
+      s.suggestedDeliveryDay=pick.day;
+      s.suggestedRouteName=pick.route.name;
+      s.suggestedRouteId=pick.route.id;
+      s.holidayReason=`Moved from ${s.originalDeliveryDay} holiday to ${pick.day}. Chosen by closest route depot, route balance, and route template time window.`;
+      routeLoads[pick.route.id]=(routeLoads[pick.route.id]||0)+1;
+      routeAssignedStops[pick.route.id].push(s);
     }else{
       s.holidayReason='No available route/day found within the route template time window.';
     }
-    stops.push(s);
     holidaySuggestions.push(s);
   });
 
   const affectedRouteIds=new Set(holidaySuggestions.filter(s=>s.routeId).map(s=>s.routeId));
-  affectedRouteIds.forEach(routeId=>{expanded.add(routeId);resequenceRouteByDistanceSilent(routeId);});
+  affectedRouteIds.forEach(routeId=>{expanded.add(routeId);resequnceRouteByDistance(routeId);});
   reseq();
   holidaySession.planned=true;
-
-  // Do not auto-draw hundreds/thousands of route markers. User can display selected routes/stops as needed.
   mapCleared=true;visibleRouteIds.clear();visibleStopIds.clear();
+  affectedRouteIds.forEach(id=>visibleRouteIds.add(id));
+  holidaySuggestions.filter(s=>s.routeId).forEach(s=>visibleStopIds.add(s.id));
   render();
-  showJob('Holiday Plan Complete',`<strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${holidaySuggestions.filter(s=>s.routeId).length.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (&gt;2 True Delivery Days):</strong> ${noneNeededResults.length.toLocaleString()}<br/><strong>Routes Used:</strong> ${affectedRouteIds.size.toLocaleString()}<br/><strong>Excluded Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Route Time Rule:</strong> Route template start/end times were used as the hard runtime limit.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, or use the map/route tools to manually adjust the routed stops.`);
+  closeModal('holiday-dials-modal');
+  showJob('Holiday Plan Complete',`<strong>Affected Customers Planned:</strong> ${holidaySuggestions.filter(s=>s.routeId).length.toLocaleString()} / ${holidaySuggestions.length.toLocaleString()}<br/><strong>Routes Used:</strong> ${affectedRouteIds.size.toLocaleString()}<br/><strong>Excluded Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Route Time Rule:</strong> Route template start/end times were used as the hard runtime limit.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, or use the map/route tools to manually adjust the routed stops.`);
 }
 function openSuggestedDaysResults(){
   if(!holidaySession.active){showToast('Import Holiday Routing data first.');return;}
-  const rows=(holidaySuggestions.length?holidaySuggestions:holidayCustomerPool.filter(c=>c.holidayAffected).map(c=>{
-    if(c.noReplacementNeeded)return createHolidayNoneNeededResult(c);
-    return {customerNumber:c.account,shipToId:c.account,customerName:c.customerName,raw:c.raw||{},originalDeliveryDay:c.originalDeliveryDay,suggestedDeliveryDay:'Not planned',suggestedRouteName:'Unassigned',city:c.city,state:c.state,holidayReason:'Holiday plan has not been run yet.',routeId:null,id:'',activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[]};
-  }));
-  const planned=rows.filter(s=>s.routeId).length;
-  const noneNeeded=rows.filter(s=>s.noReplacementNeeded||s.suggestedDeliveryDay==='None Needed').length;
-  const notRouted=rows.length-planned-noneNeeded;
-  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${planned.toLocaleString()}<br/><strong>None Needed:</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}`;
+  const rows=(holidaySuggestions.length?holidaySuggestions:stops.filter(s=>s.holidayPlanning&&s.holidayAffected));
+  const assigned=rows.filter(s=>s.routeId).length;
+  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${assigned.toLocaleString()}<br/><strong>Not Routed:</strong> ${(rows.length-assigned).toLocaleString()}`;
   document.getElementById('suggested-days-list').innerHTML=`
-    <div class="manifest-row header" style="grid-template-columns:150px 280px 100px 95px 130px 190px 150px 120px 280px;min-width:1495px;"><div>Account</div><div>Customer</div><div>Depot</div><div>Original Day</div><div>Suggested Day</div><div>Suggested Route</div><div>City / State</div><div>True Days</div><div>Reason</div></div>
-    ${rows.map(s=>`<div class="manifest-row stop" style="grid-template-columns:150px 280px 100px 95px 130px 190px 150px 120px 280px;min-width:1495px;" ${s.id?`onclick="openStopDetail('${s.id}')"`:''}><div>${escapeHtml(s.customerNumber||s.shipToId||'')}</div><div>${escapeHtml(s.customerName||'')}</div><div>${escapeHtml(s.raw?.Depot||'')}</div><div>${escapeHtml(s.originalDeliveryDay||'')}</div><div>${escapeHtml(s.suggestedDeliveryDay||'Not planned')}</div><div>${escapeHtml(s.suggestedRouteName||'Unassigned')}</div><div>${escapeHtml((s.city||'')+', '+(s.state||''))}</div><div>${escapeHtml((s.activeDeliveryDays||[]).join(', ')||String(s.activeDeliveryDayCount||''))}</div><div>${escapeHtml(s.holidayReason||'')}</div></div>`).join('')||'<div class="manifest-row"><div>No affected customers found.</div></div>'}`;
+    <div class="manifest-row header" style="grid-template-columns:170px 300px 120px 100px 140px 220px 180px 280px;min-width:1510px;"><div>Account</div><div>Customer</div><div>Depot</div><div>Original Day</div><div>Suggested Day</div><div>Suggested Route</div><div>City / State</div><div>Reason</div></div>
+    ${rows.map(s=>`<div class="manifest-row stop" style="grid-template-columns:170px 300px 120px 100px 140px 220px 180px 280px;min-width:1510px;" onclick="openStopDetail('${s.id}')"><div>${escapeHtml(s.customerNumber||s.shipToId||'')}</div><div>${escapeHtml(s.customerName||'')}</div><div>${escapeHtml(s.raw?.Depot||'')}</div><div>${escapeHtml(s.originalDeliveryDay||'')}</div><div>${escapeHtml(s.suggestedDeliveryDay||'Not planned')}</div><div>${escapeHtml(s.suggestedRouteName||'Unassigned')}</div><div>${escapeHtml((s.city||'')+', '+(s.state||''))}</div><div>${escapeHtml(s.holidayReason||'')}</div></div>`).join('')||'<div class="manifest-row"><div>No affected customers found.</div></div>'}`;
   document.getElementById('suggested-days-modal').style.display='flex';
 }
 
@@ -3404,12 +3265,112 @@ function clearSession(){
   if(impConfirm) impConfirm.style.display='none';
 
   pendingWB = null;
-  holidaySession={active:false,holidayDate:'',holidayDay:'',dayCounts:{},affectedCount:0,planningNeededCount:0,noneNeededCount:0,customerRows:0,planned:false};
-  holidaySuggestions=[];
-  holidayCustomerPool=[];
 
   render();
   showToast('Session cleared');
+}
+
+
+// ============================================================
+// HOLIDAY EXPORT
+// ============================================================
+function holidaySuggestionRowsForExport(){
+  if(!holidaySession.active)return [];
+
+  const suggestionByAccountDay={};
+  (holidaySuggestions||[]).forEach(s=>{
+    const account=s.customerNumber||s.shipToId||s.account||'';
+    const day=s.originalDeliveryDay||'';
+    if(account&&day)suggestionByAccountDay[`${account}|${day}`]=s;
+  });
+
+  return (holidayCustomerPool||[]).map(c=>{
+    const key=`${c.account}|${c.originalDeliveryDay}`;
+    let suggestion=suggestionByAccountDay[key]||null;
+
+    if(!suggestion&&c.holidayAffected){
+      if(c.noReplacementNeeded){
+        suggestion=createHolidayNoneNeededResult(c);
+      }else{
+        suggestion={
+          routeId:null,
+          suggestedDeliveryDay:'Not planned',
+          suggestedRouteName:'Unassigned',
+          holidayReason:'Holiday plan has not been run yet.',
+          activeDeliveryDays:c.activeDeliveryDays||[],
+          activeDeliveryDayCount:c.activeDeliveryDayCount||0
+        };
+      }
+    }
+
+    const route=suggestion?.routeId ? routes.find(r=>r.id===suggestion.routeId) : null;
+    const suggestedDay=route ? (routeDayName(route)||suggestion?.suggestedDeliveryDay||'') : (suggestion?.suggestedDeliveryDay||'');
+    const suggestedRoute=route ? (route.name||'') : (suggestion?.suggestedRouteName||'');
+    const suggestedRouteNumber=route ? (route.udfNumber1||route.routeTemplateKey||'') : '';
+
+    return {
+      original:c.raw||{},
+      added:{
+        'Affected?':c.holidayAffected?'Yes':'No',
+        'Suggested Day':c.holidayAffected?(suggestedDay||'Not planned'):'',
+        'Suggested Route':c.holidayAffected?(suggestedRoute||'Unassigned'):'',
+        'Suggested Route Number':c.holidayAffected?suggestedRouteNumber:'',
+        'True Days':(c.activeDeliveryDays||[]).join(', '),
+        'Reason':c.holidayAffected?(suggestion?.holidayReason||''):''
+      },
+      affected:c.holidayAffected,
+      noneNeeded:c.noReplacementNeeded===true,
+      planned:!!(suggestion&&suggestion.routeId),
+      notPlanned:c.holidayAffected && !(c.noReplacementNeeded===true) && !(suggestion&&suggestion.routeId)
+    };
+  });
+}
+
+function exportHolidayResults(){
+  if(!holidaySession.active){
+    showToast('Import Holiday Routing data first.');
+    return;
+  }
+  if(!holidayCustomerPool.length){
+    showToast('No active holiday customer rows are loaded.');
+    return;
+  }
+
+  const rows=holidaySuggestionRowsForExport();
+  const wb=XLSX.utils.book_new();
+
+  const affected=rows.filter(r=>r.affected).length;
+  const planned=rows.filter(r=>r.planned).length;
+  const noneNeeded=rows.filter(r=>r.noneNeeded).length;
+  const notPlanned=rows.filter(r=>r.notPlanned).length;
+  const routesUsed=new Set(rows.filter(r=>r.planned).map(r=>r.added['Suggested Route']).filter(Boolean));
+  const routeNumbersUsed=new Set(rows.filter(r=>r.planned).map(r=>r.added['Suggested Route Number']).filter(Boolean));
+
+  const summary=[
+    {'Metric':'Holiday Date','Value':holidaySession.holidayDate||''},
+    {'Metric':'Holiday Day','Value':holidaySession.holidayDay||''},
+    {'Metric':'Active Customer Delivery Rows Exported','Value':rows.length},
+    {'Metric':'Affected Customers','Value':affected},
+    {'Metric':'Suggested / Routed','Value':planned},
+    {'Metric':'None Needed','Value':noneNeeded},
+    {'Metric':'Not Planned / Unassigned','Value':notPlanned},
+    {'Metric':'Routes Used','Value':routesUsed.size},
+    {'Metric':'Route Numbers Used','Value':routeNumbersUsed.size},
+    {'Metric':'Export Created','Value':new Date().toLocaleString()}
+  ];
+
+  HOLIDAY_DAYS.forEach(day=>{
+    summary.push({'Metric':`${day} Active Customer Delivery Rows`,'Value':holidaySession.dayCounts?.[day]||0});
+  });
+
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(summary),'Holiday Summary');
+
+  const customerExport=rows.map(r=>Object.assign({}, r.original, r.added));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(customerExport),'Customer List');
+
+  const safeDate=(holidaySession.holidayDate||document.getElementById('route-date')?.value||new Date().toISOString().slice(0,10)).replace(/[^0-9A-Za-z_-]/g,'');
+  XLSX.writeFile(wb,`Holiday_Routing_Export_${safeDate}.xlsx`);
+  showToast('Holiday export created: Holiday Summary and Customer List');
 }
 
 // ============================================================
