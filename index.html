@@ -611,10 +611,28 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
 
 <!-- Suggested Days Results Modal -->
 <div id="suggested-days-modal" style="display:none" class="modal-overlay">
-  <div class="modal manifest-modal">
+  <div class="modal manifest-modal"
+       style="
+         width:98vw;
+         max-width:none;
+         height:90vh;
+         display:flex;
+         flex-direction:column;
+       ">
     <h2>Suggested Days Results</h2>
-    <div id="suggested-days-summary" class="job-result" style="margin-bottom:10px;"></div>
-    <div id="suggested-days-list" class="manifest-route-list"></div>
+
+    <div id="suggested-days-summary"
+         class="job-result"
+         style="margin-bottom:10px;"></div>
+
+    <div id="suggested-days-list"
+         class="manifest-route-list"
+         style="
+           flex:1;
+           overflow:auto;
+           min-height:0;
+         "></div>
+
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('suggested-days-modal')">Close</button>
     </div>
