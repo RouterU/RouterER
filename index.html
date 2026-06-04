@@ -2846,6 +2846,11 @@ function importTrucks(data){
       vehicleType:(gc(row,['VehicleType','Vehicle Type'])||'').toString(),
       vin:(gc(row,['VIN'])||'').toString(),
       driverKey:(gc(row,['DriverKey','Driver Key'])||'').toString(),
+      measure1:parseFloat(gc(row,['Measure1','Measure 1']))||0,
+      measure2:parseFloat(gc(row,['Measure2 (Cube)','Measure2','Measure 2','Cube','Cube Capacity']))||0,
+      measure3:parseFloat(gc(row,['Measure3 (Weight)','Measure3','Measure 3','Weight','Weight Capacity']))||0,
+      cubeCapacity:parseFloat(gc(row,['Measure2 (Cube)','Measure2','Measure 2','Cube','Cube Capacity']))||0,
+      weightCapacity:parseFloat(gc(row,['Measure3 (Weight)','Measure3','Measure 3','Weight','Weight Capacity']))||0,
     };
     if(existing)Object.assign(existing,obj); else trucks.push(obj);
   });
@@ -2978,7 +2983,9 @@ function confirmHolidayImport(btn,originalText){
     const dep=sheets.find(x=>x.name.toLowerCase().trim()==='depot locations');
     const rt=sheets.find(x=>x.name.toLowerCase().trim()==='route templates');
     const cust=sheets.find(x=>x.name.toLowerCase().trim()==='customer list');
+    const trk=sheets.find(x=>x.name.toLowerCase().trim()==='trucks templates'||x.name.toLowerCase().trim()==='truck templates'||x.type==='trucks');
     if(dep)importDepots(dep.data);
+    if(trk)importTrucks(trk.data);
     if(rt){clearRouteDayFilter();importRoutes(rt.data);}
     let sc=0;
     if(cust)sc=importHolidayCustomers(cust.data,holidayDate,holidayDay);
@@ -2989,7 +2996,7 @@ function confirmHolidayImport(btn,originalText){
       render();
       const summaryHtml=holidayImportSummaryHtml();
       showJob('Holiday Routing Import Summary',summaryHtml);
-      showToast(`Holiday Routing imported: ${routes.length} route templates and ${sc.toLocaleString()} active customer delivery rows.`);
+      showToast(`Holiday Routing imported: ${routes.length} route templates, ${trucks.length} truck templates, and ${sc.toLocaleString()} active customer delivery rows.`);
       if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';}
     },25);
   }catch(err){
@@ -3201,7 +3208,62 @@ function holidayRouteMatchesCustomer(route,customer){const target=holidayCleanRo
 function holidayRouteLocked(customer){return isYesFlag(customer.routeLock)||!!sval(customer.originalRoute);}
 function holidayOvernightCustomer(customerOrStop){return nval(customerOrStop.daysToDeliver)>0;}
 function holidayRouteRoomMinutes(route,routeAssignedStops){return holidayRouteWindowMinutes(route)-holidayEstimateRouteMinutes(route,routeAssignedStops||[]);}
-function holidayCandidateFits(route,assignedStops,stop){if(!route||holidayRouteBlocked(route))return false;return holidayRouteCanAccept(route,assignedStops||[],stop);}
+function holidayRouteTruckLookupKey(route){
+  const raw=sval(route?.truckKey||'');
+  if(!raw)return '';
+  const parts=raw.split('_').map(x=>x.trim()).filter(Boolean);
+  return parts.length?parts[parts.length-1]:raw;
+}
+function holidayTruckForRoute(route){
+  const raw=sval(route?.truckKey||'');
+  const key=holidayRouteTruckLookupKey(route);
+  if(!raw&&!key)return null;
+  return trucks.find(t=>sval(t.truckKey)===raw)
+    || trucks.find(t=>sval(t.truckKey)===key)
+    || trucks.find(t=>raw.endsWith('_'+sval(t.truckKey)));
+}
+function holidayRouteCapacity(route){
+  const truck=holidayTruckForRoute(route);
+  return {truck,cube:nval(truck?.cubeCapacity||truck?.measure2),weight:nval(truck?.weightCapacity||truck?.measure3)};
+}
+function holidayRouteLoad(assignedStops){
+  const list=assignedStops||[];
+  return {cube:list.reduce((a,s)=>a+tCube(s),0),weight:list.reduce((a,s)=>a+tWeight(s),0)};
+}
+function holidayCapacityCheck(route,assignedStops,stop){
+  const cap=holidayRouteCapacity(route);
+  if(!cap.truck||(!cap.cube&&!cap.weight))return {ok:true,cap,load:holidayRouteLoad(assignedStops),nextCube:tCube(stop),nextWeight:tWeight(stop),reason:''};
+  const load=holidayRouteLoad(assignedStops);
+  const nextCube=load.cube+tCube(stop);
+  const nextWeight=load.weight+tWeight(stop);
+  const cubeOk=!cap.cube||nextCube<=cap.cube;
+  const weightOk=!cap.weight||nextWeight<=cap.weight;
+  const parts=[];
+  if(!cubeOk)parts.push(`cube ${nextCube.toFixed(1)} / ${cap.cube.toFixed(1)}`);
+  if(!weightOk)parts.push(`weight ${Math.round(nextWeight).toLocaleString()} / ${Math.round(cap.weight).toLocaleString()}`);
+  return {ok:cubeOk&&weightOk,cap,load,nextCube,nextWeight,reason:parts.join('; ')};
+}
+function holidayCandidateCheck(route,assignedStops,stop){
+  if(!route||holidayRouteBlocked(route))return {fits:false,timeOk:false,capacityOk:false,capacity:null,reason:'Route template excluded or unavailable'};
+  const timeOk=holidayRouteCanAccept(route,assignedStops||[],stop);
+  const capacity=holidayCapacityCheck(route,assignedStops||[],stop);
+  return {fits:timeOk&&capacity.ok,timeOk,capacityOk:capacity.ok,capacity,reason:!timeOk?'Route would exceed latest end time':(!capacity.ok?'Route capacity exceeded: '+capacity.reason:'')};
+}
+function holidayCandidateFits(route,assignedStops,stop){return holidayCandidateCheck(route,assignedStops||[],stop).fits;}
+function holidayBestCapacityBlockedCandidate(stop,availableByDay,routeAssignedStops,preferredOnly=false){
+  let best=null;
+  Object.entries(availableByDay||{}).forEach(([day,dayRoutes])=>{
+    dayRoutes.forEach(route=>{
+      if(preferredOnly&&!holidayRouteMatchesCustomer(route,stop))return;
+      const check=holidayCandidateCheck(route,routeAssignedStops[route.id]||[],stop);
+      if(check.fits||!check.timeOk||check.capacityOk)return;
+      const dist=stopToRouteDepotMiles(stop,route);
+      const score=dist+(routeAssignedStops[route.id]||[]).length*8;
+      if(!best||score<best.score)best={day,route,check,score,dist};
+    });
+  });
+  return best;
+}
 function holidayFindClosestScheduledStop(stop,scheduledStops,maxMiles){if(stop.lat===null||stop.lng===null||isNaN(stop.lat)||isNaN(stop.lng))return null;let best=null;scheduledStops.forEach(candidate=>{if(!candidate.routeId||candidate.lat===null||candidate.lng===null||isNaN(candidate.lat)||isNaN(candidate.lng))return;const route=routes.find(r=>r.id===candidate.routeId);if(!route||holidayRouteBlocked(route))return;const d=haversine(stop.lat,stop.lng,candidate.lat,candidate.lng);if(d<=maxMiles&&(!best||d<best.miles))best={stop:candidate,route,miles:d};});return best;}
 function holidayMakeBaselineStop(c){const s=createHolidayPlanningStop(c);s.holidayPlanning=true;s.holidayAffected=false;s.needsHolidayPlanning=false;s.orderNumber=`BASE-${c.account}-${c.originalDeliveryDay.slice(0,3).toUpperCase()}`;s.suggestedDeliveryDay=c.originalDeliveryDay;s.holidayReason='Baseline weekly route stop used to build the non-holiday plan before placing affected holiday customers.';s.suggestionStep='Step 1';s.suggestionType='Baseline';return s;}
 function holidayPlaceStopOnRoute(stop,route,day,routeAssignedStops,reason,step,type){stop.routeId=route.id;stop.seq=(routeAssignedStops[route.id]||[]).length+1;stop.suggestedDeliveryDay=day||routeDayName(route)||'';stop.suggestedRouteName=route.name;stop.suggestedRouteId=route.id;stop.holidayReason=reason;stop.suggestionStep=step;stop.suggestionType=type;routeAssignedStops[route.id].push(stop);}
@@ -3231,7 +3293,7 @@ function planHoliday(){
 
   const routeAssignedStops={};
   routes.forEach(r=>{routeAssignedStops[r.id]=[];});
-  let baselineRouted=0,baselineUnrouted=0,overnightTotal=0,overnightRouted=0,sameRoutePlaced=0,closestStopPlaced=0,layoverPlaced=0,generalPlaced=0;
+  let baselineRouted=0,baselineUnrouted=0,overnightTotal=0,overnightRouted=0,sameRoutePlaced=0,closestStopPlaced=0,layoverPlaced=0,generalPlaced=0,capacityBlocked=0;
 
   // Step 1: build the current week first using preferred route/sequence where available.
   holidayCustomerPool.filter(c=>!c.holidayAffected).forEach(c=>{
@@ -3280,14 +3342,29 @@ function planHoliday(){
       const generalCandidates=availableRoutes.slice().sort((a,b)=>{const da=stopToRouteDepotMiles(s,a), db=stopToRouteDepotMiles(s,b);const la=(routeAssignedStops[a.id]||[]).length, lb=(routeAssignedStops[b.id]||[]).length;return da-db||la-lb;});
       for(const route of generalCandidates){if(holidayCandidateFits(route,routeAssignedStops[route.id],s)){holidayPlaceStopOnRoute(s,route,routeDayName(route),routeAssignedStops,'Step 2 fallback: assigned to closest available route with enough remaining route-template time.','Step 2','Closest route with time');generalPlaced++;placed=true;break;}}
     }
-    if(!placed){s.holidayReason='No available route/day found within route template latest end time after same-route, overnight, layover, and closest-route checks.';s.suggestionStep='Step 2';s.suggestionType=holidayOvernightCustomer(s)?'Overnight not routed':'Not routed';}
+    if(!placed){
+      const capBlock=holidayBestCapacityBlockedCandidate(s,availableByDay,routeAssignedStops,holidayRouteLocked(s));
+      if(capBlock){
+        s.suggestedDeliveryDay=capBlock.day;
+        s.suggestedRouteName=capBlock.route.name;
+        s.suggestedRouteId=capBlock.route.id;
+        s.holidayReason=`Capacity issue: best fit was ${capBlock.route.name} on ${capBlock.day}, but adding this stop would exceed truck capacity (${capBlock.check.capacity.reason}). Stop left unassigned.`;
+        s.suggestionStep='Step 2';
+        s.suggestionType='Capacity blocked';
+        capacityBlocked++;
+      }else{
+        s.holidayReason='No available route/day found within route template latest end time after same-route, overnight, layover, and closest-route checks.';
+        s.suggestionStep='Step 2';
+        s.suggestionType=holidayOvernightCustomer(s)?'Overnight not routed':'Not routed';
+      }
+    }
     stops.push(s);holidaySuggestions.push(s);
   });
 
   const affectedRouteIds=new Set(stops.filter(s=>s.routeId).map(s=>s.routeId));
   affectedRouteIds.forEach(routeId=>{expanded.add(routeId);resequenceRouteByDistanceSilent(routeId);});
   reseq();holidaySession.planned=true;
-  holidaySession.lastPlanStats={baselineRouted,baselineUnrouted,overnightTotal,overnightRouted,sameRoutePlaced,closestStopPlaced,layoverPlaced,generalPlaced,blockedRoutes:routes.filter(holidayRouteBlocked).length};
+  holidaySession.lastPlanStats={baselineRouted,baselineUnrouted,overnightTotal,overnightRouted,sameRoutePlaced,closestStopPlaced,layoverPlaced,generalPlaced,capacityBlocked,blockedRoutes:routes.filter(holidayRouteBlocked).length,truckTemplates:trucks.length};
   mapCleared=true;visibleRouteIds.clear();visibleStopIds.clear();render();
 
   const plannedHoliday=holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).length;
@@ -3296,7 +3373,7 @@ function planHoliday(){
   const routesUsed=new Set(holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).map(s=>s.routeId)).size;
   const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
   const heavy=holidayHeaviestDaySummary();
-  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
+  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
 }
 
 function openSuggestedDaysResults(){
@@ -3312,7 +3389,7 @@ function openSuggestedDaysResults(){
   const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
   const heavy=holidayHeaviestDaySummary();
   const stats=holidaySession.lastPlanStats||{};
-  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${planned.toLocaleString()}<br/><strong>None Needed:</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${(stats.overnightRouted||0).toLocaleString()} routed / ${(stats.overnightTotal||0).toLocaleString()} total<br/><strong>Excluded Route Templates:</strong> ${(stats.blockedRoutes||0).toLocaleString()} with UDFString4 X/x`;
+  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${planned.toLocaleString()}<br/><strong>None Needed:</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${(stats.overnightRouted||0).toLocaleString()} routed / ${(stats.overnightTotal||0).toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${(stats.capacityBlocked||0).toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${(stats.truckTemplates||trucks.length||0).toLocaleString()}<br/><strong>Excluded Route Templates:</strong> ${(stats.blockedRoutes||0).toLocaleString()} with UDFString4 X/x`;
   document.getElementById('suggested-days-list').innerHTML=`
     <div class="manifest-row header" style="grid-template-columns:150px 260px 95px 95px 125px 180px 145px 115px 130px 150px 320px;min-width:1865px;"><div>Account</div><div>Customer</div><div>Depot</div><div>Original Day</div><div>Suggested Day</div><div>Suggested Route</div><div>City / State</div><div>True Days</div><div>Step</div><div>Suggestion</div><div>Reason</div></div>
     ${rows.map(s=>`<div class="manifest-row stop" style="grid-template-columns:150px 260px 95px 95px 125px 180px 145px 115px 130px 150px 320px;min-width:1865px;" ${s.id?`onclick="openStopDetail('${s.id}')"`:''}><div>${escapeHtml(s.customerNumber||s.shipToId||'')}</div><div>${escapeHtml(s.customerName||'')}</div><div>${escapeHtml(s.raw?.Depot||'')}</div><div>${escapeHtml(s.originalDeliveryDay||'')}</div><div>${escapeHtml(s.suggestedDeliveryDay||'Not planned')}</div><div>${escapeHtml(s.suggestedRouteName||'Unassigned')}</div><div>${escapeHtml((s.city||'')+', '+(s.state||''))}</div><div>${escapeHtml((s.activeDeliveryDays||[]).join(', ')||String(s.activeDeliveryDayCount||''))}</div><div>${escapeHtml(s.suggestionStep||'')}</div><div>${escapeHtml(s.suggestionType||'')}</div><div>${escapeHtml(s.holidayReason||'')}</div></div>`).join('')||'<div class="manifest-row"><div>No affected customers found.</div></div>'}`;
