@@ -933,34 +933,60 @@ function routeTimelineRows(routeId){
   if(!route||!pts.length)return [];
   let cursor=timeToMinutes(routeStartTime(route));
   if(cursor===null)cursor=0;
+  const routeStart=cursor;
   const startup=durationToMinutes(route.startupTime);
   const windup=durationToMinutes(route.windupTime);
+  const twoDay=routeIsTwoDay(route);
+  const dayCap=routeDailyWorkCapMinutes(route);
+  const rest=routeRestMinutes(route);
+  let day=1;
+  let dayWork=0;
   const rows=[];
+  const pushRestIfNeeded=(upcomingWork)=>{
+    if(!twoDay||day!==1)return;
+    if(dayWork>0 && dayWork+(parseFloat(upcomingWork)||0)>dayCap){
+      const restArrive=cursor;
+      const restDepart=cursor+rest;
+      rows.push({type:'rest',label:'REST',name:'Required Rest Period',city:'',state:'',lat:null,lng:null,legMiles:0,driveMins:0,rawArrive:restArrive,arrive:restArrive,depart:restDepart,waitMins:0,twStatus:'',twLabel:'8 Hour Rest',serviceMins:0,dayNumber:0,dayLabel:'REST'});
+      cursor=restDepart;
+      day=2;
+      dayWork=0;
+    }
+  };
+  const addWorkToDay=(mins)=>{dayWork+=Math.max(0,parseFloat(mins)||0);};
+
   pts.forEach((pt,i)=>{
     let legMiles=0, driveMins=0, rawArrive=cursor, arrive=cursor, depart=cursor;
     let waitMins=0, twStatus='', twLabel='';
     if(i===0){
       depart=cursor+startup;
+      addWorkToDay(startup);
       twLabel='Depot';
     }else{
       const prev=pts[i-1];
       legMiles=haversine(prev.lat,prev.lng,pt.lat,pt.lng);
       driveMins=driveMinutesForMiles(legMiles);
+      const serviceOrWindup=pt.type==='stop'?stopServiceMinutes(pt.stop):(pt.type==='depot-end'?windup:0);
+      pushRestIfNeeded(driveMins+serviceOrWindup);
       rawArrive=cursor+driveMins;
       arrive=rawArrive;
+      addWorkToDay(driveMins);
       if(pt.type==='stop'){
         const tw=windowStatusForStop(pt.stop, rawArrive);
         arrive=tw.adjustedArrive;
         waitMins=tw.waitMins;
+        if(waitMins)addWorkToDay(waitMins);
         twStatus=tw.status;
         twLabel=tw.label;
         depart=arrive+stopServiceMinutes(pt.stop);
+        addWorkToDay(stopServiceMinutes(pt.stop));
       } else {
         depart=pt.type==='depot-end'?arrive+windup:arrive;
+        if(pt.type==='depot-end')addWorkToDay(windup);
         twLabel='Depot';
       }
     }
-    rows.push({...pt,legMiles,driveMins,rawArrive,arrive,depart,waitMins,twStatus,twLabel,serviceMins:pt.type==='stop'?stopServiceMinutes(pt.stop):0});
+    rows.push({...pt,legMiles,driveMins,rawArrive,arrive,depart,waitMins,twStatus,twLabel,serviceMins:pt.type==='stop'?stopServiceMinutes(pt.stop):0,dayNumber:day,dayLabel:twoDay?`Day ${day}`:'Day 1'});
     cursor=depart;
   });
   return rows;
@@ -2086,14 +2112,16 @@ function renderRouteManifest(){
   const timeline=routeTimelineRows(activeManifestRouteId);
   let liveStopSeq=0;
   const rows=timeline.map((pt,idx)=>{
+    const isRest=pt.type==='rest';
     const isDepot=pt.type!=='stop';
     const s=pt.stop||{};
-    const liveSeq=isDepot?(pt.label||'DEPOT'):(++liveStopSeq);
+    const liveSeq=isRest?'REST':(isDepot?(pt.label||'DEPOT'):(++liveStopSeq));
     const seq=liveSeq;
     const name=escapeHtml(pt.name||'Stop');
     const seqDisplay=liveSeq;
-    const displayName=isDepot?name:`#${escapeHtml(seqDisplay)} · ${name}`;
-    const detail=isDepot?`LocationKey: ${escapeHtml(pt.depot?.locationKey||'')}`:`${escapeHtml(s.orderNumber||'')} · ${escapeHtml(s.address||'')} ${escapeHtml(s.city||'')} ${escapeHtml(s.state||'')}`;
+    const dayBadge=pt.dayLabel?`<span class="tw-badge ${isRest?'tw-wait':'tw-ok'}" style="margin-right:6px;">${escapeHtml(pt.dayLabel)}</span>`:'';
+    const displayName=isRest?`${dayBadge}${name}`:(isDepot?`${dayBadge}${name}`:`${dayBadge}#${escapeHtml(seqDisplay)} · ${name}`);
+    const detail=isRest?'8-hour required rest before Day 2 starts':(isDepot?`LocationKey: ${escapeHtml(pt.depot?.locationKey||'')}`:`${escapeHtml(s.orderNumber||'')} · ${escapeHtml(s.address||'')} ${escapeHtml(s.city||'')} ${escapeHtml(s.state||'')}`);
     const violationClass=pt.twStatus==='LATE'?' tw-violation':'';
     const twClass=pt.twStatus==='LATE'?'tw-late':(pt.twStatus==='WAIT'?'tw-wait':'tw-ok');
     const dragAttrs=isDepot?'':`id="manifest-stop-${s.id}" draggable="true"
@@ -2104,7 +2132,7 @@ function renderRouteManifest(){
       ondragend="manifestDragEnd()"
       onclick="toggleStopFilter('${s.id}')"
       onmouseenter="highlightStop('${s.id}')" onmouseleave="clearMapHighlight()"`;
-    return `<div class="manifest-row ${isDepot?'depot':'stop'}${violationClass}" ${dragAttrs}>
+    return `<div class="manifest-row ${isDepot?'depot':'stop'}${violationClass}" ${dragAttrs} style="${isRest?'background:rgba(245,158,11,.16);box-shadow:inset 4px 0 0 var(--warn);':''}">
       <div class="manifest-seq">${seq}</div>
       <div class="manifest-customer"><div class="manifest-name">${displayName}</div><div class="manifest-detail">${detail}</div></div>
       <div>${escapeHtml(pt.city||'')} ${escapeHtml(pt.state||'')}</div>
@@ -2117,8 +2145,8 @@ function renderRouteManifest(){
       <div>${minutesToHHMM(pt.arrive)}</div>
       <div>${minutesToHHMM(pt.depart)}</div>
       <div>${isDepot?'—':(pt.waitMins?fmtMinutes(pt.waitMins):'—')}</div>
-      <div>${isDepot?'Depot':`${escapeHtml(s.earliestTimeWindow||'—')} - ${escapeHtml(s.latestTimeWindow||'—')}`}</div>
-      <div>${isDepot?'—':`<span class="tw-badge ${twClass}">${escapeHtml(pt.twLabel||'')}</span>`}</div>
+      <div>${isRest?'Rest':(isDepot?'Depot':`${escapeHtml(s.earliestTimeWindow||'—')} - ${escapeHtml(s.latestTimeWindow||'—')}`)}</div>
+      <div>${isRest?`<span class="tw-badge tw-wait">8 Hour Rest</span>`:(isDepot?'—':`<span class="tw-badge ${twClass}">${escapeHtml(pt.twLabel||'')}</span>`)}</div>
     </div>`;
   }).join('');
 
@@ -2398,24 +2426,30 @@ function routeWorkDurationLimitMinutes(route){
   }
   return allowed/60;
 }
+function routeIsTwoDay(route){
+  return (typeof holidayRouteDaySpan==='function'&&holidayRouteDaySpan(route)>1) || (typeof holidayLayoverRoute==='function'&&holidayLayoverRoute(route));
+}
+function routeDefaultWorkLimitMinutes(route,opts={}){
+  // LatestEndTime is no longer used as the route runtime cap.
+  // If no Work Duration is provided, use a safe planning default.
+  return routeIsTwoDay(route)?1440:840;
+}
+function routeRuntimeLimitMinutes(route,opts={}){
+  const workLimit=routeWorkDurationLimitMinutes(route);
+  return (workLimit!==null&&Number.isFinite(workLimit)&&workLimit>0)?workLimit:routeDefaultWorkLimitMinutes(route,opts);
+}
+function routeDailyWorkCapMinutes(route){
+  return routeIsTwoDay(route)?720:routeRuntimeLimitMinutes(route);
+}
+function routeRestMinutes(route){
+  return routeIsTwoDay(route)?480:0;
+}
 function clockRouteWindowLimitMinutes(route){
-  let start=timeToMinutes(routeStartTime(route));
-  let end=timeToMinutes(route.latestEndTime||'');
-  if(start===null)start=timeToMinutes(route.earliestStartTime||route.latestStartTime||'06:00');
-  if(end===null)return Infinity;
-  if(start===null)start=360;
-  if(end<=start)end+=1440;
-  return Math.max(0,end-start);
+  // Kept for older non-holiday references only. Optimization and Holiday planning use Work Duration.
+  return routeRuntimeLimitMinutes(route,{});
 }
 function optimizationRouteLimitMinutes(route,opts={}){
-  const workLimit=routeWorkDurationLimitMinutes(route);
-  if(workLimit!==null&&Number.isFinite(workLimit)&&workLimit>0)return workLimit;
-  const driver=opts.optimizationDriver||'distance';
-  if(driver==='minimum_routes'||driver==='dynamic'){
-    const days=typeof holidayRouteDaySpan==='function'?holidayRouteDaySpan(route):1;
-    return days>1?days*600:840;
-  }
-  return clockRouteWindowLimitMinutes(route);
+  return routeRuntimeLimitMinutes(route,opts);
 }
 function routeTimelineRowsForOptimization(routeId,opts={}){
   if(optimizationRespectsWindows(opts))return routeTimelineRows(routeId);
@@ -3399,69 +3433,94 @@ function holidayRouteStartTime(route){
   return globalStart||'06:00';
 }
 function holidayRouteWindowMinutes(route){
-  const workLimit=routeWorkDurationLimitMinutes(route);
-  if(workLimit!==null&&Number.isFinite(workLimit)&&workLimit>0)return workLimit;
-
-  let start=timeToMinutes(holidayRouteStartTime(route));
-  let end=timeToMinutes(route.latestEndTime||'18:00');
-  if(start===null)start=360;
-  if(end===null)end=start+600;
-
-  // LatestEndTime is a hard limit. Only routes identified as multi-day in UDFString3
-  // may roll past midnight. D_1-DAY routes must remain a single-day route and cannot
-  // borrow an extra 24 hours when LatestEndTime is earlier than the start time.
-  const allowedDays=holidayRouteDaySpan(route);
-  if(end<=start){
-    if(allowedDays>1){
-      end+=1440*(allowedDays-1);
-    }else{
-      return 0;
-    }
-  }
-
-  const maxWindow=Math.max(0,allowedDays*1440);
-  return Math.max(0,Math.min(end-start,maxWindow));
+  // Holiday routing no longer uses LatestEndTime as a hard runtime cap.
+  // The allowed runtime comes from Work1Duration-Work4Duration and penalty rules.
+  return routeRuntimeLimitMinutes(route,{optimizationDriver:'holiday'});
 }
 function holidayStopServiceMinutes(stop){
   return customerServiceMinutesFromFields(stop,5,0);
 }
-function holidayEstimateRouteMinutes(route,assignedStops){
+function holidayEstimateRouteMetrics(route,assignedStops){
   const start=routeDepotPoint(route);
   const startMinute=timeToMinutes(holidayRouteStartTime(route));
   let cursor=startMinute===null?0:startMinute;
-  const routeStart=cursor;
-  cursor+=durationToMinutes(route.startupTime);
+  let totalWork=0;
+  let day=1;
+  let dayWork=0;
+  let day1Work=0;
+  let day2Work=0;
+  let restInserted=false;
+  let overDaily=false;
+  const twoDay=routeIsTwoDay(route);
+  const dayCap=routeDailyWorkCapMinutes(route);
+  const rest=routeRestMinutes(route);
+
+  const addWork=(mins)=>{
+    const m=Math.max(0,parseFloat(mins)||0);
+    totalWork+=m;
+    dayWork+=m;
+    if(day===1)day1Work+=m; else day2Work+=m;
+    cursor+=m;
+  };
+  const maybeRest=(upcomingWork)=>{
+    if(!twoDay||day!==1)return;
+    if(dayWork>0 && dayWork+(parseFloat(upcomingWork)||0)>dayCap){
+      cursor+=rest;
+      restInserted=true;
+      day=2;
+      dayWork=0;
+    }
+  };
+
+  addWork(durationToMinutes(route.startupTime));
   if(!start||!assignedStops.length){
-    cursor+=durationToMinutes(route.windupTime);
-    return Math.max(0,cursor-routeStart);
+    maybeRest(durationToMinutes(route.windupTime));
+    addWork(durationToMinutes(route.windupTime));
+    if(day1Work>dayCap||day2Work>dayCap)overDaily=true;
+    return {totalWorkMinutes:totalWork,totalClockMinutes:totalWork+(restInserted?rest:0),day1WorkMinutes:day1Work,day2WorkMinutes:day2Work,restInserted,overDaily};
   }
+
   const remaining=assignedStops.filter(s=>s.lat!==null&&s.lng!==null&&!isNaN(s.lat)&&!isNaN(s.lng)).slice();
   let current={lat:start.lat,lng:start.lng};
   while(remaining.length){
-    let bestIndex=0,bestScore=Infinity,bestDepart=cursor;
+    let bestIndex=0,bestScore=Infinity,bestData=null;
     remaining.forEach((stop,index)=>{
       const d=haversine(current.lat,current.lng,stop.lat,stop.lng);
-      const rawArrive=cursor+driveMinutesForMiles(d);
+      const drive=driveMinutesForMiles(d);
+      const rawArrive=cursor+drive;
       const tw=windowStatusForStop(stop,rawArrive);
-      const depart=tw.adjustedArrive+holidayStopServiceMinutes(stop);
+      const wait=Math.max(0,(tw.adjustedArrive||rawArrive)-rawArrive);
+      const service=holidayStopServiceMinutes(stop);
       const latest=timeToMinutes(stop.latestTimeWindow);
       const latePenalty=(latest!==null&&tw.adjustedArrive>latest)?100000+(tw.adjustedArrive-latest)*100:0;
-      const score=(depart-cursor)+latePenalty+d;
-      if(score<bestScore){bestScore=score;bestIndex=index;bestDepart=depart;}
+      const score=drive+wait+service+latePenalty+d;
+      if(score<bestScore){bestScore=score;bestIndex=index;bestData={drive,wait,service};}
     });
     const next=remaining.splice(bestIndex,1)[0];
-    cursor=bestDepart;
+    const upcoming=(bestData?.drive||0)+(bestData?.wait||0)+(bestData?.service||0);
+    maybeRest(upcoming);
+    addWork(bestData?.drive||0);
+    addWork(bestData?.wait||0);
+    addWork(bestData?.service||0);
     current={lat:next.lat,lng:next.lng};
   }
-  cursor+=driveMinutesForMiles(haversine(current.lat,current.lng,start.lat,start.lng));
-  cursor+=durationToMinutes(route.windupTime);
-  return Math.max(0,cursor-routeStart);
+  const returnDrive=driveMinutesForMiles(haversine(current.lat,current.lng,start.lat,start.lng));
+  const windup=durationToMinutes(route.windupTime);
+  maybeRest(returnDrive+windup);
+  addWork(returnDrive);
+  addWork(windup);
+  if(day1Work>dayCap||day2Work>dayCap)overDaily=true;
+  return {totalWorkMinutes:Math.max(0,totalWork),totalClockMinutes:Math.max(0,totalWork+(restInserted?rest:0)),day1WorkMinutes:day1Work,day2WorkMinutes:day2Work,restInserted,overDaily};
+}
+function holidayEstimateRouteMinutes(route,assignedStops){
+  return holidayEstimateRouteMetrics(route,assignedStops).totalWorkMinutes;
 }
 function holidayRouteCanAccept(route,assignedStops,stop){
   const maxMinutes=holidayRouteWindowMinutes(route);
   if(maxMinutes<=0)return false;
   const nextStops=(assignedStops||[]).concat([stop]);
-  return holidayEstimateRouteMinutes(route,nextStops)<=maxMinutes;
+  const metrics=holidayEstimateRouteMetrics(route,nextStops);
+  return metrics.totalWorkMinutes<=maxMinutes && !metrics.overDaily;
 }
 function createHolidayPlanningStop(c){
   return {
@@ -3605,7 +3664,7 @@ function holidayCandidateCheck(route,assignedStops,stop){
   }
   const timeOk=holidayRouteCanAccept(route,assignedStops||[],stop);
   const capacity=holidayCapacityCheck(route,assignedStops||[],stop);
-  return {fits:timeOk&&capacity.ok,timeOk,capacityOk:capacity.ok,capacity,reason:!timeOk?'Route would exceed LatestEndTime or the UDFString3 day-span limit':(!capacity.ok?'Route capacity exceeded: '+capacity.reason:'')};
+  return {fits:timeOk&&capacity.ok,timeOk,capacityOk:capacity.ok,capacity,reason:!timeOk?'Route would exceed allowed Work Duration or 2-day daily cap':(!capacity.ok?'Route capacity exceeded: '+capacity.reason:'')};
 }
 function holidayCandidateFits(route,assignedStops,stop){return holidayCandidateCheck(route,assignedStops||[],stop).fits;}
 function holidayRouteFinalLimitCheck(routeId){
@@ -3620,7 +3679,7 @@ function holidayRouteFinalLimitCheck(routeId){
   const weightOk=!cap.weight||load.weight<=cap.weight;
   const timeOk=maxMinutes>0&&totalMinutes<=maxMinutes;
   const parts=[];
-  if(!timeOk)parts.push(`run time ${fmtMinutes(totalMinutes)} exceeds route window ${fmtMinutes(maxMinutes)} ending at ${cleanTimeValue(route.latestEndTime)||'LatestEndTime'}`);
+  if(!timeOk)parts.push(`work time ${fmtMinutes(totalMinutes)} exceeds allowed Work Duration ${fmtMinutes(maxMinutes)}`);
   if(!cubeOk)parts.push(`cube ${load.cube.toFixed(1)} / ${cap.cube.toFixed(1)}`);
   if(!weightOk)parts.push(`weight ${Math.round(load.weight).toLocaleString()} / ${Math.round(cap.weight).toLocaleString()}`);
   return {ok:timeOk&&cubeOk&&weightOk,timeOk,cubeOk,weightOk,totalMinutes,maxMinutes,load,cap,reason:parts.join('; ')};
@@ -3643,7 +3702,7 @@ function holidayEnforceFinalRouteLimits(routeIds){
       removable.suggestedDeliveryDay='Not Routed';
       removable.suggestedRouteName='Unassigned';
       removable.suggestedRouteId='';
-      removable.holidayReason=`Not routed: ${check.reason}. Best candidate was ${route?route.name:'route'}, but the route cannot exceed LatestEndTime/capacity.`;
+      removable.holidayReason=`Not routed: ${check.reason}. Best candidate was ${route?route.name:'route'}, but the route cannot exceed Work Duration, the 2-day daily cap, or capacity.`;
       removable.suggestionStep='Final validation';
       removable.suggestionType='Rejected by route limit';
       removed++;
@@ -3780,7 +3839,7 @@ function planHoliday(){
   const routesUsed=new Set(holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).map(s=>s.routeId)).size;
   const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
   const heavy=holidayHeaviestDaySummary();
-  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Excluded Planning Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> Route Template Work Duration is used first; if missing, LatestEndTime remains the hard cap and D_1-DAY routes cannot roll into a new day<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
+  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Excluded Planning Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> Route Template Work Duration is used as the runtime cap. LatestEndTime is not used as the hard cap. 2-day routes include an 8-hour rest and each day is capped at 12 hours<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
 }
 
 function suggestedDaysRowBucket(s){
