@@ -2523,12 +2523,16 @@ function optimizeSelectedRoutes(opts){
     locked+=result.locked||0;
     if(!result.ok)warnings.push(result.message);
   });
+  const stage2=secondStageRouteOptimization(routeIds,opts);
+  const net=optimizationSummaryForRoutes(optimizationDayRouteIds(routeIds),opts);
   render();
   showJob('&#9889; Optimize Selected Route(s)',`
     <strong>Optimization Driver:</strong> ${optimizationDriverLabel(opts.optimizationDriver)}<br/>
-    <strong>${optimized}</strong> route(s) optimized<br/>
+    <strong>Stage 1:</strong> ${optimized} selected route(s) resequenced<br/>
+    <strong>Stage 2:</strong> reviewed ${stage2.routesReviewed} route(s) for the day, consolidated ${stage2.consolidated} stop move(s), accepted ${stage2.swapped} route-to-route swap(s)<br/>
+    <strong>Network Result:</strong> ${net.activeRoutes} active route(s), ${net.miles.toFixed(1)} total mile(s), ${fmtMinutes(net.wait)} wait time, ${fmtMinutes(net.late)} late-window miss time<br/>
     <strong>${locked}</strong> stop(s) locked because of selected preferred-resource or preferred-position rules<br/>
-    <strong>Delivery Windows:</strong> ${optimizationRespectsWindows(opts)?'Respected':'Ignored'}<br/>
+    <strong>Delivery Windows:</strong> ${optimizationRespectsWindows(opts)?'Respected when possible / closest miss if impossible':'Ignored'}<br/>
     ${warnings.length?`<br/><strong>Warnings:</strong><br/>${warnings.map(w=>'&bull; '+escapeHtml(w)).join('<br/>')}`:''}
   `);
 }
@@ -2575,15 +2579,17 @@ function optimizeRouteSequence(routeId,opts={}){
       const early=timeToMinutes(stop.earliestTimeWindow);
       let score=miles;
       const driver=opts.optimizationDriver||'distance';
+      const lateMins=(latest!==null&&arriveEstimate>latest)?arriveEstimate-latest:0;
+      const waitMins=(early!==null&&arriveEstimate<early)?early-arriveEstimate:0;
       if(driver==='delivery_windows'){
-        score=miles*0.05;
-        if(latest!==null&&arriveEstimate>latest)score+=100000+(arriveEstimate-latest)*500;
-        if(early!==null&&arriveEstimate<early)score+=(early-arriveEstimate)*2;
+        score=(miles*0.35)+(waitMins*2.5)+(lateMins*900);
       }else if(driver==='dynamic'){
-        score=miles+(holidayStopServiceMinutes?holidayStopServiceMinutes(stop):stopServiceMinutes(stop))*0.15;
+        score=miles+(stopServiceMinutes(stop)*0.15);
+      }else if(driver==='minimum_routes'){
+        score=(miles*0.75)+(waitMins*0.75)+(lateMins*120);
       }else{
-        if(latest!==null&&optimizationRespectsWindows(opts)&&arriveEstimate>latest)score+=10000+(arriveEstimate-latest)*10;
-        if(early!==null&&optimizationRespectsWindows(opts)&&arriveEstimate<early)score+=(early-arriveEstimate)/60;
+        // Distance still looks at windows: reduce wait time, and if a window cannot be hit, get as close as possible while saving miles.
+        score=miles+(waitMins*0.9)+(lateMins*120);
       }
       if(opts.respectResource&&!preferredResourceMatchesRoute(stop,route))score+=5000;
       if(score<bestScore){bestScore=score;bestIndex=index;}
@@ -2635,6 +2641,162 @@ function routeWithinBasicLimits(routeId,opts={}){
     if(lateStops>0)return false;
   }
   return true;
+}
+
+function routeWindowCostMinutes(routeId,opts={}){
+  if(!optimizationRespectsWindows(opts))return {wait:0,late:0,early:0};
+  const rows=routeTimelineRows(routeId).filter(r=>r.type==='stop');
+  return rows.reduce((acc,row)=>{
+    const stop=row.stop||{};
+    const early=timeToMinutes(stop.earliestTimeWindow);
+    const late=timeToMinutes(stop.latestTimeWindow);
+    if(early!==null && row.rawArrive<early)acc.wait+=early-row.rawArrive;
+    if(late!==null && row.arrive>late)acc.late+=row.arrive-late;
+    return acc;
+  },{wait:0,late:0,early:0});
+}
+function activeRouteIdsFrom(routeIds){
+  const ids=(routeIds&&routeIds.length?routeIds:routes.map(r=>r.id));
+  return ids.filter(routeId=>stops.some(s=>s.routeId===routeId));
+}
+function routeNetworkScore(routeIds,opts={}){
+  const driver=opts.optimizationDriver||'distance';
+  const active=activeRouteIdsFrom(routeIds);
+  let miles=0,wait=0,late=0,runtime=0;
+  active.forEach(routeId=>{
+    miles+=routeDistanceMiles(routeId);
+    runtime+=routeTotalMinutesForOptimization(routeId,opts);
+    const wc=routeWindowCostMinutes(routeId,opts);
+    wait+=wc.wait;
+    late+=wc.late;
+  });
+  const activeRoutePenalty=(driver==='minimum_routes')?12000:(driver==='dynamic'?6000:750);
+  const latePenalty=(driver==='delivery_windows')?900:(driver==='distance'?120:0);
+  const waitPenalty=(driver==='delivery_windows')?2.5:(driver==='distance'?0.9:0.15);
+  const mileWeight=(driver==='delivery_windows')?0.45:1;
+  const runtimeWeight=(driver==='dynamic')?0.35:0.08;
+  return (active.length*activeRoutePenalty)+(miles*mileWeight)+(wait*waitPenalty)+(late*latePenalty)+(runtime*runtimeWeight);
+}
+function optimizationDayRouteIds(routeIds){
+  const selected=(routeIds&&routeIds.length?routeIds:routes.map(r=>r.id));
+  const days=new Set(selected.map(routeId=>routeDayName(routes.find(r=>r.id===routeId))).filter(Boolean));
+  if(!days.size)return routes.map(r=>r.id);
+  return routes.filter(r=>days.has(routeDayName(r))).map(r=>r.id);
+}
+function snapshotOptimizationState(routeIds){
+  const routeSet=new Set(routeIds||routes.map(r=>r.id));
+  const snap={};
+  stops.forEach(s=>{if(!s.routeId||routeSet.has(s.routeId))snap[s.id]={routeId:s.routeId||null,seq:s.seq||0};});
+  return snap;
+}
+function restoreOptimizationState(snap){
+  Object.entries(snap||{}).forEach(([id,state])=>{
+    const stop=stops.find(s=>s.id===id);
+    if(stop){stop.routeId=state.routeId;stop.seq=state.seq;}
+  });
+}
+function optimizeRouteIfPossible(routeId,opts={}){
+  const count=stops.filter(s=>s.routeId===routeId&&s.lat&&s.lng).length;
+  if(count>=2)return optimizeRouteSequence(routeId,opts).ok;
+  if(count===1){const one=stops.find(s=>s.routeId===routeId&&s.lat&&s.lng); if(one)one.seq=1; return true;}
+  return true;
+}
+function canMoveStopForSecondStage(stop,fromRouteId,targetRoute,opts={}){
+  if(!stop||!targetRoute||targetRoute.id===fromRouteId)return false;
+  if(opts.respectResource&&!preferredResourceMatchesRoute(stop,targetRoute))return false;
+  if(opts.respectPosition&&fromRouteId&&preferredPosition(stop))return false;
+  if(stop.holidayPlanning&&holidayRequiresProntoRoute(stop)&&!holidayRouteIsPronto(targetRoute))return false;
+  return true;
+}
+function routeIdsValid(routeIds,opts={}){
+  return (routeIds||[]).every(routeId=>routeWithinBasicLimits(routeId,opts));
+}
+function secondStageRouteOptimization(routeIds,opts={}){
+  const candidateRouteIds=optimizationDayRouteIds(routeIds);
+  const candidateRoutes=candidateRouteIds.map(id=>routes.find(r=>r.id===id)).filter(Boolean);
+  const routeStops=(routeId)=>stops.filter(s=>s.routeId===routeId);
+  const beforeScore=routeNetworkScore(candidateRouteIds,opts);
+  let consolidated=0,swapped=0,attempts=0;
+
+  // Stage 2A: try to eliminate low-stop routes first. This prevents routes with 1-2 stops from staying open when another route has time and capacity.
+  const maxMovePasses=Math.min(8,Math.max(2,candidateRoutes.length));
+  for(let pass=0;pass<maxMovePasses;pass++){
+    let movedThisPass=0;
+    const donors=candidateRoutes
+      .filter(r=>routeStops(r.id).length>0)
+      .sort((a,b)=>routeStops(a.id).length-routeStops(b.id).length || routeDistanceMiles(b.id)-routeDistanceMiles(a.id));
+    for(const donor of donors){
+      const donorStops=routeStops(donor.id).slice().sort((a,b)=>tCube(b)-tCube(a)||tCases(b)-tCases(a));
+      for(const stop of donorStops){
+        const receivers=candidateRoutes
+          .filter(r=>r.id!==donor.id)
+          .sort((a,b)=>routeNetworkScore([a.id],opts)-routeNetworkScore([b.id],opts));
+        let placed=false;
+        for(const target of receivers){
+          if(!canMoveStopForSecondStage(stop,donor.id,target,opts))continue;
+          attempts++;
+          const snap=snapshotOptimizationState([donor.id,target.id]);
+          const scoreBefore=routeNetworkScore(candidateRouteIds,opts);
+          stop.routeId=target.id;
+          stop.seq=Math.max(0,...stops.filter(s=>s.routeId===target.id&&s.id!==stop.id).map(s=>s.seq||0))+1;
+          optimizeRouteIfPossible(target.id,opts);
+          optimizeRouteIfPossible(donor.id,opts);
+          const donorEmpty=routeStops(donor.id).length===0;
+          const valid=routeIdsValid([target.id,donor.id],opts);
+          const scoreAfter=routeNetworkScore(candidateRouteIds,opts);
+          if(valid&&(scoreAfter<scoreBefore || donorEmpty)){
+            expanded.add(target.id); movedThisPass++; consolidated++; placed=true; break;
+          }
+          restoreOptimizationState(snap);
+          optimizeRouteIfPossible(target.id,opts);
+          optimizeRouteIfPossible(donor.id,opts);
+        }
+        if(placed)break;
+      }
+    }
+    if(!movedThisPass)break;
+  }
+
+  // Stage 2B: pairwise swap pass. Keep swaps only when total network miles/wait/late/route count score improves.
+  const swapPairs=candidateRoutes.filter(r=>routeStops(r.id).length>0);
+  for(let i=0;i<swapPairs.length;i++){
+    for(let j=i+1;j<swapPairs.length;j++){
+      const a=swapPairs[i], b=swapPairs[j];
+      const aStops=routeStops(a.id).slice();
+      const bStops=routeStops(b.id).slice();
+      let accepted=false;
+      for(const sa of aStops){
+        if(accepted)break;
+        for(const sb of bStops){
+          if(!canMoveStopForSecondStage(sa,a.id,b,opts)||!canMoveStopForSecondStage(sb,b.id,a,opts))continue;
+          attempts++;
+          const snap=snapshotOptimizationState([a.id,b.id]);
+          const scoreBefore=routeNetworkScore(candidateRouteIds,opts);
+          sa.routeId=b.id; sb.routeId=a.id;
+          sa.seq=Math.max(1,sb.seq||1); sb.seq=Math.max(1,sa.seq||1);
+          optimizeRouteIfPossible(a.id,opts);
+          optimizeRouteIfPossible(b.id,opts);
+          const valid=routeIdsValid([a.id,b.id],opts);
+          const scoreAfter=routeNetworkScore(candidateRouteIds,opts);
+          if(valid&&scoreAfter+0.01<scoreBefore){swapped++;accepted=true;break;}
+          restoreOptimizationState(snap);
+          optimizeRouteIfPossible(a.id,opts);
+          optimizeRouteIfPossible(b.id,opts);
+        }
+      }
+    }
+  }
+  candidateRouteIds.forEach(routeId=>optimizeRouteIfPossible(routeId,opts));
+  reseq();
+  const afterScore=routeNetworkScore(candidateRouteIds,opts);
+  return {routesReviewed:candidateRouteIds.length,consolidated,swapped,attempts,beforeScore,afterScore,activeBefore:activeRouteIdsFrom(candidateRouteIds).length};
+}
+function optimizationSummaryForRoutes(routeIds,opts={}){
+  const ids=routeIds&&routeIds.length?routeIds:routes.map(r=>r.id);
+  const active=activeRouteIdsFrom(ids);
+  let miles=0,wait=0,late=0,runtime=0;
+  active.forEach(routeId=>{miles+=routeDistanceMiles(routeId);runtime+=routeTotalMinutesForOptimization(routeId,opts);const wc=routeWindowCostMinutes(routeId,opts);wait+=wc.wait;late+=wc.late;});
+  return {activeRoutes:active.length,miles,wait,late,runtime};
 }
 function maximizeRoutes(opts={}){
   if(!routes.length){showToast('No routes available to maximize');return;}
@@ -2746,14 +2908,17 @@ function maximizeRoutes(opts={}){
     }
   });
 
+  const stage2=secondStageRouteOptimization(routes.map(r=>r.id),opts);
   reseq();render();
   const empty=routes.filter(r=>routeCustomerStops(r.id).length===0).length;
   const remainingUnassigned=stops.filter(s=>!s.routeId).length;
+  const net=optimizationSummaryForRoutes(routes.map(r=>r.id),opts);
   showJob('&#128200; Maximize / Consolidate Routes',`
-    <strong>${assignedFromUnassigned}</strong> unassigned stop(s) placed onto routes<br/>
-    <strong>${movedAssigned}</strong> already-assigned stop(s) moved into fuller valid routes<br/>
+    <strong>Stage 1:</strong> ${assignedFromUnassigned} unassigned stop(s) placed and ${movedAssigned} already-assigned stop(s) moved into fuller valid routes<br/>
+    <strong>Stage 2:</strong> reviewed all day routes, consolidated ${stage2.consolidated} additional stop move(s), accepted ${stage2.swapped} route-to-route swap(s)<br/>
     <strong>${optimizedRoutes}</strong> route(s) resequenced after optimization<br/>
     <strong>${empty}</strong> route(s) now have no customer stops<br/>
+    <strong>Network Result:</strong> ${net.activeRoutes} active route(s), ${net.miles.toFixed(1)} total mile(s), ${fmtMinutes(net.wait)} wait time, ${fmtMinutes(net.late)} late-window miss time<br/>
     <strong>${remainingUnassigned}</strong> stop(s) remain unassigned because no valid route fit was found<br/>
     <strong>${skipped}</strong> candidate move(s) skipped because they did not fit selected rules, time windows, capacity, or route end time<br/><br/>
     <strong>Rules Used:</strong><br/>
@@ -3825,9 +3990,10 @@ function planHoliday(){
 
   const affectedRouteIds=new Set(stops.filter(s=>s.routeId).map(s=>s.routeId));
   affectedRouteIds.forEach(routeId=>{expanded.add(routeId);resequenceRouteByDistanceSilent(routeId);});
+  const holidayStage2=secondStageRouteOptimization([...affectedRouteIds],{optimizationDriver:'distance',respectResource:false,respectPosition:false});
   const finalRejected=holidayEnforceFinalRouteLimits([...affectedRouteIds]);
   reseq();holidaySession.planned=true;
-  holidaySession.lastPlanStats={baselineRouted,baselineUnrouted,overnightTotal,overnightRouted,sameRoutePlaced,closestStopPlaced,layoverPlaced,generalPlaced,capacityBlocked,finalRejected,blockedRoutes:routes.filter(holidayRouteBlocked).length,truckTemplates:trucks.length};
+  holidaySession.lastPlanStats={baselineRouted,baselineUnrouted,overnightTotal,overnightRouted,sameRoutePlaced,closestStopPlaced,layoverPlaced,generalPlaced,capacityBlocked,finalRejected,holidayStage2,blockedRoutes:routes.filter(holidayRouteBlocked).length,truckTemplates:trucks.length};
   // Keep route cards collapsed after the Holiday job completes.
   expanded.clear();
   mapCleared=true;visibleRouteIds.clear();visibleStopIds.clear();render();
@@ -3839,7 +4005,7 @@ function planHoliday(){
   const routesUsed=new Set(holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).map(s=>s.routeId)).size;
   const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
   const heavy=holidayHeaviestDaySummary();
-  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Excluded Planning Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> Route Template Work Duration is used as the runtime cap. LatestEndTime is not used as the hard cap. 2-day routes include an 8-hour rest and each day is capped at 12 hours<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
+  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Excluded Planning Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> Route Template Work Duration is used as the runtime cap. LatestEndTime is not used as the hard cap. 2-day routes include an 8-hour rest and each day is capped at 12 hours<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><strong>Step 4 Network Review:</strong> ${holidayStage2.consolidated.toLocaleString()} consolidation move(s) and ${holidayStage2.swapped.toLocaleString()} swap(s) accepted to reduce route count, wait time, and total network miles.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
 }
 
 function suggestedDaysRowBucket(s){
