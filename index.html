@@ -586,6 +586,16 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
     <h2 id="optimization-title">Optimization Options</h2>
     <div class="job-result" id="optimization-description">Choose the constraints to respect while optimizing.</div>
     <div style="margin-top:12px;display:grid;gap:10px;">
+      <div class="field">
+        <label>Optimization Driver</label>
+        <select id="opt-driver" onchange="updateOptimizationDriverHelp()">
+          <option value="distance">Distance - Condense routes and reduce travel miles</option>
+          <option value="delivery_windows">Delivery Windows - Hit customer windows first</option>
+          <option value="minimum_routes">Minimum Routes - Use the fewest routes possible</option>
+          <option value="dynamic">Dynamic - Most efficient route plan, ignore customer windows</option>
+        </select>
+      </div>
+      <div class="job-result" id="opt-driver-help" style="margin-top:0;line-height:1.55;"></div>
       <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--text1);cursor:pointer;">
         <input type="checkbox" id="opt-respect-resource" checked style="margin-top:2px;accent-color:var(--accent);"/>
         <span><strong>Respect Preferred Resources</strong><br/><span style="color:var(--text2);font-size:10px;">Only move/keep stops on routes where the first 4 digits of Preferred Resource Key match the route UDFNumber1.</span></span>
@@ -2299,10 +2309,13 @@ function openOptimizationModal(mode){
   pendingOptimizationMode=mode;
   const title=mode==='maximize'?'Maximize / Consolidate Routes':'Optimize Selected Route(s)';
   const desc=mode==='maximize'
-    ? 'This will try to move eligible stops from lighter routes into fuller routes, then resequence affected routes. It prefers using fewer routes while respecting route time, capacity, depot, and selected preference rules.'
-    : 'This will resequence the checked route(s), or the current open manifest route, using depot-to-stop distance, time windows, service time, startup/windup time, and selected preference rules.';
+    ? 'Choose the main driver for the optimization model. Minimum Routes and Dynamic can move stops across routes to build a new consolidated plan.'
+    : 'Choose the main driver for the selected route optimization model. Distance and Delivery Windows resequence selected routes; Minimum Routes and Dynamic can consolidate stops into fewer routes.';
   document.getElementById('optimization-title').textContent=title;
   document.getElementById('optimization-description').textContent=desc;
+  const driver=document.getElementById('opt-driver');
+  if(driver)driver.value=mode==='maximize'?'minimum_routes':'distance';
+  updateOptimizationDriverHelp();
   document.getElementById('optimization-modal').style.display='flex';
 }
 
@@ -2310,10 +2323,79 @@ function runOptimizationFromModal(){
   const opts={
     respectResource:document.getElementById('opt-respect-resource')?.checked===true,
     respectPosition:document.getElementById('opt-respect-position')?.checked===true,
+    optimizationDriver:document.getElementById('opt-driver')?.value||'distance',
   };
   closeModal('optimization-modal');
-  if(pendingOptimizationMode==='maximize') maximizeRoutes(opts);
+  if(pendingOptimizationMode==='maximize'||opts.optimizationDriver==='minimum_routes'||opts.optimizationDriver==='dynamic') maximizeRoutes(opts);
   else optimizeSelectedRoutes(opts);
+}
+
+function optimizationDriverLabel(driver){
+  const labels={distance:'Distance',delivery_windows:'Delivery Windows',minimum_routes:'Minimum Routes',dynamic:'Dynamic'};
+  return labels[driver]||'Distance';
+}
+function updateOptimizationDriverHelp(){
+  const driver=document.getElementById('opt-driver')?.value||'distance';
+  const help={
+    distance:'Builds the most condensed route sequence possible by scoring nearby stops lowest. Customer delivery windows still apply, and route template start/end times are respected.',
+    delivery_windows:'Scores late delivery-window risk first, then distance second. This favors getting every routed stop inside the customer window while staying within the route template time window.',
+    minimum_routes:'Attempts to route all customers using the fewest valid routes. Single-day routes are capped at 14 hours; 2-day routes are capped at 10 hours per day / 20 hours total. Customer delivery windows still apply.',
+    dynamic:'Attempts to route as many customers as possible while minimizing total route hours, miles, and route count. Customer delivery windows are ignored for this driver.'
+  };
+  const el=document.getElementById('opt-driver-help');
+  if(el)el.textContent=help[driver]||help.distance;
+}
+function optimizationRespectsWindows(opts){return (opts?.optimizationDriver||'distance')!=='dynamic';}
+function optimizationRouteLimitMinutes(route,opts={}){
+  const driver=opts.optimizationDriver||'distance';
+  if(driver==='minimum_routes'){
+    const days=typeof holidayRouteDaySpan==='function'?holidayRouteDaySpan(route):1;
+    return days>1?days*600:840;
+  }
+  if(driver==='dynamic'){
+    const days=typeof holidayRouteDaySpan==='function'?holidayRouteDaySpan(route):1;
+    return days>1?days*600:840;
+  }
+  let start=timeToMinutes(routeStartTime(route));
+  let end=timeToMinutes(route.latestEndTime||'');
+  if(start===null)start=timeToMinutes(route.earliestStartTime||route.latestStartTime||'06:00');
+  if(end===null)return Infinity;
+  if(start===null)start=360;
+  if(end<=start)end+=1440;
+  return Math.max(0,end-start);
+}
+function routeTimelineRowsForOptimization(routeId,opts={}){
+  if(optimizationRespectsWindows(opts))return routeTimelineRows(routeId);
+  const route=routes.find(r=>r.id===routeId);
+  const pts=routePointSequence(routeId);
+  if(!route||!pts.length)return [];
+  let cursor=timeToMinutes(routeStartTime(route));
+  if(cursor===null)cursor=0;
+  const routeStart=cursor;
+  cursor+=durationToMinutes(route.startupTime);
+  let previous=pts[0];
+  const rows=[];
+  pts.forEach((pt,i)=>{
+    let legMiles=0, driveMins=0, arrive=cursor, depart=cursor;
+    if(i===0){
+      arrive=routeStart;
+      depart=cursor;
+    }else{
+      legMiles=haversine(previous.lat,previous.lng,pt.lat,pt.lng);
+      driveMins=driveMinutesForMiles(legMiles);
+      arrive=cursor+driveMins;
+      depart=arrive+(pt.type==='stop'?stopServiceMinutes(pt.stop):durationToMinutes(route.windupTime));
+    }
+    rows.push({...pt,legMiles,driveMins,rawArrive:arrive,arrive,depart,waitMins:0,twStatus:'',twLabel:pt.type==='stop'?'Ignored':'Depot',serviceMins:pt.type==='stop'?stopServiceMinutes(pt.stop):0});
+    cursor=depart;
+    previous=pt;
+  });
+  return rows;
+}
+function routeTotalMinutesForOptimization(routeId,opts={}){
+  const rows=routeTimelineRowsForOptimization(routeId,opts);
+  if(!rows.length)return 0;
+  return rows[rows.length-1].depart-rows[0].arrive;
 }
 
 function preferredResourceMatchesRoute(stop,route){
@@ -2339,14 +2421,27 @@ function optimizeSelectedRoutes(opts){
   let optimized=0, locked=0, warnings=[];
   routeIds.forEach(routeId=>{
     const result=optimizeRouteSequence(routeId,opts);
-    if(result.ok)optimized++;
+    if(result.ok){
+      optimized++;
+      if(!routeWithinBasicLimits(routeId,opts)){
+        const route=routes.find(r=>r.id===routeId);
+        const overBy=routeTotalMinutesForOptimization(routeId,opts)-optimizationRouteLimitMinutes(route,opts);
+        const lateStops=optimizationRespectsWindows(opts)?routeTimelineRows(routeId).filter(r=>r.twStatus==='LATE').length:0;
+        const parts=[];
+        if(overBy>0)parts.push(`over route run-time limit by ${fmtMinutes(overBy)}`);
+        if(lateStops>0)parts.push(`${lateStops} late stop(s)`);
+        warnings.push(`${route?.name||'Route'} optimized, but still has ${parts.join(' and ')||'a constraint issue'}`);
+      }
+    }
     locked+=result.locked||0;
     if(!result.ok)warnings.push(result.message);
   });
   render();
   showJob('&#9889; Optimize Selected Route(s)',`
+    <strong>Optimization Driver:</strong> ${optimizationDriverLabel(opts.optimizationDriver)}<br/>
     <strong>${optimized}</strong> route(s) optimized<br/>
     <strong>${locked}</strong> stop(s) locked because of selected preferred-resource or preferred-position rules<br/>
+    <strong>Delivery Windows:</strong> ${optimizationRespectsWindows(opts)?'Respected':'Ignored'}<br/>
     ${warnings.length?`<br/><strong>Warnings:</strong><br/>${warnings.map(w=>'&bull; '+escapeHtml(w)).join('<br/>')}`:''}
   `);
 }
@@ -2388,12 +2483,21 @@ function optimizeRouteSequence(routeId,opts={}){
     let bestIndex=0,bestScore=Infinity;
     movable.forEach((stop,index)=>{
       const miles=haversine(current.lat,current.lng,stop.lat,stop.lng);
-      const arriveEstimate=estimateArrivalForCandidate(routeId, ordered, current, stop);
+      const arriveEstimate=estimateArrivalForCandidate(routeId, ordered, current, stop, opts);
       const latest=timeToMinutes(stop.latestTimeWindow);
       const early=timeToMinutes(stop.earliestTimeWindow);
       let score=miles;
-      if(latest!==null&&arriveEstimate>latest)score+=10000+(arriveEstimate-latest)*10;
-      if(early!==null&&arriveEstimate<early)score+=(early-arriveEstimate)/60;
+      const driver=opts.optimizationDriver||'distance';
+      if(driver==='delivery_windows'){
+        score=miles*0.05;
+        if(latest!==null&&arriveEstimate>latest)score+=100000+(arriveEstimate-latest)*500;
+        if(early!==null&&arriveEstimate<early)score+=(early-arriveEstimate)*2;
+      }else if(driver==='dynamic'){
+        score=miles+(holidayStopServiceMinutes?holidayStopServiceMinutes(stop):stopServiceMinutes(stop))*0.15;
+      }else{
+        if(latest!==null&&optimizationRespectsWindows(opts)&&arriveEstimate>latest)score+=10000+(arriveEstimate-latest)*10;
+        if(early!==null&&optimizationRespectsWindows(opts)&&arriveEstimate<early)score+=(early-arriveEstimate)/60;
+      }
       if(opts.respectResource&&!preferredResourceMatchesRoute(stop,route))score+=5000;
       if(score<bestScore){bestScore=score;bestIndex=index;}
     });
@@ -2406,7 +2510,7 @@ function optimizeRouteSequence(routeId,opts={}){
   expanded.add(routeId);
   return {ok:true,count:ordered.length,locked:lockedCount};
 }
-function estimateArrivalForCandidate(routeId, orderedStops, current, candidate){
+function estimateArrivalForCandidate(routeId, orderedStops, current, candidate, opts={}){
   const route=routes.find(r=>r.id===routeId);
   let cursor=timeToMinutes(routeStartTime(route));
   if(cursor===null)cursor=0;
@@ -2415,13 +2519,17 @@ function estimateArrivalForCandidate(routeId, orderedStops, current, candidate){
   orderedStops.forEach(stop=>{
     const miles=haversine(last.lat,last.lng,stop.lat,stop.lng);
     let arrive=cursor+driveMinutesForMiles(miles);
-    const tw=windowStatusForStop(stop,arrive);
-    cursor=tw.adjustedArrive+stopServiceMinutes(stop);
+    if(optimizationRespectsWindows(opts)){
+      const tw=windowStatusForStop(stop,arrive);
+      cursor=tw.adjustedArrive+stopServiceMinutes(stop);
+    }else{
+      cursor=arrive+stopServiceMinutes(stop);
+    }
     last={lat:stop.lat,lng:stop.lng};
   });
   return cursor+driveMinutesForMiles(haversine(last.lat,last.lng,candidate.lat,candidate.lng));
 }
-function routeWithinBasicLimits(routeId){
+function routeWithinBasicLimits(routeId,opts={}){
   const route=routes.find(r=>r.id===routeId);
   if(!route)return false;
   const rs=stops.filter(s=>s.routeId===routeId);
@@ -2432,11 +2540,14 @@ function routeWithinBasicLimits(routeId){
   if(capCases&&rs.reduce((a,s)=>a+tCases(s),0)>capCases)return false;
   if(capWeight&&rs.reduce((a,s)=>a+tWeight(s),0)>capWeight)return false;
   if(capCube&&rs.reduce((a,s)=>a+tCube(s),0)>capCube)return false;
-  const latest=timeToMinutes(route.latestEndTime);
-  const end=timeToMinutes(routeEndEstimate(routeId));
-  if(latest!==null&&end!==null&&end>latest)return false;
-  const lateStops=routeTimelineRows(routeId).filter(r=>r.twStatus==='LATE').length;
-  return lateStops===0;
+  const maxMinutes=optimizationRouteLimitMinutes(route,opts);
+  const totalMinutes=routeTotalMinutesForOptimization(routeId,opts);
+  if(Number.isFinite(maxMinutes)&&maxMinutes>0&&totalMinutes>maxMinutes)return false;
+  if(optimizationRespectsWindows(opts)){
+    const lateStops=routeTimelineRows(routeId).filter(r=>r.twStatus==='LATE').length;
+    if(lateStops>0)return false;
+  }
+  return true;
 }
 function maximizeRoutes(opts={}){
   if(!routes.length){showToast('No routes available to maximize');return;}
@@ -2445,6 +2556,7 @@ function maximizeRoutes(opts={}){
   const restoreStop=(stop,snap)=>{stop.routeId=snap.routeId;stop.seq=snap.seq;};
   const routeCustomerStops=(routeId)=>stops.filter(s=>s.routeId===routeId);
   const routeLoad=r=>routeCustomerStops(r.id).reduce((a,s)=>a+tCube(s),0);
+  const routeEfficiency=r=>routeTotalMinutesForOptimization(r.id,opts)+routeDistanceMiles(r.id)*2+routeStopCount(r)*5;
   const routeStopCount=r=>routeCustomerStops(r.id).length;
   const optimizeIfUseful=(routeId)=>{
     const geoCount=stops.filter(s=>s.routeId===routeId&&s.lat&&s.lng).length;
@@ -2454,7 +2566,7 @@ function maximizeRoutes(opts={}){
   };
   const validAfterPlacement=(routeId)=>{
     optimizeIfUseful(routeId);
-    return routeWithinBasicLimits(routeId);
+    return routeWithinBasicLimits(routeId,opts);
   };
   const canTryMove=(stop,fromRouteId,targetRoute)=>{
     if(!stop||!targetRoute)return false;
@@ -2495,7 +2607,10 @@ function maximizeRoutes(opts={}){
 
   unassigned.forEach(stop=>{
     let placed=false;
-    const receivers=routes.slice().sort((a,b)=>routeLoad(b)-routeLoad(a));
+    const receivers=routes.slice().sort((a,b)=>{
+      if(opts.optimizationDriver==='dynamic')return routeEfficiency(a)-routeEfficiency(b);
+      return routeLoad(b)-routeLoad(a);
+    });
     for(const target of receivers){
       if(!canTryMove(stop,null,target))continue;
       if(tryPlaceStop(stop,target)){assignedFromUnassigned++;placed=true;break;}
@@ -2508,7 +2623,10 @@ function maximizeRoutes(opts={}){
   const maxPasses=Math.min(6,Math.max(2,routes.length));
   for(let pass=0;pass<maxPasses;pass++){
     let passMoved=0;
-    const donors=routes.slice().sort((a,b)=>routeLoad(a)-routeLoad(b));
+    const donors=routes.slice().sort((a,b)=>{
+      if(opts.optimizationDriver==='dynamic')return routeEfficiency(b)-routeEfficiency(a);
+      return routeLoad(a)-routeLoad(b);
+    });
     donors.forEach(donor=>{
       const donorStops=routeCustomerStops(donor.id)
         .slice()
@@ -2518,7 +2636,10 @@ function maximizeRoutes(opts={}){
         const receivers=routes
           .filter(r=>r.id!==donor.id)
           .slice()
-          .sort((a,b)=>routeLoad(b)-routeLoad(a));
+          .sort((a,b)=>{
+            if(opts.optimizationDriver==='dynamic')return routeEfficiency(a)-routeEfficiency(b);
+            return routeLoad(b)-routeLoad(a);
+          });
         let placed=false;
         for(const target of receivers){
           if(!canTryMove(stop,donor.id,target))continue;
@@ -2549,7 +2670,10 @@ function maximizeRoutes(opts={}){
     <strong>${remainingUnassigned}</strong> stop(s) remain unassigned because no valid route fit was found<br/>
     <strong>${skipped}</strong> candidate move(s) skipped because they did not fit selected rules, time windows, capacity, or route end time<br/><br/>
     <strong>Rules Used:</strong><br/>
+    &bull; Optimization Driver: ${optimizationDriverLabel(opts.optimizationDriver)}<br/>
     &bull; Candidate Pool: Assigned + Unassigned Stops<br/>
+    &bull; Delivery Windows: ${optimizationRespectsWindows(opts)?'Respected':'Ignored'}<br/>
+    &bull; Route Run-Time Limit: ${opts.optimizationDriver==='minimum_routes'?'14 hours single-day / 10 hours per day for 2-day routes':(opts.optimizationDriver==='dynamic'?'14 hours single-day / 10 hours per day for 2-day routes; windows ignored':'Route Template start/end times')}<br/>
     &bull; Respect Preferred Resources: ${opts.respectResource?'Yes':'No'}<br/>
     &bull; Respect Preferred Route Position: ${opts.respectPosition?'Yes':'No'}
   `);
