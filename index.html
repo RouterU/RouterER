@@ -1045,7 +1045,7 @@ function sortedRoutesForDisplay(){
   return list;
 }
 function setRouteSort(value){routeSort=value;renderRoutes();}
-function setRouteDayDisplayFilter(value){routeDayDisplayFilter=value||'';renderRoutes();}
+function setRouteDayDisplayFilter(value){routeDayDisplayFilter=value||'';renderRoutes();renderUA();}
 function routeMatchesDayDisplayFilter(route){
   if(!routeDayDisplayFilter)return true;
   return routeDayName(route)===routeDayDisplayFilter;
@@ -1118,10 +1118,24 @@ function renderRoutes(){
   }).join('');
 }
 
+function stopDeliveryDayName(stop){
+  const direct=dayNameFromAny(stop?.deliveryDay||stop?.originalDeliveryDay||stop?.dayOfWeekName||stop?.dayOfWeek||'');
+  if(direct)return direct;
+  const order=(stop?.orderNumber||'').toString().toUpperCase();
+  const abbr={MON:'Monday',TUE:'Tuesday',WED:'Wednesday',THU:'Thursday',FRI:'Friday',SAT:'Saturday',SUN:'Sunday'};
+  const m=order.match(/(?:^|[-_\s])(MON|TUE|WED|THU|FRI|SAT|SUN)(?:$|[-_\s])/);
+  return m?abbr[m[1]]:'';
+}
+function stopMatchesDayDisplayFilter(stop){
+  if(!routeDayDisplayFilter)return true;
+  return stopDeliveryDayName(stop)===routeDayDisplayFilter;
+}
 function renderUA(){
   const el=document.getElementById('ua-list');
-  const ua=stops.filter(s=>!s.routeId).filter(stopMatchesFilter);
-  document.getElementById('ua-badge').innerHTML=activeStopFilterId?`<span class="filter-pill" onclick="activeStopFilterId=null;renderRoutes();renderUA()">Stop Filter ×</span>`:ua.length+' stops';
+  const ua=stops.filter(s=>!s.routeId).filter(stopMatchesDayDisplayFilter).filter(stopMatchesFilter);
+  const allUaCount=stops.filter(s=>!s.routeId).length;
+  const badgeBase=routeDayDisplayFilter?`${ua.length} ${routeDayDisplayFilter} stop(s) / ${allUaCount} total`:ua.length+' stops';
+  document.getElementById('ua-badge').innerHTML=activeStopFilterId?`<span class="filter-pill" onclick="activeStopFilterId=null;renderRoutes();renderUA()">Stop Filter ×</span>`:badgeBase;
   if(!ua.length){
     el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p>All stops assigned!</p></div>';
     return;
@@ -1137,7 +1151,7 @@ function renderUA(){
       <span class="ua-dot" style="background:${pc||'var(--text3)'}"></span>
       <div class="ua-info">
         <div class="ua-name">${s.customerName||'Stop'}${hasPref?'<span class="tag tag-pref">&#11088; Pref</span>':''}${isWC?'<span class="tag tag-wc">Will Call</span>':''}</div>
-        <div class="ua-detail">${s.orderNumber||''} &middot; ${tCases(s)}cs &middot; ${s.city||''} ${s.state||''}${pc?`<span class="tag-pot" style="background:${pc};margin-left:4px;">&#128204; Suggested</span>`:''}</div>
+        <div class="ua-detail">${s.orderNumber||''} &middot; ${stopDeliveryDayName(s)||'No Day'} &middot; ${tCases(s)}cs &middot; ${s.city||''} ${s.state||''}${pc?`<span class="tag-pot" style="background:${pc};margin-left:4px;">&#128204; Suggested</span>`:''}</div>
       </div>
       <select class="ua-assign" onclick="event.stopPropagation()" onchange="assignStop('${s.id}',this.value);this.value=''">
         <option value="">Assign&hellip;</option>
@@ -1380,6 +1394,7 @@ function openStopDetail(stopId){
     ${detailInput('ed-s-shipToId','Ship To ID',s.shipToId)}
     ${detailInput('ed-s-customerNumber','Customer Number',s.customerNumber)}
     ${detailSelect('ed-s-routeId','Assigned Route',s.routeId||'',routeOptions)}
+    ${detailInput('ed-s-deliveryDay','Delivery Day',stopDeliveryDayName(s)||s.deliveryDay||s.originalDeliveryDay||'')}
     ${detailInput('ed-s-seq','Sequence',s.seq||0,'number')}
     ${detailInput('ed-s-address','Address',s.address)}
     ${detailInput('ed-s-city','City',s.city)}
@@ -1422,6 +1437,8 @@ function saveStopDetail(){
   s.shipToId=strVal('ed-s-shipToId');
   s.customerNumber=strVal('ed-s-customerNumber');
   s.routeId=strVal('ed-s-routeId')||null;
+  s.deliveryDay=strVal('ed-s-deliveryDay');
+  if(s.holidayPlanning||s.holidayAffected)s.originalDeliveryDay=s.deliveryDay;
   s.seq=parseInt(strVal('ed-s-seq'),10)||0;
   s.address=strVal('ed-s-address');
   s.city=strVal('ed-s-city');
@@ -3183,7 +3200,7 @@ function createHolidayPlanningStop(c){
   return {
     id:uid(),routeId:null,seq:0,uiChecked:false,
     holidayPlanning:true,holidayAffected:true,needsHolidayPlanning:true,noReplacementNeeded:false,
-    holidayDate:c.holidayDate,originalDeliveryDay:c.originalDeliveryDay,
+    holidayDate:c.holidayDate,originalDeliveryDay:c.originalDeliveryDay,deliveryDay:c.originalDeliveryDay,
     suggestedDeliveryDay:'',suggestedRouteName:'',suggestedRouteId:'',holidayReason:'',suggestionStep:'',suggestionType:'',
     activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[],
     orderNumber:`HOL-${c.account}-${c.originalDeliveryDay.slice(0,3).toUpperCase()}`,shipToId:c.account,customerNumber:c.account,
@@ -3201,7 +3218,7 @@ function createHolidayNoneNeededResult(c){
   return {
     id:'',routeId:null,seq:0,
     holidayPlanning:false,holidayAffected:true,needsHolidayPlanning:false,noReplacementNeeded:true,
-    holidayDate:c.holidayDate,originalDeliveryDay:c.originalDeliveryDay,
+    holidayDate:c.holidayDate,originalDeliveryDay:c.originalDeliveryDay,deliveryDay:c.originalDeliveryDay,
     suggestedDeliveryDay:'None Needed',suggestedRouteName:'None Needed',suggestedRouteId:'',suggestionStep:'Skipped',suggestionType:'3+ True Days',
     holidayReason:`Customer has ${c.activeDeliveryDayCount||0} active delivery days (${(c.activeDeliveryDays||[]).join(', ')}), so the holiday delivery can be skipped without a replacement planning route.`,
     activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[],
