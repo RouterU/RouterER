@@ -3134,8 +3134,22 @@ function holidayRouteDaySpan(route){
   }
   return 1;
 }
+function holidayRouteStartTime(route){
+  const earliest=cleanTimeValue(route?.earliestStartTime||'');
+  const latest=cleanTimeValue(route?.latestStartTime||'');
+  const globalStart=cleanTimeValue(document.getElementById('global-start')?.value||'06:00');
+
+  // Holiday routing must use the real clock start time, not midnight from a blank/zero import.
+  // If EarliestStartTime imported as 00:00 but LatestStartTime has a real value like 06:00,
+  // use LatestStartTime as the route's planning start.
+  if(earliest&&earliest!=='00:00')return earliest;
+  if(latest&&latest!=='00:00')return latest;
+  if(earliest)return earliest;
+  if(latest)return latest;
+  return globalStart||'06:00';
+}
 function holidayRouteWindowMinutes(route){
-  let start=timeToMinutes(route.earliestStartTime||route.latestStartTime||'06:00');
+  let start=timeToMinutes(holidayRouteStartTime(route));
   let end=timeToMinutes(route.latestEndTime||'18:00');
   if(start===null)start=360;
   if(end===null)end=start+600;
@@ -3164,7 +3178,7 @@ function holidayStopServiceMinutes(stop){
 }
 function holidayEstimateRouteMinutes(route,assignedStops){
   const start=routeDepotPoint(route);
-  const startMinute=timeToMinutes(routeStartTime(route));
+  const startMinute=timeToMinutes(holidayRouteStartTime(route));
   let cursor=startMinute===null?0:startMinute;
   const routeStart=cursor;
   cursor+=durationToMinutes(route.startupTime);
@@ -3349,9 +3363,10 @@ function holidayRouteFinalLimitCheck(routeId){
   const route=routes.find(r=>r.id===routeId);
   if(!route)return {ok:false,reason:'Route not found'};
   const maxMinutes=holidayRouteWindowMinutes(route);
-  const totalMinutes=routeTotalMinutes(routeId);
+  const assignedHolidayStops=stops.filter(s=>s.routeId===routeId);
+  const totalMinutes=holidayEstimateRouteMinutes(route,assignedHolidayStops);
   const cap=holidayRouteCapacity(route);
-  const load=holidayRouteLoad(stops.filter(s=>s.routeId===routeId));
+  const load=holidayRouteLoad(assignedHolidayStops);
   const cubeOk=!cap.cube||load.cube<=cap.cube;
   const weightOk=!cap.weight||load.weight<=cap.weight;
   const timeOk=maxMinutes>0&&totalMinutes<=maxMinutes;
