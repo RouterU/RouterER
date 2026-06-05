@@ -3101,13 +3101,35 @@ function holidayRouteLimitMap(){
 function holidayExcludedDays(){return Array.from(document.querySelectorAll('.holiday-exclude-day:checked')).map(x=>x.value);}
 function routeDepotPoint(route){const d=routeInitialDepot(route)||routeFinalDepot(route);if(d&&d.lat&&d.lng)return {lat:d.lat,lng:d.lng};return null;}
 function stopToRouteDepotMiles(stop,route){const d=routeDepotPoint(route);return d?haversine(stop.lat,stop.lng,d.lat,d.lng):999999;}
+function holidayRouteDaySpan(route){
+  const v=sval(route?.udfString3||'').toUpperCase();
+  const m=v.match(/D_?(\d+)\s*[-_]?\s*DAY/);
+  if(m){
+    const n=parseInt(m[1],10);
+    return Number.isFinite(n)&&n>0?n:1;
+  }
+  return 1;
+}
 function holidayRouteWindowMinutes(route){
   let start=timeToMinutes(route.earliestStartTime||route.latestStartTime||'06:00');
   let end=timeToMinutes(route.latestEndTime||'18:00');
   if(start===null)start=360;
   if(end===null)end=start+600;
-  if(end<=start)end+=1440;
-  return Math.max(0,end-start);
+
+  // LatestEndTime is a hard limit. Only routes identified as multi-day in UDFString3
+  // may roll past midnight. D_1-DAY routes must remain a single-day route and cannot
+  // borrow an extra 24 hours when LatestEndTime is earlier than the start time.
+  const allowedDays=holidayRouteDaySpan(route);
+  if(end<=start){
+    if(allowedDays>1){
+      end+=1440*(allowedDays-1);
+    }else{
+      return 0;
+    }
+  }
+
+  const maxWindow=Math.max(0,allowedDays*1440);
+  return Math.max(0,Math.min(end-start,maxWindow));
 }
 function holidayStopServiceMinutes(stop){
   const fixed=nval(stop.fixedServiceTime);
@@ -3205,7 +3227,19 @@ function holidayRouteBlocked(route){return /x/i.test(sval(route?.udfString4||'')
 function holidayLayoverRoute(route){const v=sval(route?.udfString3||'').toUpperCase();return v.includes('D_2-DAY')||v.includes('D_2_DAY')||v.includes('LAYOVER');}
 function holidayCleanRouteName(value){return sval(value).toLowerCase().replace(/[^a-z0-9]/g,'');}
 function holidayRouteMatchesCustomer(route,customer){const target=holidayCleanRouteName(customer.originalRoute||customer.standardRoute||'');if(!target)return false;const candidates=[route.name,route.routeTemplateKey,route.udfNumber1,route.scheduleKey].map(holidayCleanRouteName).filter(Boolean);return candidates.some(c=>c===target||c.endsWith(target)||target.endsWith(c));}
-function holidayRouteLocked(customer){return isYesFlag(customer.routeLock)||!!sval(customer.originalRoute);}
+function holidayRequiresProntoRoute(customer){
+  const lockValue=sval(customer?.routeLock||'');
+  const routeValue=sval(customer?.originalRoute||customer?.standardRoute||'');
+  return /^8/.test(lockValue)||/^8/.test(routeValue);
+}
+function holidayRouteIsPronto(route){
+  return /^8/.test(sval(route?.udfNumber1||'')) && /pronto/i.test(sval(route?.name||''));
+}
+function holidayRouteAllowedForCustomer(route,customer){
+  if(!holidayRequiresProntoRoute(customer))return true;
+  return holidayRouteIsPronto(route);
+}
+function holidayRouteLocked(customer){return isYesFlag(customer.routeLock)||!!sval(customer.originalRoute)||holidayRequiresProntoRoute(customer);}
 function holidayOvernightCustomer(customerOrStop){return nval(customerOrStop.daysToDeliver)>0;}
 function holidayRouteRoomMinutes(route,routeAssignedStops){return holidayRouteWindowMinutes(route)-holidayEstimateRouteMinutes(route,routeAssignedStops||[]);}
 function holidayRouteTruckLookupKey(route){
@@ -3266,9 +3300,12 @@ function holidayCapacityCheck(route,assignedStops,stop){
 }
 function holidayCandidateCheck(route,assignedStops,stop){
   if(!route||holidayRouteBlocked(route))return {fits:false,timeOk:false,capacityOk:false,capacity:null,reason:'Route template excluded or unavailable'};
+  if(!holidayRouteAllowedForCustomer(route,stop)){
+    return {fits:false,timeOk:false,capacityOk:false,capacity:null,reason:'Route lock begins with 8, so this customer can only be assigned to a Pronto route with UDFNumber1 beginning with 8'};
+  }
   const timeOk=holidayRouteCanAccept(route,assignedStops||[],stop);
   const capacity=holidayCapacityCheck(route,assignedStops||[],stop);
-  return {fits:timeOk&&capacity.ok,timeOk,capacityOk:capacity.ok,capacity,reason:!timeOk?'Route would exceed latest end time':(!capacity.ok?'Route capacity exceeded: '+capacity.reason:'')};
+  return {fits:timeOk&&capacity.ok,timeOk,capacityOk:capacity.ok,capacity,reason:!timeOk?'Route would exceed LatestEndTime or the UDFString3 day-span limit':(!capacity.ok?'Route capacity exceeded: '+capacity.reason:'')};
 }
 function holidayCandidateFits(route,assignedStops,stop){return holidayCandidateCheck(route,assignedStops||[],stop).fits;}
 function holidayBestCapacityBlockedCandidate(stop,availableByDay,routeAssignedStops,preferredOnly=false){
@@ -3394,7 +3431,7 @@ function planHoliday(){
   const routesUsed=new Set(holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).map(s=>s.routeId)).size;
   const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
   const heavy=holidayHeaviestDaySummary();
-  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
+  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> LatestEndTime is a hard cap; D_1-DAY routes cannot roll into a new day<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
 }
 
 function openSuggestedDaysResults(){
