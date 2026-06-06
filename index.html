@@ -2529,7 +2529,7 @@ function optimizeSelectedRoutes(opts){
   showJob('&#9889; Optimize Selected Route(s)',`
     <strong>Optimization Driver:</strong> ${optimizationDriverLabel(opts.optimizationDriver)}<br/>
     <strong>Stage 1:</strong> ${optimized} selected route(s) resequenced<br/>
-    <strong>Stage 2:</strong> reviewed ${stage2.routesReviewed} route(s) for the day, consolidated ${stage2.consolidated} stop move(s), accepted ${stage2.swapped} route-to-route swap(s)<br/>
+    <strong>Stage 2:</strong> reviewed ${stage2.routesReviewed} route(s) for the day, consolidated ${stage2.consolidated} stop move(s), accepted ${stage2.swapped} route-to-route swap(s)${stage2.performanceLimited?' <span style="color:var(--warn);">(performance-limited review)</span>':''}<br/>
     <strong>Network Result:</strong> ${net.activeRoutes} active route(s), ${net.miles.toFixed(1)} total mile(s), ${fmtMinutes(net.wait)} wait time, ${fmtMinutes(net.late)} late-window miss time<br/>
     <strong>${locked}</strong> stop(s) locked because of selected preferred-resource or preferred-position rules<br/>
     <strong>Delivery Windows:</strong> ${optimizationRespectsWindows(opts)?'Respected when possible / closest miss if impossible':'Ignored'}<br/>
@@ -2715,24 +2715,64 @@ function secondStageRouteOptimization(routeIds,opts={}){
   const candidateRouteIds=optimizationDayRouteIds(routeIds);
   const candidateRoutes=candidateRouteIds.map(id=>routes.find(r=>r.id===id)).filter(Boolean);
   const routeStops=(routeId)=>stops.filter(s=>s.routeId===routeId);
-  const beforeScore=routeNetworkScore(candidateRouteIds,opts);
-  let consolidated=0,swapped=0,attempts=0;
 
-  // Stage 2A: try to eliminate low-stop routes first. This prevents routes with 1-2 stops from staying open when another route has time and capacity.
-  const maxMovePasses=Math.min(8,Math.max(2,candidateRoutes.length));
+  // Performance guard: the full network review can become very expensive because every trial move
+  // resequences routes and recalculates drive/wait/runtime. Keep the review focused on the highest-value
+  // moves: eliminating low-stop routes, then only a small number of close-route swaps.
+  const started=Date.now();
+  const maxMs=4500;
+  const maxAttempts=parseInt(opts.maxStage2Attempts,10)||900;
+  const maxReceivers=parseInt(opts.maxStage2Receivers,10)||8;
+  const maxSwapRoutes=parseInt(opts.maxStage2SwapRoutes,10)||28;
+  const maxSwapStopsPerRoute=parseInt(opts.maxStage2SwapStopsPerRoute,10)||8;
+  const timedOut=()=>Date.now()-started>maxMs || attempts>=maxAttempts;
+
+  const beforeScore=routeNetworkScore(candidateRouteIds,opts);
+  let consolidated=0,swapped=0,attempts=0,skippedForSpeed=0;
+
+  function routeCenter(routeId){
+    const pts=stops.filter(s=>s.routeId===routeId&&s.lat&&s.lng);
+    const r=routes.find(x=>x.id===routeId);
+    const depot=routeDepotPoint(r);
+    if(pts.length){
+      return {lat:pts.reduce((a,s)=>a+s.lat,0)/pts.length,lng:pts.reduce((a,s)=>a+s.lng,0)/pts.length};
+    }
+    return depot||null;
+  }
+  function routeCenterMiles(a,b){
+    const ca=routeCenter(a.id), cb=routeCenter(b.id);
+    if(!ca||!cb)return 999999;
+    return haversine(ca.lat,ca.lng,cb.lat,cb.lng);
+  }
+  function receiverCandidates(donor){
+    // Prefer routes that are geographically close, already have customers, and are not tiny donors themselves.
+    return candidateRoutes
+      .filter(r=>r.id!==donor.id)
+      .map(r=>({route:r,dist:routeCenterMiles(donor,r),count:routeStops(r.id).length,score:routeCenterMiles(donor,r)+(routeStops(r.id).length?0:500)}))
+      .sort((a,b)=>a.score-b.score)
+      .slice(0,maxReceivers)
+      .map(x=>x.route);
+  }
+
+  // Stage 2A: targeted consolidation. Only attack low-stop routes first; this avoids huge route-to-route loops.
+  const maxMovePasses=2;
   for(let pass=0;pass<maxMovePasses;pass++){
+    if(timedOut())break;
     let movedThisPass=0;
+    const lowStopLimit=pass===0?2:4;
     const donors=candidateRoutes
-      .filter(r=>routeStops(r.id).length>0)
+      .filter(r=>routeStops(r.id).length>0&&routeStops(r.id).length<=lowStopLimit)
       .sort((a,b)=>routeStops(a.id).length-routeStops(b.id).length || routeDistanceMiles(b.id)-routeDistanceMiles(a.id));
+
     for(const donor of donors){
+      if(timedOut())break;
       const donorStops=routeStops(donor.id).slice().sort((a,b)=>tCube(b)-tCube(a)||tCases(b)-tCases(a));
       for(const stop of donorStops){
-        const receivers=candidateRoutes
-          .filter(r=>r.id!==donor.id)
-          .sort((a,b)=>routeNetworkScore([a.id],opts)-routeNetworkScore([b.id],opts));
+        if(timedOut())break;
+        const receivers=receiverCandidates(donor);
         let placed=false;
         for(const target of receivers){
+          if(timedOut())break;
           if(!canMoveStopForSecondStage(stop,donor.id,target,opts))continue;
           attempts++;
           const snap=snapshotOptimizationState([donor.id,target.id]);
@@ -2757,23 +2797,38 @@ function secondStageRouteOptimization(routeIds,opts={}){
     if(!movedThisPass)break;
   }
 
-  // Stage 2B: pairwise swap pass. Keep swaps only when total network miles/wait/late/route count score improves.
-  const swapPairs=candidateRoutes.filter(r=>routeStops(r.id).length>0);
+  // Stage 2B: bounded swap pass. Only compare the smallest/least-efficient routes with nearby routes.
+  const swapPairs=candidateRoutes
+    .filter(r=>routeStops(r.id).length>0)
+    .sort((a,b)=>routeStops(a.id).length-routeStops(b.id).length || routeNetworkScore([b.id],opts)-routeNetworkScore([a.id],opts))
+    .slice(0,maxSwapRoutes);
+
   for(let i=0;i<swapPairs.length;i++){
-    for(let j=i+1;j<swapPairs.length;j++){
-      const a=swapPairs[i], b=swapPairs[j];
-      const aStops=routeStops(a.id).slice();
-      const bStops=routeStops(b.id).slice();
+    if(timedOut())break;
+    const a=swapPairs[i];
+    const nearby=swapPairs
+      .filter(r=>r.id!==a.id)
+      .map(r=>({route:r,dist:routeCenterMiles(a,r)}))
+      .sort((x,y)=>x.dist-y.dist)
+      .slice(0,Math.min(6,swapPairs.length-1))
+      .map(x=>x.route);
+
+    for(const b of nearby){
+      if(timedOut())break;
+      const aStops=routeStops(a.id).slice().sort((x,y)=>tCube(y)-tCube(x)||tCases(y)-tCases(x)).slice(0,maxSwapStopsPerRoute);
+      const bStops=routeStops(b.id).slice().sort((x,y)=>tCube(y)-tCube(x)||tCases(y)-tCases(x)).slice(0,maxSwapStopsPerRoute);
       let accepted=false;
       for(const sa of aStops){
-        if(accepted)break;
+        if(accepted||timedOut())break;
         for(const sb of bStops){
+          if(timedOut())break;
           if(!canMoveStopForSecondStage(sa,a.id,b,opts)||!canMoveStopForSecondStage(sb,b.id,a,opts))continue;
           attempts++;
           const snap=snapshotOptimizationState([a.id,b.id]);
           const scoreBefore=routeNetworkScore(candidateRouteIds,opts);
+          const oldSeqA=sa.seq, oldSeqB=sb.seq;
           sa.routeId=b.id; sb.routeId=a.id;
-          sa.seq=Math.max(1,sb.seq||1); sb.seq=Math.max(1,sa.seq||1);
+          sa.seq=oldSeqB||1; sb.seq=oldSeqA||1;
           optimizeRouteIfPossible(a.id,opts);
           optimizeRouteIfPossible(b.id,opts);
           const valid=routeIdsValid([a.id,b.id],opts);
@@ -2786,10 +2841,12 @@ function secondStageRouteOptimization(routeIds,opts={}){
       }
     }
   }
+
+  if(attempts>=maxAttempts || Date.now()-started>maxMs)skippedForSpeed=1;
   candidateRouteIds.forEach(routeId=>optimizeRouteIfPossible(routeId,opts));
   reseq();
   const afterScore=routeNetworkScore(candidateRouteIds,opts);
-  return {routesReviewed:candidateRouteIds.length,consolidated,swapped,attempts,beforeScore,afterScore,activeBefore:activeRouteIdsFrom(candidateRouteIds).length};
+  return {routesReviewed:candidateRouteIds.length,consolidated,swapped,attempts,beforeScore,afterScore,activeBefore:activeRouteIdsFrom(candidateRouteIds).length,performanceLimited:skippedForSpeed,elapsedMs:Date.now()-started};
 }
 function optimizationSummaryForRoutes(routeIds,opts={}){
   const ids=routeIds&&routeIds.length?routeIds:routes.map(r=>r.id);
@@ -2915,7 +2972,7 @@ function maximizeRoutes(opts={}){
   const net=optimizationSummaryForRoutes(routes.map(r=>r.id),opts);
   showJob('&#128200; Maximize / Consolidate Routes',`
     <strong>Stage 1:</strong> ${assignedFromUnassigned} unassigned stop(s) placed and ${movedAssigned} already-assigned stop(s) moved into fuller valid routes<br/>
-    <strong>Stage 2:</strong> reviewed all day routes, consolidated ${stage2.consolidated} additional stop move(s), accepted ${stage2.swapped} route-to-route swap(s)<br/>
+    <strong>Stage 2:</strong> reviewed all day routes, consolidated ${stage2.consolidated} additional stop move(s), accepted ${stage2.swapped} route-to-route swap(s)${stage2.performanceLimited?' <span style="color:var(--warn);">(performance-limited review)</span>':''}<br/>
     <strong>${optimizedRoutes}</strong> route(s) resequenced after optimization<br/>
     <strong>${empty}</strong> route(s) now have no customer stops<br/>
     <strong>Network Result:</strong> ${net.activeRoutes} active route(s), ${net.miles.toFixed(1)} total mile(s), ${fmtMinutes(net.wait)} wait time, ${fmtMinutes(net.late)} late-window miss time<br/>
@@ -4005,7 +4062,7 @@ function planHoliday(){
   const routesUsed=new Set(holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).map(s=>s.routeId)).size;
   const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
   const heavy=holidayHeaviestDaySummary();
-  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Excluded Planning Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> Route Template Work Duration is used as the runtime cap. LatestEndTime is not used as the hard cap. 2-day routes include an 8-hour rest and each day is capped at 12 hours<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><strong>Step 4 Network Review:</strong> ${holidayStage2.consolidated.toLocaleString()} consolidation move(s) and ${holidayStage2.swapped.toLocaleString()} swap(s) accepted to reduce route count, wait time, and total network miles.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
+  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Excluded Planning Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> Route Template Work Duration is used as the runtime cap. LatestEndTime is not used as the hard cap. 2-day routes include an 8-hour rest and each day is capped at 12 hours<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><strong>Step 4 Network Review:</strong> ${holidayStage2.consolidated.toLocaleString()} consolidation move(s) and ${holidayStage2.swapped.toLocaleString()} swap(s) accepted to reduce route count, wait time, and total network miles${holidayStage2.performanceLimited?' (performance-limited review)':''}.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
 }
 
 function suggestedDaysRowBucket(s){
