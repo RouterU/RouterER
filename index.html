@@ -694,6 +694,57 @@ let activeRouteFilterId=null;
 let activeStopFilterId=null;
 
 // ============================================================
+// PERFORMANCE CACHE
+// ============================================================
+// Large imports and optimization jobs were timing out because the app repeatedly
+// filtered the full stop list and recalculated route miles/timelines inside
+// render and optimization loops. These caches keep the single-file deployment
+// intact while avoiding repeated work. Call invalidateAllRouteMetrics() after
+// any assignment, sequence, route, stop, depot, or timing change.
+let routeStopIndex=new Map();
+let routeMetricCache=new Map();
+let routeCacheDirty=true;
+
+function invalidateAllRouteMetrics(){
+  routeCacheDirty=true;
+  routeMetricCache.clear();
+}
+function rebuildRouteStopIndex(){
+  routeStopIndex=new Map();
+  routes.forEach(r=>routeStopIndex.set(r.id,[]));
+  stops.forEach(s=>{
+    if(s.routeId){
+      if(!routeStopIndex.has(s.routeId))routeStopIndex.set(s.routeId,[]);
+      routeStopIndex.get(s.routeId).push(s);
+    }
+  });
+  routeStopIndex.forEach(list=>list.sort((a,b)=>(a.seq||0)-(b.seq||0)));
+  routeCacheDirty=false;
+}
+function getRouteStops(routeId){
+  if(routeCacheDirty)rebuildRouteStopIndex();
+  return routeStopIndex.get(routeId)||[];
+}
+function routeCacheSignature(routeId){
+  if(routeCacheDirty)rebuildRouteStopIndex();
+  const route=routes.find(r=>r.id===routeId)||{};
+  const init=routeInitialDepot(route)||{};
+  const fin=routeFinalDepot(route)||{};
+  const routeBits=[routeId,route.earliestStartTime,route.latestStartTime,route.latestEndTime,route.startupTime,route.windupTime,route.work1Duration,route.work1Penalty,route.work2Duration,route.work2Penalty,route.work3Duration,route.work3Penalty,route.work4Duration,route.work4Penalty,route.udfString2,init.lat,init.lng,fin.lat,fin.lng].join('|');
+  const stopBits=getRouteStops(routeId).map(s=>[s.id,s.seq,s.lat,s.lng,s.earliestTimeWindow,s.latestTimeWindow,s.fixedServiceTime,s.variableServiceTime,tCases(s)].join(':')).join('|');
+  return routeBits+'::'+stopBits;
+}
+function routeMetricKey(kind,routeId){return kind+'::'+routeCacheSignature(routeId);}
+function getCachedRouteMetric(kind,routeId,calc){
+  const key=routeMetricKey(kind,routeId);
+  if(routeMetricCache.has(key))return routeMetricCache.get(key);
+  const value=calc();
+  routeMetricCache.set(key,value);
+  return value;
+}
+
+
+// ============================================================
 // INIT
 // ============================================================
 window.addEventListener('DOMContentLoaded',()=>{
@@ -821,17 +872,20 @@ function timeToMinutes(value){
   return parseInt(m[1],10)*60+parseInt(m[2],10);
 }
 function routeDistanceMiles(routeId){
-  const route=routes.find(r=>r.id===routeId);
-  if(!route)return 0;
-  const pts=[];
-  const init=routeInitialDepot(route), fin=routeFinalDepot(route);
-  if(init&&init.lat&&init.lng)pts.push({lat:init.lat,lng:init.lng});
-  stops.filter(s=>s.routeId===routeId&&s.lat&&s.lng).sort((a,b)=>a.seq-b.seq).forEach(s=>pts.push({lat:s.lat,lng:s.lng}));
-  if(fin&&fin.lat&&fin.lng)pts.push({lat:fin.lat,lng:fin.lng});
-  let miles=0;
-  for(let i=1;i<pts.length;i++)miles+=haversine(pts[i-1].lat,pts[i-1].lng,pts[i].lat,pts[i].lng);
-  return miles;
+  return getCachedRouteMetric('distance',routeId,()=>{
+    const route=routes.find(r=>r.id===routeId);
+    if(!route)return 0;
+    const pts=[];
+    const init=routeInitialDepot(route), fin=routeFinalDepot(route);
+    if(init&&init.lat&&init.lng)pts.push({lat:init.lat,lng:init.lng});
+    getRouteStops(routeId).filter(s=>s.lat&&s.lng).forEach(s=>pts.push({lat:s.lat,lng:s.lng}));
+    if(fin&&fin.lat&&fin.lng)pts.push({lat:fin.lat,lng:fin.lng});
+    let miles=0;
+    for(let i=1;i<pts.length;i++)miles+=haversine(pts[i-1].lat,pts[i-1].lng,pts[i].lat,pts[i].lng);
+    return miles;
+  });
 }
+
 function durationToMinutes(value){
   const n=parseFloat(value);
   if(!isFinite(n))return 0;
@@ -858,10 +912,13 @@ function windowStatusForStop(stop, arrive){
   return {status,label,waitMins:wait,adjustedArrive:adjusted};
 }
 function routeTotalMinutes(routeId){
-  const rows=routeTimelineRows(routeId);
-  if(!rows.length)return 0;
-  return rows[rows.length-1].depart-rows[0].arrive;
+  return getCachedRouteMetric('totalMinutes',routeId,()=>{
+    const rows=routeTimelineRows(routeId);
+    if(!rows.length)return 0;
+    return rows[rows.length-1].depart-rows[0].arrive;
+  });
 }
+
 function fmtMinutes(mins){
   if(!isFinite(mins)||mins<=0)return '0m';
   const h=Math.floor(mins/60), m=Math.round(mins%60);
@@ -918,79 +975,85 @@ function customerServiceMinutesFromFields(stop,defaultFixed=5,defaultVariableSec
 }
 function stopServiceMinutes(stop){return customerServiceMinutesFromFields(stop,5,.03);}
 function routePointSequence(routeId){
-  const route=routes.find(r=>r.id===routeId);
-  if(!route)return [];
-  const pts=[];
-  const init=routeInitialDepot(route), fin=routeFinalDepot(route);
-  if(init&&init.lat&&init.lng)pts.push({type:'depot-start',label:'START',name:depotLabel(init,'Start Depot'),city:init.shipCity||'',state:init.shipState||'',lat:init.lat,lng:init.lng,depot:init});
-  stops.filter(s=>s.routeId===routeId&&s.lat&&s.lng).sort((a,b)=>a.seq-b.seq).forEach(s=>pts.push({type:'stop',stop:s,name:s.customerName||'Stop',city:s.city||'',state:s.state||'',lat:s.lat,lng:s.lng}));
-  if(fin&&fin.lat&&fin.lng)pts.push({type:'depot-end',label:'END',name:depotLabel(fin,'End Depot'),city:fin.shipCity||'',state:fin.shipState||'',lat:fin.lat,lng:fin.lng,depot:fin});
-  return pts;
-}
-function routeTimelineRows(routeId){
-  const route=routes.find(r=>r.id===routeId);
-  const pts=routePointSequence(routeId);
-  if(!route||!pts.length)return [];
-  let cursor=timeToMinutes(routeStartTime(route));
-  if(cursor===null)cursor=0;
-  const routeStart=cursor;
-  const startup=durationToMinutes(route.startupTime);
-  const windup=durationToMinutes(route.windupTime);
-  const twoDay=routeIsTwoDay(route);
-  const dayCap=routeDailyWorkCapMinutes(route);
-  const rest=routeRestMinutes(route);
-  let day=1;
-  let dayWork=0;
-  const rows=[];
-  const pushRestIfNeeded=(upcomingWork)=>{
-    if(!twoDay||day!==1)return;
-    if(dayWork>0 && dayWork+(parseFloat(upcomingWork)||0)>dayCap){
-      const restArrive=cursor;
-      const restDepart=cursor+rest;
-      rows.push({type:'rest',label:'REST',name:'Required Rest Period',city:'',state:'',lat:null,lng:null,legMiles:0,driveMins:0,rawArrive:restArrive,arrive:restArrive,depart:restDepart,waitMins:0,twStatus:'',twLabel:'8 Hour Rest',serviceMins:0,dayNumber:0,dayLabel:'REST'});
-      cursor=restDepart;
-      day=2;
-      dayWork=0;
-    }
-  };
-  const addWorkToDay=(mins)=>{dayWork+=Math.max(0,parseFloat(mins)||0);};
-
-  pts.forEach((pt,i)=>{
-    let legMiles=0, driveMins=0, rawArrive=cursor, arrive=cursor, depart=cursor;
-    let waitMins=0, twStatus='', twLabel='';
-    if(i===0){
-      depart=cursor+startup;
-      addWorkToDay(startup);
-      twLabel='Depot';
-    }else{
-      const prev=pts[i-1];
-      legMiles=haversine(prev.lat,prev.lng,pt.lat,pt.lng);
-      driveMins=driveMinutesForMiles(legMiles);
-      const serviceOrWindup=pt.type==='stop'?stopServiceMinutes(pt.stop):(pt.type==='depot-end'?windup:0);
-      pushRestIfNeeded(driveMins+serviceOrWindup);
-      rawArrive=cursor+driveMins;
-      arrive=rawArrive;
-      addWorkToDay(driveMins);
-      if(pt.type==='stop'){
-        const tw=windowStatusForStop(pt.stop, rawArrive);
-        arrive=tw.adjustedArrive;
-        waitMins=tw.waitMins;
-        if(waitMins)addWorkToDay(waitMins);
-        twStatus=tw.status;
-        twLabel=tw.label;
-        depart=arrive+stopServiceMinutes(pt.stop);
-        addWorkToDay(stopServiceMinutes(pt.stop));
-      } else {
-        depart=pt.type==='depot-end'?arrive+windup:arrive;
-        if(pt.type==='depot-end')addWorkToDay(windup);
-        twLabel='Depot';
-      }
-    }
-    rows.push({...pt,legMiles,driveMins,rawArrive,arrive,depart,waitMins,twStatus,twLabel,serviceMins:pt.type==='stop'?stopServiceMinutes(pt.stop):0,dayNumber:day,dayLabel:twoDay?`Day ${day}`:'Day 1'});
-    cursor=depart;
+  return getCachedRouteMetric('pointSequence',routeId,()=>{
+    const route=routes.find(r=>r.id===routeId);
+    if(!route)return [];
+    const pts=[];
+    const init=routeInitialDepot(route), fin=routeFinalDepot(route);
+    if(init&&init.lat&&init.lng)pts.push({type:'depot-start',label:'START',name:depotLabel(init,'Start Depot'),city:init.shipCity||'',state:init.shipState||'',lat:init.lat,lng:init.lng,depot:init});
+    getRouteStops(routeId).filter(s=>s.lat&&s.lng).forEach(s=>pts.push({type:'stop',stop:s,name:s.customerName||'Stop',city:s.city||'',state:s.state||'',lat:s.lat,lng:s.lng}));
+    if(fin&&fin.lat&&fin.lng)pts.push({type:'depot-end',label:'END',name:depotLabel(fin,'End Depot'),city:fin.shipCity||'',state:fin.shipState||'',lat:fin.lat,lng:fin.lng,depot:fin});
+    return pts;
   });
-  return rows;
 }
+
+function routeTimelineRows(routeId){
+  return getCachedRouteMetric('timelineRows',routeId,()=>{
+      const route=routes.find(r=>r.id===routeId);
+      const pts=routePointSequence(routeId);
+      if(!route||!pts.length)return [];
+      let cursor=timeToMinutes(routeStartTime(route));
+      if(cursor===null)cursor=0;
+      const routeStart=cursor;
+      const startup=durationToMinutes(route.startupTime);
+      const windup=durationToMinutes(route.windupTime);
+      const twoDay=routeIsTwoDay(route);
+      const dayCap=routeDailyWorkCapMinutes(route);
+      const rest=routeRestMinutes(route);
+      let day=1;
+      let dayWork=0;
+      const rows=[];
+      const pushRestIfNeeded=(upcomingWork)=>{
+        if(!twoDay||day!==1)return;
+        if(dayWork>0 && dayWork+(parseFloat(upcomingWork)||0)>dayCap){
+          const restArrive=cursor;
+          const restDepart=cursor+rest;
+          rows.push({type:'rest',label:'REST',name:'Required Rest Period',city:'',state:'',lat:null,lng:null,legMiles:0,driveMins:0,rawArrive:restArrive,arrive:restArrive,depart:restDepart,waitMins:0,twStatus:'',twLabel:'8 Hour Rest',serviceMins:0,dayNumber:0,dayLabel:'REST'});
+          cursor=restDepart;
+          day=2;
+          dayWork=0;
+        }
+      };
+      const addWorkToDay=(mins)=>{dayWork+=Math.max(0,parseFloat(mins)||0);};
+    
+      pts.forEach((pt,i)=>{
+        let legMiles=0, driveMins=0, rawArrive=cursor, arrive=cursor, depart=cursor;
+        let waitMins=0, twStatus='', twLabel='';
+        if(i===0){
+          depart=cursor+startup;
+          addWorkToDay(startup);
+          twLabel='Depot';
+        }else{
+          const prev=pts[i-1];
+          legMiles=haversine(prev.lat,prev.lng,pt.lat,pt.lng);
+          driveMins=driveMinutesForMiles(legMiles);
+          const serviceOrWindup=pt.type==='stop'?stopServiceMinutes(pt.stop):(pt.type==='depot-end'?windup:0);
+          pushRestIfNeeded(driveMins+serviceOrWindup);
+          rawArrive=cursor+driveMins;
+          arrive=rawArrive;
+          addWorkToDay(driveMins);
+          if(pt.type==='stop'){
+            const tw=windowStatusForStop(pt.stop, rawArrive);
+            arrive=tw.adjustedArrive;
+            waitMins=tw.waitMins;
+            if(waitMins)addWorkToDay(waitMins);
+            twStatus=tw.status;
+            twLabel=tw.label;
+            depart=arrive+stopServiceMinutes(pt.stop);
+            addWorkToDay(stopServiceMinutes(pt.stop));
+          } else {
+            depart=pt.type==='depot-end'?arrive+windup:arrive;
+            if(pt.type==='depot-end')addWorkToDay(windup);
+            twLabel='Depot';
+          }
+        }
+        rows.push({...pt,legMiles,driveMins,rawArrive,arrive,depart,waitMins,twStatus,twLabel,serviceMins:pt.type==='stop'?stopServiceMinutes(pt.stop):0,dayNumber:day,dayLabel:twoDay?`Day ${day}`:'Day 1'});
+        cursor=depart;
+      });
+      return rows;
+  });
+}
+
 function minutesToHHMM(total){
   if(total===null||total===undefined||!isFinite(total))return 'â€”';
   const normalized=((Math.round(total)%1440)+1440)%1440;
@@ -1038,6 +1101,7 @@ function enrichRouteDepots(){
     const dep=route.initialDepot;
     if(dep&&dep.lat&&dep.lng){route.depotLat=dep.lat;route.depotLng=dep.lng;}
   });
+  invalidateAllRouteMetrics();
 }
 function renderDepotRouteRow(route,type,color){
   const depot=type==='initial'?routeInitialDepot(route):routeFinalDepot(route);
@@ -1060,6 +1124,7 @@ function depotLatLng(depot){return depot&&depot.lat&&depot.lng?[depot.lat,depot.
 // RENDER
 // ============================================================
 function render(){
+  if(routeCacheDirty)rebuildRouteStopIndex();
   renderStats(); renderRoutes(); renderUA(); renderMap(); renderLegend(); updateApplyBar(); updateAssignPotentialButton();
 }
 
@@ -1126,7 +1191,7 @@ function renderRoutes(){
   el.innerHTML=displayRoutes.map((r)=>{
     const ri=routes.findIndex(x=>x.id===r.id);
     const color=COLORS[ri%COLORS.length];
-    const rStops=stops.filter(s=>s.routeId===r.id).sort((a,b)=>a.seq-b.seq);
+    const rStops=getRouteStops(r.id);
     const cs=rStops.reduce((a,s)=>a+tCases(s),0);
     const wt=rStops.reduce((a,s)=>a+tWeight(s),0);
     const cu=rStops.reduce((a,s)=>a+tCube(s),0);
@@ -1291,7 +1356,7 @@ function renderMap(){
       markers[depotId]=m;
     });
 
-    const rs=stops.filter(s=>s.routeId===r.id&&s.lat&&s.lng).sort((a,b)=>a.seq-b.seq);
+    const rs=getRouteStops(r.id).filter(s=>s.lat&&s.lng);
     const points=[];
     if(init&&init.lat&&init.lng)points.push([init.lat,init.lng]);
     rs.forEach(s=>points.push([s.lat,s.lng]));
@@ -1381,7 +1446,9 @@ function assignStop(sid,rid){
 }
 
 function reseq(){
-  routes.forEach(r=>stops.filter(s=>s.routeId===r.id).sort((a,b)=>a.seq-b.seq).forEach((s,i)=>s.seq=i+1));
+  invalidateAllRouteMetrics();
+  routes.forEach(r=>getRouteStops(r.id).sort((a,b)=>a.seq-b.seq).forEach((s,i)=>s.seq=i+1));
+  invalidateAllRouteMetrics();
 }
 
 // Drag & drop
@@ -1703,7 +1770,7 @@ function distanceToRouteLinePx(latlng,routeId){
   const pts=[];
   const init=routeInitialDepot(route), fin=routeFinalDepot(route);
   if(init&&init.lat&&init.lng)pts.push(L.latLng(init.lat,init.lng));
-  stops.filter(s=>s.routeId===routeId&&s.lat&&s.lng).sort((a,b)=>a.seq-b.seq).forEach(s=>pts.push(L.latLng(s.lat,s.lng)));
+  getRouteStops(routeId).filter(s=>s.lat&&s.lng).forEach(s=>pts.push(L.latLng(s.lat,s.lng)));
   if(fin&&fin.lat&&fin.lng)pts.push(L.latLng(fin.lat,fin.lng));
   if(pts.length<2)return Infinity;
   const p=map.latLngToLayerPoint(latlng);
@@ -2600,6 +2667,7 @@ function optimizeRouteSequence(routeId,opts={}){
   }
   movable.forEach(s=>ordered.push(s));
   ordered.forEach((stop,index)=>{stop.seq=index+1;});
+  invalidateAllRouteMetrics();
   expanded.add(routeId);
   return {ok:true,count:ordered.length,locked:lockedCount};
 }
@@ -2625,7 +2693,7 @@ function estimateArrivalForCandidate(routeId, orderedStops, current, candidate, 
 function routeWithinBasicLimits(routeId,opts={}){
   const route=routes.find(r=>r.id===routeId);
   if(!route)return false;
-  const rs=stops.filter(s=>s.routeId===routeId);
+  const rs=getRouteStops(routeId);
   const drv=trucks.find(d=>d.truckKey===route.truckKey||d.driverKey===route.driverKey)||{};
   const capCases=parseFloat(drv.measure1)||0;
   const capWeight=parseFloat(drv.measure2)||0;
@@ -2857,6 +2925,10 @@ function optimizationSummaryForRoutes(routeIds,opts={}){
 }
 function maximizeRoutes(opts={}){
   if(!routes.length){showToast('No routes available to maximize');return;}
+  const maximizeStarted=Date.now();
+  const maximizeMaxMs=parseInt(opts.maxMaximizeMs,10)||6500;
+  let maximizePerformanceLimited=false;
+  const maximizeTimedOut=()=>Date.now()-maximizeStarted>maximizeMaxMs;
 
   const snapshotStop=(stop)=>({routeId:stop.routeId||null,seq:stop.seq||0});
   const restoreStop=(stop,snap)=>{stop.routeId=snap.routeId;stop.seq=snap.seq;};
@@ -2912,6 +2984,7 @@ function maximizeRoutes(opts={}){
     .sort((a,b)=>(tCube(b)-tCube(a))||(tCases(b)-tCases(a))||(tWeight(b)-tWeight(a)));
 
   unassigned.forEach(stop=>{
+    if(maximizeTimedOut()){maximizePerformanceLimited=true;return;}
     let placed=false;
     const receivers=routes.slice().sort((a,b)=>{
       if(opts.optimizationDriver==='dynamic')return routeEfficiency(a)-routeEfficiency(b);
@@ -2928,17 +3001,20 @@ function maximizeRoutes(opts={}){
   // This is repeated a few passes because each successful move changes route fullness and feasibility.
   const maxPasses=Math.min(6,Math.max(2,routes.length));
   for(let pass=0;pass<maxPasses;pass++){
+    if(maximizeTimedOut()){maximizePerformanceLimited=true;break;}
     let passMoved=0;
     const donors=routes.slice().sort((a,b)=>{
       if(opts.optimizationDriver==='dynamic')return routeEfficiency(b)-routeEfficiency(a);
       return routeLoad(a)-routeLoad(b);
     });
     donors.forEach(donor=>{
+      if(maximizeTimedOut()){maximizePerformanceLimited=true;return;}
       const donorStops=routeCustomerStops(donor.id)
         .slice()
         .sort((a,b)=>(tCube(b)-tCube(a))||(b.seq-a.seq));
 
       donorStops.forEach(stop=>{
+        if(maximizeTimedOut()){maximizePerformanceLimited=true;return;}
         const receivers=routes
           .filter(r=>r.id!==donor.id)
           .slice()
@@ -2971,7 +3047,7 @@ function maximizeRoutes(opts={}){
   const remainingUnassigned=stops.filter(s=>!s.routeId).length;
   const net=optimizationSummaryForRoutes(routes.map(r=>r.id),opts);
   showJob('&#128200; Maximize / Consolidate Routes',`
-    <strong>Stage 1:</strong> ${assignedFromUnassigned} unassigned stop(s) placed and ${movedAssigned} already-assigned stop(s) moved into fuller valid routes<br/>
+    <strong>Stage 1:</strong> ${assignedFromUnassigned} unassigned stop(s) placed and ${movedAssigned} already-assigned stop(s) moved into fuller valid routes${maximizePerformanceLimited?' <span style="color:var(--warn);">(performance-limited review)</span>':''}<br/>
     <strong>Stage 2:</strong> reviewed all day routes, consolidated ${stage2.consolidated} additional stop move(s), accepted ${stage2.swapped} route-to-route swap(s)${stage2.performanceLimited?' <span style="color:var(--warn);">(performance-limited review)</span>':''}<br/>
     <strong>${optimizedRoutes}</strong> route(s) resequenced after optimization<br/>
     <strong>${empty}</strong> route(s) now have no customer stops<br/>
@@ -3174,6 +3250,7 @@ function confirmImport(){
     });
 
     enrichRouteDepots();
+    invalidateAllRouteMetrics();
     reseq();
 
     // Do not automatically draw every imported route/depot on the map. Large route templates can overload the map.
@@ -3454,6 +3531,7 @@ function confirmHolidayImport(btn,originalText){
     let sc=0;
     if(cust)sc=importHolidayCustomers(cust.data,holidayDate,holidayDay);
     enrichRouteDepots();
+    invalidateAllRouteMetrics();
     reseq();
     closeModal('import-modal');
     setTimeout(()=>{
@@ -4526,6 +4604,3 @@ reseq();holidaySession.planned=true;holidaySession.lastPlanStats={baselineRouted
 </script>
 </body>
 </html>
-
-
-
