@@ -420,7 +420,7 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
       ondrop="handleDrop(event)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       <p>Click or drag &amp; drop Excel / CSV file here</p>
-      <span id="imp-hint">Upload one file with sheets named "Routes", "Trucks", "Stops", and "Depot Locations" — or load individually</span>
+      <span id="imp-hint">Upload one file with sheets named "Routes", "Trucks", "Stops", and "Depot Locations" â€” or load individually</span>
     </div>
     <div id="route-day-filter" style="margin:10px 0 8px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);">
       <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">Route Day Filter <span style="font-weight:400;color:var(--text3);text-transform:none;letter-spacing:0;">(uses Route Templates UDFString2)</span></div>
@@ -489,7 +489,7 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
     </div>
     <div class="input-row">
       <div class="field"><label>Assign to Route</label>
-        <select id="s-route"><option value="">— Unassigned —</option></select>
+        <select id="s-route"><option value="">â€” Unassigned â€”</option></select>
       </div>
     </div>
     <div class="modal-actions">
@@ -872,7 +872,7 @@ function fmtTiming(r){
   if(r.startupTime) p.push('+'+Math.round(durationToMinutes(r.startupTime))+'min startup');
   if(r.earliestStartTime) p.push('Est:'+excelTimeToHHMM(r.earliestStartTime));
   if(r.latestEndTime) p.push('End by:'+excelTimeToHHMM(r.latestEndTime));
-  return p.join(' · ')||'No time set';
+  return p.join(' Â· ')||'No time set';
 }
 
 function cleanTimeValue(value){
@@ -992,7 +992,7 @@ function routeTimelineRows(routeId){
   return rows;
 }
 function minutesToHHMM(total){
-  if(total===null||total===undefined||!isFinite(total))return '—';
+  if(total===null||total===undefined||!isFinite(total))return 'â€”';
   const normalized=((Math.round(total)%1440)+1440)%1440;
   const h=Math.floor(normalized/60), m=normalized%60;
   return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
@@ -1050,7 +1050,7 @@ function renderDepotRouteRow(route,type,color){
     <span class="s-dot" style="background:${color}"></span>
     <div class="s-info">
       <div class="s-name">${label}: ${name}</div>
-      <div class="s-detail">LocationKey: ${key||'—'}${detail?` &middot; ${detail}`:''}</div>
+      <div class="s-detail">LocationKey: ${key||'â€”'}${detail?` &middot; ${detail}`:''}</div>
     </div>
   </div>`;
 }
@@ -1117,9 +1117,9 @@ function renderRoutes(){
   if(dayFilterSelect)dayFilterSelect.value=routeDayDisplayFilter;
   const displayCount=routes.filter(routeMatchesDayDisplayFilter).filter(routeMatchesFilter).length;
   const badgeText=routeDayDisplayFilter?`${displayCount} ${routeDayDisplayFilter} route(s)`:routes.length+' routes';
-  document.getElementById('route-badge').innerHTML=activeRouteFilterId?`<span class="filter-pill" onclick="activeRouteFilterId=null;renderRoutes()">Route Filter ×</span>`:badgeText;
+  document.getElementById('route-badge').innerHTML=activeRouteFilterId?`<span class="filter-pill" onclick="activeRouteFilterId=null;renderRoutes()">Route Filter Ã—</span>`:badgeText;
   if(!routes.length){
-    el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4"/></svg><p>No routes yet — import or create one</p></div>';
+    el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4"/></svg><p>No routes yet â€” import or create one</p></div>';
     return;
   }
   const displayRoutes=sortedRoutesForDisplay().filter(routeMatchesDayDisplayFilter).filter(routeMatchesFilter);
@@ -1131,7 +1131,7 @@ function renderRoutes(){
     const wt=rStops.reduce((a,s)=>a+tWeight(s),0);
     const cu=rStops.reduce((a,s)=>a+tCube(s),0);
     const drv=trucks.find(d=>d.truckKey===r.truckKey||d.driverKey===r.driverKey);
-    const dname=r.driverFirstName?(r.driverFirstName+' '+(r.driverLastName||'')).trim():(drv?drv.name:'—');
+    const dname=r.driverFirstName?(r.driverFirstName+' '+(r.driverLastName||'')).trim():(drv?drv.name:'â€”');
     const isOpen=expanded.has(r.id);
     return`<div class="route-card" id="rc-${r.id}" draggable="true" ondragstart="onRouteDragStart(event,'${r.id}')" ondragend="onDragEnd()" onmouseenter="highlightRoute('${r.id}')" onmouseleave="clearMapHighlight()">
       <div class="r-header" onclick="openRouteDetail('${r.id}')">
@@ -1139,10 +1139,10 @@ function renderRoutes(){
         <div class="r-info">
           <div class="r-name">${r.name}</div>
           <div class="r-meta">${rStops.length} stops &middot; ${cs}cs &middot; ${Math.round(wt)}lbs &middot; ${cu.toFixed(1)}cu &middot; ${routeDistanceMiles(r.id).toFixed(1)}mi &middot; ${fmtMinutes(routeTotalMinutes(r.id))} &middot; ${dname}</div>
-          <div class="r-timing">${fmtTiming(r)}${r.udfNumber1?' · UDF#1:'+r.udfNumber1:''}${r.initialLocationKey||r.finalLocationKey?' · Depot '+(r.initialLocationKey||'—')+' → '+(r.finalLocationKey||'—'):''}</div>
+          <div class="r-timing">${fmtTiming(r)}${r.udfNumber1?' Â· UDF#1:'+r.udfNumber1:''}${r.initialLocationKey||r.finalLocationKey?' Â· Depot '+(r.initialLocationKey||'â€”')+' â†’ '+(r.finalLocationKey||'â€”'):''}</div>
         </div>
         <div class="r-ctrl">
-          <button class="icon-btn" title="Open Manifest" onclick="event.stopPropagation();openRouteManifest('${r.id}')">▤</button>
+          <button class="icon-btn" title="Open Manifest" onclick="event.stopPropagation();openRouteManifest('${r.id}')">â–¤</button>
           <input type="checkbox" class="r-chk" id="rchk-${r.id}" ${r.selected?'checked':''} onclick="event.stopPropagation();routeCheck('${r.id}',this.checked)"/>
           <span class="chev ${isOpen?'open':''}" title="Expand route" onclick="event.stopPropagation();toggleExpand('${r.id}',event)">&#9660;</span>
         </div>
@@ -1194,7 +1194,7 @@ function renderUA(){
   const ua=stops.filter(s=>!s.routeId).filter(stopMatchesDayDisplayFilter).filter(stopMatchesFilter);
   const allUaCount=stops.filter(s=>!s.routeId).length;
   const badgeBase=routeDayDisplayFilter?`${ua.length} ${routeDayDisplayFilter} stop(s) / ${allUaCount} total`:ua.length+' stops';
-  document.getElementById('ua-badge').innerHTML=activeStopFilterId?`<span class="filter-pill" onclick="activeStopFilterId=null;renderRoutes();renderUA()">Stop Filter ×</span>`:badgeBase;
+  document.getElementById('ua-badge').innerHTML=activeStopFilterId?`<span class="filter-pill" onclick="activeStopFilterId=null;renderRoutes();renderUA()">Stop Filter Ã—</span>`:badgeBase;
   if(!ua.length){
     el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p>All stops assigned!</p></div>';
     return;
@@ -1230,8 +1230,8 @@ function renderTrucks(){
     const assignedRoute=routes.find(r=>r.truckKey===d.truckKey||r.driverKey===d.driverKey);
     return`<div class="driver-card">
       <div class="d-name">${d.name||d.truckId||'Truck'}</div>
-      <div class="d-meta">TruckKey: ${d.truckKey||'—'} &middot; Type: ${d.vehicleType||'—'} &middot; ${(d.active+'').toUpperCase()==='Y'||d.active===true?'&#10003; Active':'Inactive'}</div>
-      <div class="d-truck">TruckID: ${d.truckId||'—'} &middot; Company: ${d.company||'—'} &middot; ${assignedRoute?'Assigned: '+assignedRoute.name:'Not assigned'}</div>
+      <div class="d-meta">TruckKey: ${d.truckKey||'â€”'} &middot; Type: ${d.vehicleType||'â€”'} &middot; ${(d.active+'').toUpperCase()==='Y'||d.active===true?'&#10003; Active':'Inactive'}</div>
+      <div class="d-truck">TruckID: ${d.truckId||'â€”'} &middot; Company: ${d.company||'â€”'} &middot; ${assignedRoute?'Assigned: '+assignedRoute.name:'Not assigned'}</div>
     </div>`;
   }).join('');
 }
@@ -1254,9 +1254,9 @@ function renderMap(){
       <b>${s.customerName||'Stop'}</b><br/>
       <span style="color:#666;font-size:11px;">${s.address||''} ${s.city||''} ${s.state||''}</span>
       <hr style="margin:5px 0;border-color:#eee;"/>
-      <b>Order:</b> ${s.orderNumber||'—'} &nbsp;|&nbsp; <b>Cases:</b> ${tCases(s)}<br/>
+      <b>Order:</b> ${s.orderNumber||'â€”'} &nbsp;|&nbsp; <b>Cases:</b> ${tCases(s)}<br/>
       <b>Weight:</b> ${tWeight(s).toFixed(0)} &nbsp;|&nbsp; <b>Cube:</b> ${tCube(s).toFixed(1)}<br/>
-      <b>Window:</b> ${s.earliestTimeWindow||'—'} – ${s.latestTimeWindow||'—'}<br/>
+      <b>Window:</b> ${s.earliestTimeWindow||'â€”'} â€“ ${s.latestTimeWindow||'â€”'}<br/>
       ${r.name?`<b>Route:</b> ${r.name}`:'<b style="color:#f59e0b;">Unassigned</b>'}
       ${s.preferredResourceKey?`<br/><b>Pref Key:</b> ${s.preferredResourceKey}`:''}
       <br/><span style="font-size:10px;color:#999;">Right-click marker for actions</span>
@@ -1284,7 +1284,7 @@ function renderMap(){
       const depotName=(depot.name||depot.locationType||depot.locationKey||'Depot').toString();
       const safeDepotName=escapeHtml(depotName);
       const icon=L.divIcon({className:'',
-        html:`<div class="depot-map-label" style="color:${color};"><span class="depot-building">🏢</span><span class="depot-text"><span class="depot-type">${label} DEPOT</span><span class="depot-name">${safeDepotName}</span></span></div>`,
+        html:`<div class="depot-map-label" style="color:${color};"><span class="depot-building">ðŸ¢</span><span class="depot-text"><span class="depot-type">${label} DEPOT</span><span class="depot-name">${safeDepotName}</span></span></div>`,
         iconSize:null,iconAnchor:[10,16]});
       const m=L.marker([depot.lat,depot.lng],{icon}).addTo(map);
       m.bindPopup(`<div style="font-family:Sora,sans-serif;min-width:190px;font-size:12px;"><b>${label} DEPOT</b><br/><b>${depot.name||'Depot'}</b><br/>LocationKey: ${depot.locationKey||''}<br/>${depot.shipStreet||''}<br/>${depot.shipCity||''} ${depot.shipState||''} ${depot.shipZipCode||''}</div>`);
@@ -1445,7 +1445,7 @@ function openStopDetail(stopId){
   const s=stops.find(x=>x.id===stopId);
   if(!s)return;
   activeDetailStopId=stopId;
-  const routeOptions=[{value:'',label:'— Unassigned —'},...routes.map(r=>({value:r.id,label:r.name||r.routeTemplateKey||'Route'}))];
+  const routeOptions=[{value:'',label:'â€” Unassigned â€”'},...routes.map(r=>({value:r.id,label:r.name||r.routeTemplateKey||'Route'}))];
   document.getElementById('stop-detail-title').textContent=`Edit Stop Details: ${s.customerName||s.orderNumber||'Stop'}`;
   document.getElementById('stop-detail-body').innerHTML=`<div class="stop-detail-grid">
     ${detailInput('ed-s-customerName','Customer Name',s.customerName)}
@@ -1780,19 +1780,19 @@ function openStopContextMenu(stopId,x,y){
   menu.innerHTML=`
     <div class="stop-context-title">${stop.customerName||'Stop'} ${currentRoute?`&middot; ${currentRoute.name}`:'&middot; Unassigned'}</div>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextUnassignStop('${stopId}')`:'return false'}">
-      <span>Unassign</span><span>↩</span>
+      <span>Unassign</span><span>â†©</span>
     </button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextResequenceRoute('${stop.routeId}')`:'return false'}">
-      <span>Resequence current route</span><span>⌁</span>
+      <span>Resequence current route</span><span>âŒ</span>
     </button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextShowAlongRoad('${stop.routeId}')`:'return false'}">
-      <span>Show Along The Road</span><span>🛣</span>
+      <span>Show Along The Road</span><span>ðŸ›£</span>
     </button>
     <button class="stop-context-item" onclick="contextRemoveStopFromMap('${stopId}')">
-      <span>Remove Stop from Map</span><span>✕</span>
+      <span>Remove Stop from Map</span><span>âœ•</span>
     </button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextRemoveRouteFromMap('${stop.routeId}')`:'return false'}">
-      <span>Remove Route from Map</span><span>□</span>
+      <span>Remove Route from Map</span><span>â–¡</span>
     </button>
     <div class="stop-context-routes">
       <div style="font-size:10px;color:var(--text3);padding:3px 8px 5px;text-transform:uppercase;letter-spacing:.5px;">Assign to Route</div>
@@ -1813,9 +1813,9 @@ function openRouteContextMenu(routeId,x,y){
   if(!menu||!route)return;
   menu.innerHTML=`
     <div class="stop-context-title">${route.name||'Route'}</div>
-    <button class="stop-context-item" onclick="contextResequenceRoute('${routeId}')"><span>Resequence Route</span><span>⌁</span></button>
-    <button class="stop-context-item" onclick="contextShowAlongRoad('${routeId}')"><span>Show Along The Road</span><span>🛣</span></button>
-    <button class="stop-context-item" onclick="contextRemoveRouteFromMap('${routeId}')"><span>Remove Route from Map</span><span>□</span></button>`;
+    <button class="stop-context-item" onclick="contextResequenceRoute('${routeId}')"><span>Resequence Route</span><span>âŒ</span></button>
+    <button class="stop-context-item" onclick="contextShowAlongRoad('${routeId}')"><span>Show Along The Road</span><span>ðŸ›£</span></button>
+    <button class="stop-context-item" onclick="contextRemoveRouteFromMap('${routeId}')"><span>Remove Route from Map</span><span>â–¡</span></button>`;
   menu.style.display='block';
   const rect=menu.getBoundingClientRect();
   menu.style.left=Math.max(8,Math.min(x,window.innerWidth-rect.width-12))+'px';
@@ -2106,8 +2106,8 @@ function renderRouteManifest(){
     <div class="manifest-stat"><div class="val">${data.cube.toFixed(1)}</div><div class="lbl">Cube</div></div>
     <div class="manifest-stat"><div class="val">${fmtMinutes(data.time)}</div><div class="lbl">Time</div></div>
     <div class="manifest-stat"><div class="val">${data.miles.toFixed(1)}</div><div class="lbl">Miles</div></div>
-    <div class="manifest-stat"><div class="val">${cleanTimeValue(data.start)||'—'}</div><div class="lbl">Start Time</div></div>
-    <div class="manifest-stat"><div class="val">${cleanTimeValue(data.end)||'—'}</div><div class="lbl">Stop Time</div></div>`;
+    <div class="manifest-stat"><div class="val">${cleanTimeValue(data.start)||'â€”'}</div><div class="lbl">Start Time</div></div>
+    <div class="manifest-stat"><div class="val">${cleanTimeValue(data.end)||'â€”'}</div><div class="lbl">Stop Time</div></div>`;
 
   const timeline=routeTimelineRows(activeManifestRouteId);
   let liveStopSeq=0;
@@ -2120,8 +2120,8 @@ function renderRouteManifest(){
     const name=escapeHtml(pt.name||'Stop');
     const seqDisplay=liveSeq;
     const dayBadge=pt.dayLabel?`<span class="tw-badge ${isRest?'tw-wait':'tw-ok'}" style="margin-right:6px;">${escapeHtml(pt.dayLabel)}</span>`:'';
-    const displayName=isRest?`${dayBadge}${name}`:(isDepot?`${dayBadge}${name}`:`${dayBadge}#${escapeHtml(seqDisplay)} · ${name}`);
-    const detail=isRest?'8-hour required rest before Day 2 starts':(isDepot?`LocationKey: ${escapeHtml(pt.depot?.locationKey||'')}`:`${escapeHtml(s.orderNumber||'')} · ${escapeHtml(s.address||'')} ${escapeHtml(s.city||'')} ${escapeHtml(s.state||'')}`);
+    const displayName=isRest?`${dayBadge}${name}`:(isDepot?`${dayBadge}${name}`:`${dayBadge}#${escapeHtml(seqDisplay)} Â· ${name}`);
+    const detail=isRest?'8-hour required rest before Day 2 starts':(isDepot?`LocationKey: ${escapeHtml(pt.depot?.locationKey||'')}`:`${escapeHtml(s.orderNumber||'')} Â· ${escapeHtml(s.address||'')} ${escapeHtml(s.city||'')} ${escapeHtml(s.state||'')}`);
     const violationClass=pt.twStatus==='LATE'?' tw-violation':'';
     const twClass=pt.twStatus==='LATE'?'tw-late':(pt.twStatus==='WAIT'?'tw-wait':'tw-ok');
     const dragAttrs=isDepot?'':`id="manifest-stop-${s.id}" draggable="true"
@@ -2136,23 +2136,23 @@ function renderRouteManifest(){
       <div class="manifest-seq">${seq}</div>
       <div class="manifest-customer"><div class="manifest-name">${displayName}</div><div class="manifest-detail">${detail}</div></div>
       <div>${escapeHtml(pt.city||'')} ${escapeHtml(pt.state||'')}</div>
-      <div>${isDepot?'—':tCases(s)}</div>
-      <div>${isDepot?'—':Math.round(tWeight(s)).toLocaleString()}</div>
-      <div>${isDepot?'—':tCube(s).toFixed(1)}</div>
-      <div>${pt.legMiles?pt.legMiles.toFixed(1):'—'}</div>
-      <div>${pt.driveMins?fmtMinutes(pt.driveMins):'—'}</div>
-      <div>${isDepot?'—':fmtMinutes(pt.serviceMins)}</div>
+      <div>${isDepot?'â€”':tCases(s)}</div>
+      <div>${isDepot?'â€”':Math.round(tWeight(s)).toLocaleString()}</div>
+      <div>${isDepot?'â€”':tCube(s).toFixed(1)}</div>
+      <div>${pt.legMiles?pt.legMiles.toFixed(1):'â€”'}</div>
+      <div>${pt.driveMins?fmtMinutes(pt.driveMins):'â€”'}</div>
+      <div>${isDepot?'â€”':fmtMinutes(pt.serviceMins)}</div>
       <div>${minutesToHHMM(pt.arrive)}</div>
       <div>${minutesToHHMM(pt.depart)}</div>
-      <div>${isDepot?'—':(pt.waitMins?fmtMinutes(pt.waitMins):'—')}</div>
-      <div>${isRest?'Rest':(isDepot?'Depot':`${escapeHtml(s.earliestTimeWindow||'—')} - ${escapeHtml(s.latestTimeWindow||'—')}`)}</div>
-      <div>${isRest?`<span class="tw-badge tw-wait">8 Hour Rest</span>`:(isDepot?'—':`<span class="tw-badge ${twClass}">${escapeHtml(pt.twLabel||'')}</span>`)}</div>
+      <div>${isDepot?'â€”':(pt.waitMins?fmtMinutes(pt.waitMins):'â€”')}</div>
+      <div>${isRest?'Rest':(isDepot?'Depot':`${escapeHtml(s.earliestTimeWindow||'â€”')} - ${escapeHtml(s.latestTimeWindow||'â€”')}`)}</div>
+      <div>${isRest?`<span class="tw-badge tw-wait">8 Hour Rest</span>`:(isDepot?'â€”':`<span class="tw-badge ${twClass}">${escapeHtml(pt.twLabel||'')}</span>`)}</div>
     </div>`;
   }).join('');
 
   document.getElementById('manifest-list').innerHTML=`
     <div class="manifest-row header"><div>Seq</div><div>Stop / Customer</div><div>City</div><div>Cases</div><div>Weight</div><div>Cube</div><div>Leg Mi</div><div>Drive</div><div>Service</div><div>Arrive</div><div>Depart</div><div>Wait</div><div>Window</div><div>Status</div></div>
-    ${rows || '<div class="manifest-row"><div>—</div><div>No assigned stops</div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>'}`;
+    ${rows || '<div class="manifest-row"><div>â€”</div><div>No assigned stops</div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>'}`;
 }
 function manifestDragStart(e,stopId){
   manifestDragStopId=stopId;
@@ -3013,7 +3013,7 @@ function setImportMode(m){
   const holidayOpts=document.getElementById('holiday-import-options');
   if(holidayOpts)holidayOpts.style.display=m==='holiday'?'block':'none';
   const hints={
-    all:'Upload one file with sheets named "Routes", "Trucks", "Stops", and "Depot Locations" — or load individually',
+    all:'Upload one file with sheets named "Routes", "Trucks", "Stops", and "Depot Locations" â€” or load individually',
     routes:'Upload your Route Template file. Include UDFNumber1, UDFString2, InitialLocationKey, and FinalLocationKey.',
     trucks:'Upload your Truck Template file',
     stops:'Upload your Stops/Orders Template file',
@@ -3865,7 +3865,7 @@ function holidayCapacityCheck(route,assignedStops,stop){
   // If no truck row is found, do not falsely allow an overloaded route silently.
   // Time rules can still run, but the reason will expose the missing truck match in Suggested Results.
   if(!cap.truck){
-    return {ok:false,cap,load,nextCube,nextWeight,reason:`no truck capacity found for Route TruckKey ${sval(route?.truckKey||'—')}`};
+    return {ok:false,cap,load,nextCube,nextWeight,reason:`no truck capacity found for Route TruckKey ${sval(route?.truckKey||'â€”')}`};
   }
 
   if(!cap.cube&&!cap.weight){
@@ -4062,7 +4062,7 @@ function planHoliday(){
   const routesUsed=new Set(holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).map(s=>s.routeId)).size;
   const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
   const heavy=holidayHeaviestDaySummary();
-  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Excluded Planning Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> Route Template Work Duration is used as the runtime cap. LatestEndTime is not used as the hard cap. 2-day routes include an 8-hour rest and each day is capped at 12 hours<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><strong>Step 4 Network Review:</strong> ${holidayStage2.consolidated.toLocaleString()} consolidation move(s) and ${holidayStage2.swapped.toLocaleString()} swap(s) accepted to reduce route count, wait time, and total network miles${holidayStage2.performanceLimited?' (performance-limited review)':''}.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
+  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Excluded Planning Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'â€”')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> Route Template Work Duration is used as the runtime cap. LatestEndTime is not used as the hard cap. 2-day routes include an 8-hour rest and each day is capped at 12 hours<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><strong>Step 4 Network Review:</strong> ${holidayStage2.consolidated.toLocaleString()} consolidation move(s) and ${holidayStage2.swapped.toLocaleString()} swap(s) accepted to reduce route count, wait time, and total network miles${holidayStage2.performanceLimited?' (performance-limited review)':''}.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
 }
 
 function suggestedDaysRowBucket(s){
@@ -4143,7 +4143,7 @@ function openSuggestedDaysResults(){
   const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
   const heavy=holidayHeaviestDaySummary();
   const stats=holidaySession.lastPlanStats||{};
-  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${planned.toLocaleString()}<br/><strong>None Needed:</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${(stats.overnightRouted||0).toLocaleString()} routed / ${(stats.overnightTotal||0).toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${(stats.capacityBlocked||0).toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${(stats.truckTemplates||trucks.length||0).toLocaleString()}<br/><strong>Excluded Route Templates:</strong> ${(stats.blockedRoutes||0).toLocaleString()} with UDFString4 X/x`;
+  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${planned.toLocaleString()}<br/><strong>None Needed:</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'â€”')}<br/><strong>Overnight Customers:</strong> ${(stats.overnightRouted||0).toLocaleString()} routed / ${(stats.overnightTotal||0).toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${(stats.capacityBlocked||0).toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${(stats.truckTemplates||trucks.length||0).toLocaleString()}<br/><strong>Excluded Route Templates:</strong> ${(stats.blockedRoutes||0).toLocaleString()} with UDFString4 X/x`;
   setupSuggestedDaysFilters();
   renderSuggestedDaysTable();
   document.getElementById('suggested-days-modal').style.display='flex';
@@ -4155,7 +4155,7 @@ function openSuggestedDaysResults(){
 function openAddStop(){
   document.getElementById('add-stop-modal').style.display='flex';
   const sel=document.getElementById('s-route');
-  sel.innerHTML='<option value="">— Unassigned —</option>'+routes.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
+  sel.innerHTML='<option value="">â€” Unassigned â€”</option>'+routes.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
 }
 function openAddStopForRoute(rid){openAddStop();document.getElementById('s-route').value=rid;}
 function openAddRoute(){document.getElementById('add-route-modal').style.display='flex';}
@@ -4221,7 +4221,7 @@ function saveRoute(){
 // ============================================================
 function clearSession(){
   const confirmClear = confirm(
-    'Clear the entire session?\n\nThis will remove:\n• All routes\n• All stops\n• All trucks\n• All depots\n• All map data\n• All session assignments'
+    'Clear the entire session?\n\nThis will remove:\nâ€¢ All routes\nâ€¢ All stops\nâ€¢ All trucks\nâ€¢ All depots\nâ€¢ All map data\nâ€¢ All session assignments'
   );
 
   if(!confirmClear) return;
@@ -4479,5 +4479,53 @@ function showToast(msg){
 }
 document.addEventListener('click',e=>{if(e.target.classList.contains('modal-overlay'))e.target.style.display='none';});
 </script>
+<script>
+(() => {
+let orderHist={}, orderRows=0;
+const oldDetect=window.detectImportSheetType||detectImportSheetType;
+window.detectImportSheetType=function(name,data){
+  const keys=data&&data[0]?Object.keys(data[0]).map(k=>k.toLowerCase().trim()):[];
+  const low=(name||'').toLowerCase().trim();
+  const hist=keys.includes('location')&&(keys.includes('cases actual')||keys.includes('casesactual'))&&(keys.includes('cube actual')||keys.includes('cubeactual')||keys.includes('weight actual')||keys.includes('weightactual'));
+  if(low.includes('customer order history')||hist)return 'customer order history';
+  return oldDetect(name,data);
+};
+function acctFromLocation(v){const t=sval(v),m=[...t.matchAll(/\(([^()]+)\)/g)],raw=m.length?m[m.length-1][1]:t,d=sval(raw).replace(/\D/g,'');return d||sval(raw);}
+function avg(a){const n=(a||[]).map(nval).filter(x=>x>0);return n.length?n.reduce((p,c)=>p+c,0)/n.length:0;}
+function durMin(v){if(v===null||v===undefined||v==='')return 0;if(v instanceof Date&&!isNaN(v))return v.getHours()*60+v.getMinutes()+v.getSeconds()/60;const n=nval(v);if(!n)return 0;const f=n-Math.floor(n);if(f>0)return f*1440;return n>240?n/60:n;}
+window.importHolidayOrderHistory=function(data){const b={};let rows=0;(data||[]).forEach(r=>{const a=acctFromLocation(gc(r,['LOCATION','Location']));if(!a)return;if(!b[a])b[a]={rows:0,cases:[],cube:[],weight:[],plan:[],actual:[]};const x=b[a];x.rows++;rows++;[['cases','CASES ACTUAL'],['cube','CUBE ACTUAL'],['weight','WEIGHT ACTUAL']].forEach(([k,c])=>{const v=nval(gc(r,[c,c.replace(' ACTUAL',' Actual'),c.replace(' ', '')]));if(v>0)x[k].push(v);});const p=durMin(gc(r,['PLAN SERVICE TIME','Plan Service Time','PlanServiceTime'])),q=durMin(gc(r,['ACTUAL SERVICE TIME','Actual Service Time','ActualServiceTime']));if(p>0)x.plan.push(p);if(q>0)x.actual.push(q);});orderHist={};Object.entries(b).forEach(([a,x])=>{const p=avg(x.plan),q=avg(x.actual);orderHist[a]={account:a,orderCount:x.rows,avgCases:avg(x.cases),avgCube:avg(x.cube),avgWeight:avg(x.weight),avgPlanServiceMinutes:p||q,avgActualServiceMinutes:q};});orderRows=rows;window.holidayOrderHistoryRows=rows;return rows;};
+function applyHist(c){const a=sval(c.account||c.customerNumber||c.shipToId),h=orderHist[a]||null;c.orderHistory=h;c.hasRecentOrder=!!h;c.recentOrderCount=h?h.orderCount:0;c.avgCases=h?h.avgCases:0;c.avgCube=h?h.avgCube:0;c.avgWeight=h?h.avgWeight:0;c.avgPlanServiceMinutes=h?h.avgPlanServiceMinutes:0;c.avgActualServiceMinutes=h?h.avgActualServiceMinutes:0;return c;}
+const oldImportCustomers=window.importHolidayCustomers||importHolidayCustomers;
+window.importHolidayCustomers=function(data,holidayDate,holidayDay){const n=oldImportCustomers(data,holidayDate,holidayDay);holidayCustomerPool.forEach(applyHist);return n;};
+const oldRefresh=window.refreshHolidaySessionForDate||refreshHolidaySessionForDate;
+window.refreshHolidaySessionForDate=function(d){const ok=oldRefresh(d);holidayCustomerPool.forEach(applyHist);return ok;};
+const oldSummary=window.holidayImportSummaryHtml||holidayImportSummaryHtml;
+window.holidayImportSummaryHtml=function(){const html=oldSummary();const withOrders=holidayCustomerPool.filter(c=>c.holidayAffected&&c.needsHolidayPlanning&&c.hasRecentOrder).length;const noOrders=holidayCustomerPool.filter(c=>c.holidayAffected&&c.needsHolidayPlanning&&!c.hasRecentOrder).length;return html.replace('<br/><br/><strong>Customers Per Active Delivery Day</strong>','<br/><strong>Customer Order History Rows Loaded:</strong> '+orderRows.toLocaleString()+'<br/><strong>Recent-order customers routed first:</strong> '+withOrders.toLocaleString()+'<br/><strong>No recent order - recommendation only:</strong> '+noOrders.toLocaleString()+'<br/><br/><strong>Customers Per Active Delivery Day</strong>');};
+window.confirmHolidayImport=function(btn,originalText){try{const holidayDate=document.getElementById('holiday-date')?.value||document.getElementById('route-date')?.value||new Date().toISOString().slice(0,10),holidayDay=dayNameFromDate(holidayDate);if(!holidayDay){showToast('Enter a valid Holiday Date.');if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';}return;}routes=[];stops=[];trucks=[];depotLocations=[];expanded.clear();visibleStopIds.clear();visibleRouteIds.clear();mapCleared=true;potColors={};potRouteSuggestions={};holidaySuggestions=[];holidayCustomerPool=[];orderHist={};orderRows=0;const sheets=pendingWB.SheetNames.map(name=>({name,data:XLSX.utils.sheet_to_json(pendingWB.Sheets[name],{defval:'',raw:false})})).map(x=>({...x,type:detectImportSheetType(x.name,x.data)})).filter(x=>x.data.length);const dep=sheets.find(x=>x.name.toLowerCase().trim()==='depot locations'),rt=sheets.find(x=>x.name.toLowerCase().trim()==='route templates'),cust=sheets.find(x=>x.name.toLowerCase().trim()==='customer list'),hist=sheets.find(x=>x.type==='customer order history'),trk=sheets.find(x=>x.name.toLowerCase().trim()==='trucks templates'||x.name.toLowerCase().trim()==='truck templates'||x.type==='trucks');if(dep)importDepots(dep.data);if(trk)importTrucks(trk.data);if(rt){clearRouteDayFilter();importRoutes(rt.data);}let hc=0;if(hist)hc=importHolidayOrderHistory(hist.data);let sc=0;if(cust)sc=importHolidayCustomers(cust.data,holidayDate,holidayDay);enrichRouteDepots();reseq();closeModal('import-modal');setTimeout(()=>{render();showJob('Holiday Routing Import Summary',holidayImportSummaryHtml());showToast('Holiday Routing imported: '+routes.length+' route templates, '+trucks.length+' truck templates, '+sc.toLocaleString()+' active customer delivery rows, and '+hc.toLocaleString()+' customer order-history rows.');if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';}},25);}catch(err){console.error(err);if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';}showToast('Holiday import failed: '+(err&&err.message?err.message:err));alert('Holiday import failed: '+(err&&err.message?err.message:err));}};
+window.createHolidayPlanningStop=function(c){const h=!!c.hasRecentOrder;return {id:uid(),routeId:null,seq:0,uiChecked:false,holidayPlanning:true,holidayAffected:true,needsHolidayPlanning:true,noReplacementNeeded:false,holidayDate:c.holidayDate,originalDeliveryDay:c.originalDeliveryDay,deliveryDay:c.originalDeliveryDay,suggestedDeliveryDay:'',suggestedRouteName:'',suggestedRouteId:'',holidayReason:'',suggestionStep:'',suggestionType:'',activeDeliveryDayCount:c.activeDeliveryDayCount||0,activeDeliveryDays:c.activeDeliveryDays||[],orderNumber:'HOL-'+c.account+'-'+c.originalDeliveryDay.slice(0,3).toUpperCase(),shipToId:c.account,customerNumber:c.account,customerName:c.customerName,routingAttribute:c.routingAttribute,routingAttributeId:c.routingAttributeId,deliveryGroupId:c.deliveryGroupId,routeLock:c.routeLock,originalRoute:c.originalRoute,preferredResourceKey:c.originalRoute||'',sequenceLock:c.sequenceLock,originalSequence:c.originalSequence,daysToDeliver:c.daysToDeliver,address:c.address,city:c.city,state:c.state,zip:c.zip,country:'',lat:c.lat,lng:c.lng,earliestTimeWindow:c.earliestTimeWindow,latestTimeWindow:c.latestTimeWindow,fixedServiceTime:h?(c.avgPlanServiceMinutes||c.avgActualServiceMinutes||c.fixedServiceTime):c.fixedServiceTime,variableServiceTime:h?0:c.variableServiceTime,orderHistoryCount:c.recentOrderCount||0,hasRecentOrder:h,avgCases:c.avgCases||0,avgCube:c.avgCube||0,avgWeight:c.avgWeight||0,avgPlanServiceMinutes:c.avgPlanServiceMinutes||0,avgActualServiceMinutes:c.avgActualServiceMinutes||0,dryCases:h?+(c.avgCases||0).toFixed(2):0,dryCube:h?+(c.avgCube||0).toFixed(2):0,dryWeight:h?+(c.avgWeight||0).toFixed(2):0,comment:h?'Holiday Routing generated from 30-day order averages.':'Holiday recommendation only. No order history in the last 30 days.',raw:c.raw||{}};};
+window.holidayStopServiceMinutes=function(stop){return nval(stop&&stop.avgPlanServiceMinutes)>0?Math.max(1,nval(stop.avgPlanServiceMinutes)):customerServiceMinutesFromFields(stop,5,0);};
+function pathMiles(route,list){const d=routeDepotPoint(route),pts=(list||[]).filter(s=>s.lat!==null&&s.lng!==null&&!isNaN(s.lat)&&!isNaN(s.lng));if(!d||!pts.length)return 0;let m=0,p=d;pts.forEach(s=>{m+=haversine(p.lat,p.lng,s.lat,s.lng);p=s;});return m+haversine(p.lat,p.lng,d.lat,d.lng);}
+function dayStats(assigned){const o={};HOLIDAY_DAYS.forEach(d=>o[d]={customers:0});routes.forEach(r=>{const d=routeDayName(r);(assigned[r.id]||[]).forEach(()=>{if(o[d])o[d].customers++;});});return o;}
+function insertion(route,list,stop,ctx={}){if(!route||holidayRouteBlocked(route)||!holidayRouteAllowedForCustomer(route,stop))return null;const cap=holidayCapacityCheck(route,list,stop);if(!cap.ok)return null;const base=list||[],bm=holidayEstimateRouteMetrics(route,base),bmi=pathMiles(route,base);let best=null;for(let i=0;i<=base.length;i++){const trial=base.slice(0,i).concat([stop],base.slice(i)),tm=holidayEstimateRouteMetrics(route,trial);if(tm.totalWorkMinutes>holidayRouteWindowMinutes(route)||tm.overDaily)continue;const addMiles=Math.max(0,pathMiles(route,trial)-bmi),addWork=Math.max(0,tm.totalWorkMinutes-bm.totalWorkMinutes),util=holidayRouteWindowMinutes(route)>0?tm.totalWorkMinutes/holidayRouteWindowMinutes(route):1,ds=ctx.dayStats?.[routeDayName(route)]?.customers||0,score=addMiles*5+addWork*1.6+base.length*1.4+ds*.7+(util>.92?(util-.92)*600:0)+stopToRouteDepotMiles(stop,route)*.08;if(!best||score<best.score)best={route,trial,insertIndex:i,addMiles,addWork,score,day:routeDayName(route)};}return best;}
+function bestCandidate(stop,routesList,assigned,preferredOnly=false){const ctx={dayStats:dayStats(assigned)};let best=null;(routesList||[]).forEach(r=>{if(preferredOnly&&!holidayRouteMatchesCustomer(r,stop))return;const c=insertion(r,assigned[r.id]||[],stop,ctx);if(c&&(!best||c.score<best.score))best=c;});return best;}
+function place(stop,c,assigned,reason,step,type){stop.routeId=c.route.id;stop.seq=(c.insertIndex||0)+1;stop.suggestedDeliveryDay=c.day;stop.suggestedRouteName=c.route.name;stop.suggestedRouteId=c.route.id;stop.holidayReason=reason;stop.suggestionStep=step;stop.suggestionType=type;assigned[c.route.id]=c.trial;assigned[c.route.id].forEach((s,i)=>s.seq=i+1);}
+function recommend(stop,c,reason,type){stop.routeId=null;stop.seq=0;stop.suggestedDeliveryDay=c.day;stop.suggestedRouteName=c.route.name;stop.suggestedRouteId=c.route.id;stop.holidayReason=reason;stop.suggestionStep='Step 2B';stop.suggestionType=type;}
+window.planHoliday=function(){if(!holidaySession.active){showToast('Import Holiday Routing data first.');return;}const selected=document.getElementById('holiday-dials-date')?.value||holidaySession.holidayDate;if(!refreshHolidaySessionForDate(selected)){showToast('Enter a valid Holiday Date.');return;}const excluded=new Set(holidayExcludedDays());excluded.add(holidaySession.holidayDay);const limits=holidayRouteLimitMap(),availableByDay={};HOLIDAY_DAYS.forEach(day=>{if(excluded.has(day)){availableByDay[day]=[];return;}let rs=routes.filter(r=>routeMatchesHolidayDay(r,day)&&!holidayRouteBlocked(r));const demand=holidayCustomerPool.filter(c=>c.needsHolidayPlanning&&c.hasRecentOrder&&c.lat!==null&&c.lng!==null);rs=rs.map(r=>{const d=routeDepotPoint(r),cap=holidayRouteCapacity(r),dist=d&&demand.length?demand.reduce((a,c)=>a+haversine(c.lat,c.lng,d.lat,d.lng),0)/demand.length:999999;return {r,score:dist-(cap.cube||0)*.02-(holidayRouteWindowMinutes(r)||0)*.01};}).sort((a,b)=>a.score-b.score).map(x=>x.r);const lim=limits[day]||0;availableByDay[day]=lim>0?rs.slice(0,lim):rs;});const available=Object.values(availableByDay).flat();if(!available.length){showToast('No available routes. Uncheck at least one planning day or import route templates.');return;}closeModal('holiday-dials-modal');showToast('Running holiday plan...');stops=stops.filter(s=>!s.holidayPlanning);holidaySuggestions=[];mapCleared=true;visibleRouteIds.clear();visibleStopIds.clear();const assigned={};routes.forEach(r=>assigned[r.id]=[]);let baselineRouted=0,baselineUnrouted=0,overnightTotal=0,overnightRouted=0,sameRoutePlaced=0,closestStopPlaced=0,layoverPlaced=0,generalPlaced=0,capacityBlocked=0,recommendationOnly=0,recommendationUnfit=0;
+holidayCustomerPool.filter(c=>!c.holidayAffected&&c.hasRecentOrder).forEach(c=>{const s=holidayMakeBaselineStop(c),day=c.originalDeliveryDay;let cand=bestCandidate(s,(availableByDay[day]||[]).filter(r=>holidayRouteMatchesCustomer(r,c)),assigned,true)||bestCandidate(s,availableByDay[day]||[],assigned,false);if(cand){place(s,cand,assigned,'Step 1 baseline: recent-order customer assigned using order-history averages.','Step 1','Baseline current week');stops.push(s);baselineRouted++;}else baselineUnrouted++;});
+const noneNeeded=holidayCustomerPool.filter(c=>c.holidayAffected&&c.noReplacementNeeded).map(c=>createHolidayNoneNeededResult(c));holidaySuggestions.push(...noneNeeded);const actual=holidayCustomerPool.filter(c=>c.holidayAffected&&c.needsHolidayPlanning&&c.hasRecentOrder).map(c=>createHolidayPlanningStop(c));const noOrder=holidayCustomerPool.filter(c=>c.holidayAffected&&c.needsHolidayPlanning&&!c.hasRecentOrder).map(c=>createHolidayPlanningStop(c));
+actual.sort((a,b)=>(holidayOvernightCustomer(a)?0:1)-(holidayOvernightCustomer(b)?0:1)||tCube(b)-tCube(a)||tCases(b)-tCases(a)).forEach(s=>{if(holidayOvernightCustomer(s))overnightTotal++;if(s.lat===null||s.lng===null||isNaN(s.lat)||isNaN(s.lng)){s.holidayReason='No latitude/longitude available for routing.';s.suggestionStep='Step 2A';s.suggestionType='Not routed';stops.push(s);holidaySuggestions.push(s);return;}let cand=null;if(holidayRouteLocked(s)){cand=bestCandidate(s,available.filter(r=>holidayRouteMatchesCustomer(r,s)),assigned,true);if(cand){sameRoutePlaced++;place(s,cand,assigned,'Step 2A: recent-order customer placed on same locked route using 30-day averages; added '+cand.addMiles.toFixed(1)+' mi / '+fmtMinutes(cand.addWork)+'.','Step 2A','Same locked route');}}
+if(!cand&&holidayOvernightCustomer(s)){const close=holidayFindClosestScheduledStop(s,stops.filter(x=>x.routeId&&x.lat!==null&&x.lng!==null&&!isNaN(x.lat)&&!isNaN(x.lng)),30);if(close){cand=insertion(close.route,assigned[close.route.id]||[],s,{dayStats:dayStats(assigned)});if(cand){overnightRouted++;closestStopPlaced++;place(s,cand,assigned,'Step 2A overnight: inserted near closest scheduled stop within '+close.miles.toFixed(1)+' miles.','Step 2A','Overnight closest stop');}}}
+if(!cand&&holidayOvernightCustomer(s)){cand=bestCandidate(s,available.filter(holidayLayoverRoute),assigned,false);if(cand){overnightRouted++;layoverPlaced++;place(s,cand,assigned,'Step 2A overnight fallback: best fitting layover route by insertion score.','Step 2A','Layover route');}}
+if(!cand){cand=bestCandidate(s,available,assigned,false);if(cand){generalPlaced++;place(s,cand,assigned,'Step 2A fallback: best insertion score using added miles, work time, capacity utilization, route density, and day balance; added '+cand.addMiles.toFixed(1)+' mi / '+fmtMinutes(cand.addWork)+'.','Step 2A','Best insertion route');}}
+if(!cand){const cap=holidayBestCapacityBlockedCandidate(s,availableByDay,assigned,holidayRouteLocked(s));if(cap){s.suggestedDeliveryDay=cap.day;s.suggestedRouteName=cap.route.name;s.suggestedRouteId=cap.route.id;s.holidayReason='Capacity issue: best fit was '+cap.route.name+' on '+cap.day+', but it would exceed truck capacity ('+cap.check.capacity.reason+').';s.suggestionStep='Step 2A';s.suggestionType='Capacity blocked';capacityBlocked++;}else{s.holidayReason='No available route/day found after route-lock, overnight, insertion, time, day-cap, and capacity checks.';s.suggestionStep='Step 2A';s.suggestionType='Not routed';}}stops.push(s);holidaySuggestions.push(s);});
+let ids=new Set(stops.filter(s=>s.routeId).map(s=>s.routeId));ids.forEach(id=>optimizeRouteIfPossible(id,{optimizationDriver:'distance',respectResource:false,respectPosition:true}));const stage2=secondStageRouteOptimization([...ids],{optimizationDriver:'distance',respectResource:false,respectPosition:true});const finalRejected=holidayEnforceFinalRouteLimits([...ids]);routes.forEach(r=>assigned[r.id]=stops.filter(s=>s.routeId===r.id).sort((a,b)=>(a.seq||0)-(b.seq||0)));
+noOrder.forEach(s=>{if(s.lat===null||s.lng===null||isNaN(s.lat)||isNaN(s.lng)){s.holidayReason='Recommendation only: no latitude/longitude available.';s.suggestionStep='Step 2B';s.suggestionType='Recommendation only - no order';recommendationUnfit++;}else{let cand=holidayRouteLocked(s)?bestCandidate(s,available.filter(r=>holidayRouteMatchesCustomer(r,s)),assigned,true):null;cand=cand||bestCandidate(s,available,assigned,false);if(cand){recommend(s,cand,'Recommendation only: no order history in the last 30 days, so this customer is left unassigned. If they order, recommended route is '+cand.route.name+' on '+cand.day+'; estimated incremental impact '+cand.addMiles.toFixed(1)+' mi / '+fmtMinutes(cand.addWork)+'.','Recommendation only - no order');recommendationOnly++;}else{s.suggestedDeliveryDay='Not Routed';s.suggestedRouteName='Unassigned';s.holidayReason='Recommendation only: no recent order and no feasible route/day recommendation found within time, route-lock, and capacity rules.';s.suggestionStep='Step 2B';s.suggestionType='Recommendation only - no fit';recommendationUnfit++;}}stops.push(s);holidaySuggestions.push(s);});
+reseq();holidaySession.planned=true;holidaySession.lastPlanStats={baselineRouted,baselineUnrouted,overnightTotal,overnightRouted,sameRoutePlaced,closestStopPlaced,layoverPlaced,generalPlaced,capacityBlocked,finalRejected,holidayStage2:stage2,recommendationOnly,recommendationUnfit,orderHistoryRows:orderRows,blockedRoutes:routes.filter(holidayRouteBlocked).length,truckTemplates:trucks.length};expanded.clear();mapCleared=true;visibleRouteIds.clear();visibleStopIds.clear();render();renderRoutes();const planned=holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).length,notRouted=holidaySuggestions.filter(s=>s.needsHolidayPlanning&&!s.routeId&&!String(s.suggestionType||'').includes('Recommendation only')).length,routesUsed=new Set(holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).map(s=>s.routeId)).size;showJob('Holiday Plan Complete','<strong>Customer Order History Rows:</strong> '+orderRows.toLocaleString()+'<br/><strong>Recent-order Customers Routed:</strong> '+planned.toLocaleString()+' / '+actual.length.toLocaleString()+'<br/><strong>No-order Customers Recommended Only:</strong> '+recommendationOnly.toLocaleString()+' / '+noOrder.length.toLocaleString()+'<br/><strong>None Needed (3+ True Delivery Days):</strong> '+noneNeeded.length.toLocaleString()+'<br/><strong>Not Routed:</strong> '+notRouted.toLocaleString()+'<br/><strong>Routes Used for Actual Replacement Orders:</strong> '+routesUsed.toLocaleString()+'<br/><strong>Capacity Blocked:</strong> '+capacityBlocked.toLocaleString()+'<br/><strong>Points Logic:</strong> Candidate routes are scored by insertion impact: added miles, added work time, capacity utilization, route density, depot proximity, and day balance. Customers without recent order history stay unassigned and receive route recommendations only.<br/><strong>Network Review:</strong> '+stage2.consolidated.toLocaleString()+' consolidation move(s), '+stage2.swapped.toLocaleString()+' swap(s).');};
+})();
+
+</script>
 </body>
 </html>
+
+
+
