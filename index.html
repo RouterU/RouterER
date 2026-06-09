@@ -155,6 +155,8 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
 .map-drop-hint{font-size:10px;color:var(--text3);padding:0 4px;white-space:nowrap;}
 .map-layer-toggle{background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text1);font-size:11px;font-family:'Sora',sans-serif;padding:5px 7px;}
 .map-layer-toggle:focus{outline:none;border-color:var(--accent);}
+.lasso-rectangle{position:absolute;border:2px dashed var(--accent);background:rgba(79,140,255,.16);pointer-events:none;z-index:1200;display:none;}
+.btn.active-tool{background:var(--accent);border-color:var(--accent);color:#fff;}
 .stop-context-item.disabled{opacity:.4;cursor:not-allowed;}
 .stop-context-item.disabled:hover{background:transparent;}
 .stop-context-routes{max-height:190px;overflow-y:auto;margin-top:4px;border-top:1px solid var(--border);padding-top:4px;}
@@ -380,9 +382,14 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
       <button class="btn" onclick="clearMapView()" title="Remove all routes and stops from the map">Clear Map</button>
       <button class="btn" onclick="displayAllRoutesOnMap()" title="Display every assigned route on the map">Display All Routes</button>
       <button class="btn" onclick="displayAllUnassignedStopsOnMap()" title="Display every unassigned stop on the map">Display All Unassigned Stops</button>
+      <button class="btn" id="street-view-btn" onclick="toggleStreetViewMode()" title="Click this, then click a stop to open Street View">&#128694; Street View</button>
+      <button class="btn" id="measure-miles-btn" onclick="toggleMeasureMilesMode()" title="Click this, then click two stops to measure miles">&#128207; Measure Miles</button>
+      <button class="btn" id="lasso-stops-btn" onclick="toggleLassoStops()" title="Draw a box on the map to select visible stops">&#9744; Lasso Stops</button>
+      <button class="btn" id="route-lines-btn" onclick="toggleRouteLines()" title="Show or hide dotted route lines">&#9745; Route Lines</button>
       <span class="map-drop-hint">Drag routes/stops here to display</span>
     </div>
     <div id="map"></div>
+    <div id="lasso-rectangle" class="lasso-rectangle"></div>
     <div class="map-legend" id="map-legend">
       <div class="map-legend-title">Routes</div>
       <div id="legend-items"></div>
@@ -692,6 +699,13 @@ let routeSort=""; // optional route sort; blank keeps import/original order
 let routeDayDisplayFilter=""; // optional left-panel route day filter; blank shows all days
 let activeRouteFilterId=null;
 let activeStopFilterId=null;
+let streetViewMode=false;
+let measureMilesMode=false;
+let measureStartStopId=null;
+let lassoStopsMode=false;
+let lassoStartPoint=null;
+let lassoRectangle=null;
+let routeLinesVisible=true;
 
 // ============================================================
 // PERFORMANCE CACHE
@@ -762,6 +776,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   const mapEl=document.getElementById('map');
   mapEl.addEventListener('dragover',e=>e.preventDefault());
   mapEl.addEventListener('drop',dropOnMap);
+  map.on('click',()=>{ if(!streetViewMode && !measureMilesMode && !lassoStopsMode){ clearAllFilters(); } });
+  initLassoSelection();
   initSplitter();
   render();
 });
@@ -1062,15 +1078,28 @@ function minutesToHHMM(total){
 }
 function toggleRouteFilter(routeId){
   activeRouteFilterId=activeRouteFilterId===routeId?null:routeId;
-  if(activeRouteFilterId) expanded.add(routeId);
+  activeStopFilterId=null;
+  if(activeRouteFilterId){
+    expanded.add(routeId);
+    mapCleared=false;
+    fitRouteToMap(routeId);
+  }
   renderRoutes();
+  renderUA();
+  renderMap();
+  renderLegend();
 }
 function toggleStopFilter(stopId){
-  activeStopFilterId=activeStopFilterId===stopId?null:stopId;
   const s=stops.find(x=>x.id===stopId);
+  if(streetViewMode){openStreetViewForStop(stopId);return;}
+  if(measureMilesMode){handleMeasureStopClick(stopId);return;}
+  activeStopFilterId=activeStopFilterId===stopId?null:stopId;
+  activeRouteFilterId=null;
   if(activeStopFilterId&&s&&s.routeId) expanded.add(s.routeId);
   renderRoutes();
   renderUA();
+  renderMap();
+  renderLegend();
 }
 function routeMatchesFilter(route){
   if(activeRouteFilterId)return route.id===activeRouteFilterId;
@@ -1080,7 +1109,23 @@ function stopMatchesFilter(stop){
   if(activeStopFilterId)return stop.id===activeStopFilterId;
   return true;
 }
-function clearLeftFilter(){activeRouteFilterId=null;activeStopFilterId=null;renderRoutes();renderUA();}
+function clearLeftFilter(){activeRouteFilterId=null;activeStopFilterId=null;renderRoutes();renderUA();renderMap();renderLegend();}
+function clearAllFilters(){
+  activeRouteFilterId=null;
+  activeStopFilterId=null;
+  routeDayDisplayFilter='';
+  potColors={};
+  potRouteSuggestions={};
+  measureStartStopId=null;
+  streetViewMode=false;
+  measureMilesMode=false;
+  lassoStopsMode=false;
+  updateMapToolButtons();
+  const dayFilterSelect=document.getElementById('route-day-display-filter');
+  if(dayFilterSelect)dayFilterSelect.value='';
+  renderRoutes();renderUA();renderMap();renderLegend();updateAssignPotentialButton();
+  showToast('Filters cleared');
+}
 
 function normalizeKey(value){return (value??'').toString().trim();}
 function findDepotByKey(key){
@@ -1125,7 +1170,7 @@ function depotLatLng(depot){return depot&&depot.lat&&depot.lng?[depot.lat,depot.
 // ============================================================
 function render(){
   if(routeCacheDirty)rebuildRouteStopIndex();
-  renderStats(); renderRoutes(); renderUA(); renderMap(); renderLegend(); updateApplyBar(); updateAssignPotentialButton();
+  renderStats(); renderRoutes(); renderUA(); renderMap(); renderLegend(); updateApplyBar(); updateAssignPotentialButton(); updateMapToolButtons();
 }
 
 function renderStats(){
@@ -1143,6 +1188,9 @@ function renderStats(){
     <div class="stat"><div class="stat-val">${tc.toLocaleString()}</div><div class="stat-lbl">Cases</div></div>
     <div class="stat"><div class="stat-val">${Math.round(tw).toLocaleString()}</div><div class="stat-lbl">Weight</div></div>
     <div class="stat"><div class="stat-val">${tcu.toFixed(1)}</div><div class="stat-lbl">Cube</div></div>
+    <div style="display:flex;align-items:center;padding:4px 10px;border-right:1px solid var(--border);">
+      <button class="btn" onclick="clearAllFilters()" title="Clear route, stop, day, selected map, lasso, and potential filters" style="padding:4px 9px;font-size:10px;">Clear Filters</button>
+    </div>
     <div class="stats-actions">
       <button class="btn" onclick="openOptimizationModal('selected')" title="Optimize the checked route(s), or the open route manifest route">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h6l3-9 3 18 3-9h3"/></svg>
@@ -1307,6 +1355,8 @@ function renderMap(){
   markers={}; polylines={};
   stops.forEach(s=>{
     if(!s.lat||!s.lng) return;
+    if(activeRouteFilterId && s.routeId!==activeRouteFilterId) return;
+    if(activeStopFilterId && s.id!==activeStopFilterId) return;
     if(mapCleared && !visibleStopIds.has(s.id) && !(s.routeId&&visibleRouteIds.has(s.routeId))) return;
     const color=s.routeId?routeColor(s.routeId):(potColors[s.id]||'#5c6480');
     const label=s.routeId?s.seq:'?';
@@ -1331,7 +1381,7 @@ function renderMap(){
       const original=ev.originalEvent||{};
       openStopContextMenu(s.id, original.clientX || 0, original.clientY || 0);
     });
-    m.on('click',()=>toggleStopFilter(s.id));
+    m.on('click',(ev)=>{L.DomEvent.stopPropagation(ev);toggleStopFilter(s.id);});
     m.on('dragstart',()=>{dragState={sid:s.id,mapMarker:true,fromRoute:s.routeId||null};});
     m.on('dragend',(ev)=>handleMarkerDropOnRouteLine(s.id, ev.target.getLatLng()));
     m.on('mouseover',()=>highlightStop(s.id));
@@ -1339,6 +1389,8 @@ function renderMap(){
     markers[s.id]=m;
   });
   routes.forEach((r,ri)=>{
+    if(activeRouteFilterId && r.id!==activeRouteFilterId) return;
+    if(activeStopFilterId && !getRouteStops(r.id).some(s=>s.id===activeStopFilterId)) return;
     if(mapCleared && !visibleRouteIds.has(r.id)) return;
     const color=COLORS[ri%COLORS.length];
     const init=routeInitialDepot(r);
@@ -1361,9 +1413,9 @@ function renderMap(){
     if(init&&init.lat&&init.lng)points.push([init.lat,init.lng]);
     rs.forEach(s=>points.push([s.lat,s.lng]));
     if(fin&&fin.lat&&fin.lng)points.push([fin.lat,fin.lng]);
-    if(points.length<2) return;
+    if(points.length<2 || !routeLinesVisible) return;
     polylines[r.id]=L.polyline(points,{color,weight:4,opacity:.72,dashArray:'5,4'}).addTo(map);
-    polylines[r.id].on('click',()=>toggleRouteFilter(r.id));
+    polylines[r.id].on('click',(ev)=>{L.DomEvent.stopPropagation(ev);toggleRouteFilter(r.id);});
     polylines[r.id].on('mouseover',()=>{highlightRoute(r.id); if(polylines[r.id]) polylines[r.id].setStyle({weight:8,opacity:.95});});
     polylines[r.id].on('mouseout',()=>{clearMapHighlight(); if(polylines[r.id]) polylines[r.id].setStyle({weight:4,opacity:.72});});
     polylines[r.id].on('contextmenu',ev=>{
@@ -1376,7 +1428,7 @@ function renderMap(){
 
 function renderLegend(){
   document.getElementById('legend-items').innerHTML=
-    routes.map((r,ri)=>`<div class="legend-item"><div class="legend-dot" style="background:${COLORS[ri%COLORS.length]}"></div><div class="legend-label">${r.name}</div></div>`).join('')||
+    routes.filter(r=>!activeRouteFilterId||r.id===activeRouteFilterId).filter(r=>!activeStopFilterId||getRouteStops(r.id).some(s=>s.id===activeStopFilterId)).map((r,ri)=>`<div class="legend-item"><div class="legend-dot" style="background:${routeColor(r.id)}"></div><div class="legend-label">${r.name}</div></div>`).join('')||
     '<div style="font-size:10px;color:var(--text3)">No routes</div>';
 }
 
@@ -1827,6 +1879,105 @@ function handleMarkerDropOnRouteLine(stopId,latlng){
 }
 
 
+
+// ============================================================
+// MAP TOOL BUTTONS: STREET VIEW, MEASURE, LASSO, ROUTE LINES
+// ============================================================
+function updateMapToolButtons(){
+  const sv=document.getElementById('street-view-btn');
+  const mm=document.getElementById('measure-miles-btn');
+  const ls=document.getElementById('lasso-stops-btn');
+  const rl=document.getElementById('route-lines-btn');
+  if(sv)sv.classList.toggle('active-tool',streetViewMode);
+  if(mm)mm.classList.toggle('active-tool',measureMilesMode);
+  if(ls){ls.classList.toggle('active-tool',lassoStopsMode);ls.innerHTML=(lassoStopsMode?'&#9745;':'&#9744;')+' Lasso Stops';}
+  if(rl){rl.classList.toggle('active-tool',routeLinesVisible);rl.innerHTML=(routeLinesVisible?'&#9745;':'&#9744;')+' Route Lines';}
+}
+function toggleStreetViewMode(){
+  streetViewMode=!streetViewMode;
+  if(streetViewMode){measureMilesMode=false;lassoStopsMode=false;measureStartStopId=null;showToast('Street View mode: click a stop on the map.');}
+  updateMapToolButtons();
+}
+function openStreetViewForStop(stopId){
+  const s=stops.find(x=>x.id===stopId);
+  if(!s||!s.lat||!s.lng){showToast('This stop does not have coordinates.');return;}
+  window.open(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${s.lat},${s.lng}`,'_blank');
+  streetViewMode=false;updateMapToolButtons();
+}
+function contextStreetView(stopId){closeStopContextMenu();openStreetViewForStop(stopId);}
+function toggleMeasureMilesMode(){
+  measureMilesMode=!measureMilesMode;
+  if(measureMilesMode){streetViewMode=false;lassoStopsMode=false;measureStartStopId=null;showToast('Measure mode: click the first stop, then the second stop.');}
+  updateMapToolButtons();
+}
+function contextMeasureFromStop(stopId){
+  closeStopContextMenu();
+  measureMilesMode=true;streetViewMode=false;lassoStopsMode=false;measureStartStopId=stopId;updateMapToolButtons();
+  const s=stops.find(x=>x.id===stopId);
+  showToast(`Measuring from ${s?.customerName||'selected stop'}. Click the second stop.`);
+}
+function handleMeasureStopClick(stopId){
+  if(!measureStartStopId){
+    measureStartStopId=stopId;
+    const s=stops.find(x=>x.id===stopId);
+    showToast(`First point set: ${s?.customerName||'Stop'}. Click the second stop.`);
+    return;
+  }
+  const a=stops.find(x=>x.id===measureStartStopId);
+  const b=stops.find(x=>x.id===stopId);
+  if(!a||!b||!a.lat||!a.lng||!b.lat||!b.lng){showToast('Both stops need coordinates.');return;}
+  const straight=haversine(a.lat,a.lng,b.lat,b.lng);
+  const road=roadAdjustedMiles(straight);
+  showToast(`${a.customerName||'Stop 1'} to ${b.customerName||'Stop 2'}: ${straight.toFixed(1)} straight-line mi / ~${road.toFixed(1)} road mi`);
+  measureStartStopId=null;measureMilesMode=false;updateMapToolButtons();
+}
+function toggleLassoStops(){
+  lassoStopsMode=!lassoStopsMode;
+  if(lassoStopsMode){streetViewMode=false;measureMilesMode=false;measureStartStopId=null;showToast('Lasso mode: drag a box around stops on the map.');}
+  updateMapToolButtons();
+}
+function toggleRouteLines(){
+  routeLinesVisible=!routeLinesVisible;
+  renderMap();
+  updateMapToolButtons();
+  showToast(routeLinesVisible?'Route lines shown':'Route lines hidden');
+}
+function initLassoSelection(){
+  const rect=document.getElementById('lasso-rectangle');
+  const area=document.querySelector('.map-area');
+  if(!rect||!area||!map)return;
+  map.on('mousedown',ev=>{
+    if(!lassoStopsMode)return;
+    lassoStartPoint=map.latLngToContainerPoint(ev.latlng);
+    L.DomEvent.stopPropagation(ev);
+    rect.style.left=lassoStartPoint.x+'px';rect.style.top=lassoStartPoint.y+'px';rect.style.width='0px';rect.style.height='0px';rect.style.display='block';
+    map.dragging.disable();
+  });
+  map.on('mousemove',ev=>{
+    if(!lassoStopsMode||!lassoStartPoint)return;
+    const p=map.latLngToContainerPoint(ev.latlng);
+    const left=Math.min(lassoStartPoint.x,p.x), top=Math.min(lassoStartPoint.y,p.y);
+    const width=Math.abs(p.x-lassoStartPoint.x), height=Math.abs(p.y-lassoStartPoint.y);
+    rect.style.left=left+'px';rect.style.top=top+'px';rect.style.width=width+'px';rect.style.height=height+'px';
+  });
+  map.on('mouseup',ev=>{
+    if(!lassoStopsMode||!lassoStartPoint)return;
+    const end=map.latLngToContainerPoint(ev.latlng);
+    const b=L.bounds(lassoStartPoint,end);
+    let selected=0;
+    stops.forEach(s=>{
+      if(!s.lat||!s.lng)return;
+      if(activeRouteFilterId&&s.routeId!==activeRouteFilterId)return;
+      if(mapCleared&&!visibleStopIds.has(s.id)&&!(s.routeId&&visibleRouteIds.has(s.routeId)))return;
+      const pt=map.latLngToContainerPoint([s.lat,s.lng]);
+      if(b.contains(pt)){s.uiChecked=true;selected++;}
+    });
+    rect.style.display='none';lassoStartPoint=null;map.dragging.enable();
+    renderRoutes();renderUA();
+    showToast(selected?`Lasso selected ${selected} stop(s). Use Show Selected or Assign options.`:'No stops found inside lasso.');
+  });
+}
+
 // ============================================================
 // MAP RIGHT-CLICK STOP MENU
 // ============================================================
@@ -1846,20 +1997,22 @@ function openStopContextMenu(stopId,x,y){
 
   menu.innerHTML=`
     <div class="stop-context-title">${stop.customerName||'Stop'} ${currentRoute?`&middot; ${currentRoute.name}`:'&middot; Unassigned'}</div>
+    <button class="stop-context-item" onclick="contextStreetView('${stopId}')"><span>Street View</span><span>&#128694;</span></button>
+    <button class="stop-context-item" onclick="contextMeasureFromStop('${stopId}')"><span>Measure miles from this stop</span><span>&#128207;</span></button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextUnassignStop('${stopId}')`:'return false'}">
-      <span>Unassign</span><span>â†©</span>
+      <span>Unassign</span><span>&#8617;</span>
     </button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextResequenceRoute('${stop.routeId}')`:'return false'}">
-      <span>Resequence current route</span><span>âŒ</span>
+      <span>Resequence current route</span><span>&#9776;</span>
     </button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextShowAlongRoad('${stop.routeId}')`:'return false'}">
       <span>Show Along The Road</span><span>&#128739;</span>
     </button>
     <button class="stop-context-item" onclick="contextRemoveStopFromMap('${stopId}')">
-      <span>Remove Stop from Map</span><span>âœ•</span>
+      <span>Remove Stop from Map</span><span>&#10005;</span>
     </button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextRemoveRouteFromMap('${stop.routeId}')`:'return false'}">
-      <span>Remove Route from Map</span><span>â–¡</span>
+      <span>Remove Route from Map</span><span>&#9633;</span>
     </button>
     <div class="stop-context-routes">
       <div style="font-size:10px;color:var(--text3);padding:3px 8px 5px;text-transform:uppercase;letter-spacing:.5px;">Assign to Route</div>
@@ -1880,9 +2033,9 @@ function openRouteContextMenu(routeId,x,y){
   if(!menu||!route)return;
   menu.innerHTML=`
     <div class="stop-context-title">${route.name||'Route'}</div>
-    <button class="stop-context-item" onclick="contextResequenceRoute('${routeId}')"><span>Resequence Route</span><span>âŒ</span></button>
+    <button class="stop-context-item" onclick="contextResequenceRoute('${routeId}')"><span>Resequence Route</span><span>&#9776;</span></button>
     <button class="stop-context-item" onclick="contextShowAlongRoad('${routeId}')"><span>Show Along The Road</span><span>&#128739;</span></button>
-    <button class="stop-context-item" onclick="contextRemoveRouteFromMap('${routeId}')"><span>Remove Route from Map</span><span>â–¡</span></button>`;
+    <button class="stop-context-item" onclick="contextRemoveRouteFromMap('${routeId}')"><span>Remove Route from Map</span><span>&#9633;</span></button>`;
   menu.style.display='block';
   const rect=menu.getBoundingClientRect();
   menu.style.left=Math.max(8,Math.min(x,window.innerWidth-rect.width-12))+'px';
@@ -2197,7 +2350,7 @@ function renderRouteManifest(){
       ondragleave="manifestDragLeave(event)"
       ondrop="manifestDrop(event,'${s.id}')"
       ondragend="manifestDragEnd()"
-      onclick="toggleStopFilter('${s.id}')"
+      onclick="openStopDetail('${s.id}')"
       onmouseenter="highlightStop('${s.id}')" onmouseleave="clearMapHighlight()"`;
     return `<div class="manifest-row ${isDepot?'depot':'stop'}${violationClass}" ${dragAttrs} style="${isRest?'background:rgba(245,158,11,.16);box-shadow:inset 4px 0 0 var(--warn);':''}">
       <div class="manifest-seq">${seq}</div>
