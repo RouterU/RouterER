@@ -156,6 +156,7 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
 .map-layer-toggle{background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text1);font-size:11px;font-family:'Sora',sans-serif;padding:5px 7px;}
 .map-layer-toggle:focus{outline:none;border-color:var(--accent);}
 .lasso-rectangle{position:absolute;border:2px dashed var(--accent);background:rgba(79,140,255,.16);pointer-events:none;z-index:1200;display:none;}
+.lasso-selected-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:999px;background:var(--accent);color:#fff;font-family:'DM Mono',monospace;font-size:10px;font-weight:800;margin-left:4px;}
 .btn.active-tool{background:var(--accent);border-color:var(--accent);color:#fff;}
 .stop-context-item.disabled{opacity:.4;cursor:not-allowed;}
 .stop-context-item.disabled:hover{background:transparent;}
@@ -706,6 +707,8 @@ let measureStartStopId=null;
 let lassoStopsMode=false;
 let lassoStartPoint=null;
 let lassoRectangle=null;
+let lassoSelectedStopIds=new Set();
+let hiddenStopIds=new Set();
 let routeLinesVisible=true;
 
 // ============================================================
@@ -1155,6 +1158,8 @@ function clearAllFilters(){
   routeDayDisplayFilter='';
   potColors={};
   potRouteSuggestions={};
+  lassoSelectedStopIds.clear();
+  hiddenStopIds.clear();
   measureStartStopId=null;
   streetViewMode=false;
   measureMilesMode=false;
@@ -1394,13 +1399,17 @@ function renderMap(){
   markers={}; polylines={};
   stops.forEach(s=>{
     if(!s.lat||!s.lng) return;
+    if(hiddenStopIds.has(s.id)) return;
     if(activeRouteFilterId && s.routeId!==activeRouteFilterId) return;
     if(activeStopFilterId && s.id!==activeStopFilterId) return;
     if(mapCleared && !visibleStopIds.has(s.id) && !(s.routeId&&visibleRouteIds.has(s.routeId))) return;
     const color=s.routeId?routeColor(s.routeId):(potColors[s.id]||'#5c6480');
     const label=s.routeId?s.seq:'?';
+    const lassoSelected=lassoSelectedStopIds.has(s.id);
+    const markerBorder=lassoSelected?'#fbbf24':(s.routeId?'#fff':'rgba(255,255,255,.35)');
+    const markerShadow=lassoSelected?'0 0 0 4px rgba(251,191,36,.35),0 2px 10px rgba(0,0,0,.55)':'0 2px 8px rgba(0,0,0,.5)';
     const icon=L.divIcon({className:'',
-      html:`<div style="width:24px;height:24px;border-radius:50%;background:${color};border:2px solid ${s.routeId?'#fff':'rgba(255,255,255,.35)'};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;font-family:DM Mono,monospace;box-shadow:0 2px 8px rgba(0,0,0,.5);">${label}</div>`,
+      html:`<div style="width:24px;height:24px;border-radius:50%;background:${color};border:2px solid ${markerBorder};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;font-family:DM Mono,monospace;box-shadow:${markerShadow};">${label}</div>`,
       iconSize:[24,24],iconAnchor:[12,12]});
     const m=L.marker([s.lat,s.lng],{icon,draggable:true}).addTo(map);
     const r=routes.find(x=>x.id===s.routeId)||{};
@@ -1421,7 +1430,11 @@ function renderMap(){
       openStopContextMenu(s.id, original.clientX || 0, original.clientY || 0);
     });
     m.on('click',(ev)=>{L.DomEvent.stopPropagation(ev);toggleStopFilter(s.id);});
-    m.on('dragstart',()=>{dragState={sid:s.id,mapMarker:true,fromRoute:s.routeId||null};});
+    m.on('dragstart',()=>{
+      const selectedIds=lassoSelectedStopIds.has(s.id)?Array.from(lassoSelectedStopIds):[];
+      dragState={sid:s.id,mapMarker:true,fromRoute:s.routeId||null,lassoStopIds:selectedIds};
+      if(selectedIds.length>1)showToast(`Dragging ${selectedIds.length} lasso-selected stop(s). Drop on a route line.`);
+    });
     m.on('dragend',(ev)=>handleMarkerDropOnRouteLine(s.id, ev.target.getLatLng()));
     m.on('mouseover',()=>highlightStop(s.id));
     m.on('mouseout',()=>clearMapHighlight());
@@ -1447,7 +1460,7 @@ function renderMap(){
       markers[depotId]=m;
     });
 
-    const rs=getRouteStops(r.id).filter(s=>s.lat&&s.lng);
+    const rs=getRouteStops(r.id).filter(s=>s.lat&&s.lng&&!hiddenStopIds.has(s.id));
     const points=[];
     if(init&&init.lat&&init.lng)points.push([init.lat,init.lng]);
     rs.forEach(s=>points.push([s.lat,s.lng]));
@@ -1908,17 +1921,23 @@ function handleMarkerDropOnRouteLine(stopId,latlng){
     showToast('Drop the stop on or near a route line to move it.');
     return;
   }
-  const oldRouteId=stop.routeId;
-  stop.routeId=targetRouteId;
-  insertStopAfterClosestStop(stop,targetRouteId,latlng);
-  if(oldRouteId)reseq();
+  const clusterIds=(dragState&&Array.isArray(dragState.lassoStopIds)&&dragState.lassoStopIds.length)?dragState.lassoStopIds:[stopId];
+  const route=routes.find(r=>r.id===targetRouteId);
+  clusterIds.forEach((id,idx)=>{
+    const item=stops.find(s=>s.id===id);
+    if(!item)return;
+    item.routeId=targetRouteId;
+    if(idx===0)insertStopAfterClosestStop(item,targetRouteId,latlng);
+    else item.seq=Math.max(0,...stops.filter(x=>x.routeId===targetRouteId&&x.id!==item.id).map(x=>x.seq||0))+1;
+    hiddenStopIds.delete(item.id);
+    visibleStopIds.add(item.id);
+  });
   reseq();
   visibleRouteIds.add(targetRouteId);
-  visibleStopIds.add(stop.id);
   expanded.add(targetRouteId);
+  lassoSelectedStopIds.clear();
   render();
-  const route=routes.find(r=>r.id===targetRouteId);
-  showToast(`Moved stop to ${route?route.name:'route'} after closest stop`);
+  showToast(clusterIds.length>1?`Moved ${clusterIds.length} lasso-selected stops to ${route?route.name:'route'}`:`Moved stop to ${route?route.name:'route'} after closest stop`);
 }
 
 
@@ -2014,17 +2033,146 @@ function initLassoSelection(){
     const end=map.latLngToContainerPoint(ev.latlng);
     const b=L.bounds(lassoStartPoint,end);
     let selected=0;
+    lassoSelectedStopIds.clear();
     stops.forEach(s=>{
       if(!s.lat||!s.lng)return;
+      if(hiddenStopIds.has(s.id))return;
       if(activeRouteFilterId&&s.routeId!==activeRouteFilterId)return;
       if(mapCleared&&!visibleStopIds.has(s.id)&&!(s.routeId&&visibleRouteIds.has(s.routeId)))return;
       const pt=map.latLngToContainerPoint([s.lat,s.lng]);
-      if(b.contains(pt)){s.uiChecked=true;selected++;}
+      if(b.contains(pt)){s.uiChecked=true;lassoSelectedStopIds.add(s.id);selected++;}
     });
     rect.style.display='none';lassoStartPoint=null;map.dragging.enable();
-    renderRoutes();renderUA();
-    showToast(selected?`Lasso selected ${selected} stop(s). Use Show Selected or Assign options.`:'No stops found inside lasso.');
+    renderRoutes();renderUA();renderMap();
+    if(selected){
+      const oe=ev.originalEvent||{};
+      openLassoActionMenu(oe.clientX||0,oe.clientY||0);
+      showToast(`Lasso selected ${selected} stop(s). Choose an action from the menu.`);
+    }else{
+      closeStopContextMenu();
+      showToast('No stops found inside lasso.');
+    }
   });
+}
+
+
+function selectedLassoStops(){
+  return Array.from(lassoSelectedStopIds).map(id=>stops.find(s=>s.id===id)).filter(Boolean);
+}
+function openLassoActionMenu(x,y){
+  const menu=document.getElementById('stop-context-menu');
+  const selected=selectedLassoStops();
+  if(!menu||!selected.length)return;
+  const routeOptions=routes.length
+    ? routes.map((r,ri)=>`
+      <button class="stop-context-item" onclick="lassoAssignToRoute('${r.id}')">
+        <span><span class="stop-context-route-dot" style="background:${COLORS[ri%COLORS.length]}"></span>${escapeHtml(r.name||'Route')}</span>
+        <span style="color:var(--text3);font-size:10px;">${escapeHtml(r.routeTemplateKey||'')}</span>
+      </button>`).join('')
+    : '<div style="font-size:11px;color:var(--text3);padding:7px 8px;">No routes available</div>';
+  menu.innerHTML=`
+    <div class="stop-context-title">Lasso Selection <span class="lasso-selected-badge">${selected.length}</span></div>
+    <button class="stop-context-item" onclick="lassoShowServiceDetails()"><span>Show Service Details</span><span>&#128202;</span></button>
+    <button class="stop-context-item" onclick="lassoUnassignStops()"><span>Unassign Stops</span><span>&#8617;</span></button>
+    <button class="stop-context-item" onclick="lassoRemoveFromMap()"><span>Remove from map</span><span>&#10005;</span></button>
+    <button class="stop-context-item" onclick="lassoStartDragToRoute()"><span>Drag onto another route</span><span>&#128666;</span></button>
+    <div class="stop-context-routes">
+      <div style="font-size:10px;color:var(--text3);padding:3px 8px 5px;text-transform:uppercase;letter-spacing:.5px;">Assign to Route</div>
+      ${routeOptions}
+    </div>`;
+  menu.style.display='block';
+  const rect=menu.getBoundingClientRect();
+  menu.style.left=Math.max(8,Math.min(x||window.innerWidth/2,window.innerWidth-rect.width-12))+'px';
+  menu.style.top=Math.max(8,Math.min(y||window.innerHeight/2,window.innerHeight-rect.height-12))+'px';
+}
+function lassoAssignToRoute(routeId){
+  const selected=selectedLassoStops();
+  if(!selected.length){showToast('No lasso-selected stops.');return;}
+  selected.forEach(s=>{
+    s.routeId=routeId;
+    s.seq=Math.max(0,...stops.filter(x=>x.routeId===routeId&&x.id!==s.id).map(x=>x.seq||0))+1;
+    hiddenStopIds.delete(s.id);
+    visibleStopIds.add(s.id);
+    s.uiChecked=false;
+  });
+  expanded.add(routeId);
+  visibleRouteIds.add(routeId);
+  lassoSelectedStopIds.clear();
+  reseq();render();closeStopContextMenu();
+  const r=routes.find(x=>x.id===routeId);
+  showToast(`Assigned ${selected.length} selected stop(s) to ${r?.name||'route'}`);
+}
+function lassoUnassignStops(){
+  const selected=selectedLassoStops();
+  if(!selected.length){showToast('No lasso-selected stops.');return;}
+  selected.forEach(s=>{s.routeId=null;s.seq=0;s.uiChecked=false;visibleStopIds.add(s.id);hiddenStopIds.delete(s.id);});
+  lassoSelectedStopIds.clear();
+  reseq();render();closeStopContextMenu();
+  showToast(`Unassigned ${selected.length} selected stop(s)`);
+}
+function lassoRemoveFromMap(){
+  const selected=selectedLassoStops();
+  if(!selected.length){showToast('No lasso-selected stops.');return;}
+  ensureCustomMapView();
+  selected.forEach(s=>{visibleStopIds.delete(s.id);hiddenStopIds.add(s.id);s.uiChecked=false;});
+  lassoSelectedStopIds.clear();
+  render();closeStopContextMenu();
+  showToast(`Removed ${selected.length} selected stop(s) from the map`);
+}
+function lassoClusterMiles(selected){
+  const pts=selected.filter(s=>s.lat&&s.lng);
+  if(pts.length<2)return 0;
+  const sameRoute=pts.every(s=>s.routeId&&s.routeId===pts[0].routeId);
+  const ordered=sameRoute?pts.slice().sort((a,b)=>(a.seq||0)-(b.seq||0)):nearestNeighborOrder(pts);
+  let miles=0;
+  for(let i=1;i<ordered.length;i++)miles+=haversine(ordered[i-1].lat,ordered[i-1].lng,ordered[i].lat,ordered[i].lng);
+  return miles;
+}
+function nearestNeighborOrder(points){
+  if(!points.length)return [];
+  const remaining=points.slice();
+  const ordered=[remaining.shift()];
+  while(remaining.length){
+    const last=ordered[ordered.length-1];
+    let best=0,bestMiles=Infinity;
+    remaining.forEach((p,i)=>{const d=haversine(last.lat,last.lng,p.lat,p.lng);if(d<bestMiles){bestMiles=d;best=i;}});
+    ordered.push(remaining.splice(best,1)[0]);
+  }
+  return ordered;
+}
+function lassoShowServiceDetails(){
+  const selected=selectedLassoStops();
+  if(!selected.length){showToast('No lasso-selected stops.');return;}
+  const cases=selected.reduce((a,s)=>a+tCases(s),0);
+  const weight=selected.reduce((a,s)=>a+tWeight(s),0);
+  const cube=selected.reduce((a,s)=>a+tCube(s),0);
+  const service=selected.reduce((a,s)=>a+stopServiceMinutes(s),0);
+  const straightMiles=lassoClusterMiles(selected);
+  const roadMiles=roadAdjustedMiles(straightMiles);
+  const travel=driveMinutesForMiles(straightMiles);
+  const cpm=roadMiles>0?cases/roadMiles:0;
+  const assignedRoutes=new Set(selected.map(s=>s.routeId).filter(Boolean));
+  showJob('&#128202; Lasso Service Details',`
+    <strong>Selected Stops:</strong> ${selected.length}<br/>
+    <strong>Assigned Routes in Cluster:</strong> ${assignedRoutes.size||'Unassigned only'}<br/>
+    <strong>Total Cases:</strong> ${cases.toLocaleString()}<br/>
+    <strong>Total Weight:</strong> ${Math.round(weight).toLocaleString()} lbs<br/>
+    <strong>Total Cube:</strong> ${cube.toFixed(1)}<br/>
+    <strong>Calculated Service Time:</strong> ${fmtMinutes(service)}<br/>
+    <strong>Estimated Cluster Miles:</strong> ${straightMiles.toFixed(1)} straight-line / ~${roadMiles.toFixed(1)} road miles<br/>
+    <strong>Estimated Travel Time:</strong> ${fmtMinutes(travel)}<br/>
+    <strong>CPM:</strong> ${roadMiles>0?cpm.toFixed(1):'—'} cases per mile<br/><br/>
+    <span style="color:var(--text3);">Miles and travel time are estimated by sequencing the selected cluster. If all selected stops are on the same route, current route sequence is used; otherwise a nearest-neighbor estimate is used.</span>
+  `);
+  closeStopContextMenu();
+}
+function lassoStartDragToRoute(){
+  const selected=selectedLassoStops();
+  if(!selected.length){showToast('No lasso-selected stops.');return;}
+  closeStopContextMenu();
+  lassoStopsMode=false;
+  updateMapToolButtons();
+  showToast(`Drag any highlighted selected stop onto a route line to move all ${selected.length} selected stop(s).`);
 }
 
 // ============================================================
@@ -2098,7 +2246,7 @@ function ensureCustomMapView(){
   }
 }
 function clearMapView(){
-  mapCleared=true;visibleStopIds.clear();visibleRouteIds.clear();Object.values(roadPolylines).forEach(p=>map.removeLayer(p));roadPolylines={};renderMap();showToast('Map cleared. Drag routes or stops back onto the map.');
+  mapCleared=true;visibleStopIds.clear();visibleRouteIds.clear();hiddenStopIds.clear();Object.values(roadPolylines).forEach(p=>map.removeLayer(p));roadPolylines={};renderMap();showToast('Map cleared. Drag routes or stops back onto the map.');
 }
 
 function showSelectedRoutesOnMap(){
@@ -2120,6 +2268,7 @@ function showSelectedUnassignedOnMap(){
 }
 function displayAllRoutesOnMap(){
   mapCleared=true;
+  hiddenStopIds.clear();
   routes.forEach(r=>visibleRouteIds.add(r.id));
   stops.filter(s=>s.routeId).forEach(s=>visibleStopIds.add(s.id));
   renderMap();
@@ -2128,6 +2277,7 @@ function displayAllRoutesOnMap(){
 }
 function displayAllUnassignedStopsOnMap(){
   mapCleared=true;
+  hiddenStopIds.clear();
   stops.filter(s=>!s.routeId).forEach(s=>visibleStopIds.add(s.id));
   renderMap();
   fitMapToVisible();
@@ -2177,7 +2327,7 @@ function fitRoutesToMap(routeIds){
 }
 
 function contextRemoveStopFromMap(stopId){
-  ensureCustomMapView();visibleStopIds.delete(stopId);renderMap();closeStopContextMenu();showToast('Stop removed from map');
+  ensureCustomMapView();visibleStopIds.delete(stopId);hiddenStopIds.add(stopId);renderMap();closeStopContextMenu();showToast('Stop removed from map');
 }
 function contextRemoveRouteFromMap(routeId){
   ensureCustomMapView();visibleRouteIds.delete(routeId);stops.filter(s=>s.routeId===routeId).forEach(s=>visibleStopIds.delete(s.id));if(roadPolylines[routeId]){map.removeLayer(roadPolylines[routeId]);delete roadPolylines[routeId];}renderMap();closeStopContextMenu();showToast('Route removed from map');
