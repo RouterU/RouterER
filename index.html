@@ -699,6 +699,7 @@ let routeSort=""; // optional route sort; blank keeps import/original order
 let routeDayDisplayFilter=""; // optional left-panel route day filter; blank shows all days
 let activeRouteFilterId=null;
 let activeStopFilterId=null;
+let activeRouteFilterSnapshot=null;
 let streetViewMode=false;
 let measureMilesMode=false;
 let measureStartStopId=null;
@@ -776,7 +777,13 @@ window.addEventListener('DOMContentLoaded',()=>{
   const mapEl=document.getElementById('map');
   mapEl.addEventListener('dragover',e=>e.preventDefault());
   mapEl.addEventListener('drop',dropOnMap);
-  map.on('click',()=>{ if(!streetViewMode && !measureMilesMode && !lassoStopsMode){ clearAllFilters(); } });
+  map.on('click',(ev)=>{
+    if(streetViewMode){
+      openStreetViewAtLatLng(ev.latlng);
+      return;
+    }
+    if(!measureMilesMode && !lassoStopsMode){ clearAllFilters(); }
+  });
   initLassoSelection();
   initSplitter();
   render();
@@ -1076,14 +1083,46 @@ function minutesToHHMM(total){
   const h=Math.floor(normalized/60), m=normalized%60;
   return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
 }
+function captureMapVisibilityForFilter(){
+  return {
+    mapCleared,
+    visibleStopIds:Array.from(visibleStopIds),
+    visibleRouteIds:Array.from(visibleRouteIds)
+  };
+}
+function restoreMapVisibilityFromFilter(){
+  if(!activeRouteFilterSnapshot)return;
+  mapCleared=activeRouteFilterSnapshot.mapCleared;
+  visibleStopIds.clear();
+  (activeRouteFilterSnapshot.visibleStopIds||[]).forEach(id=>visibleStopIds.add(id));
+  visibleRouteIds.clear();
+  (activeRouteFilterSnapshot.visibleRouteIds||[]).forEach(id=>visibleRouteIds.add(id));
+  activeRouteFilterSnapshot=null;
+}
+function clearActiveRouteFilter(){
+  if(activeRouteFilterId)restoreMapVisibilityFromFilter();
+  activeRouteFilterId=null;
+}
 function toggleRouteFilter(routeId){
-  activeRouteFilterId=activeRouteFilterId===routeId?null:routeId;
-  activeStopFilterId=null;
-  if(activeRouteFilterId){
-    expanded.add(routeId);
-    mapCleared=false;
-    fitRouteToMap(routeId);
+  if(streetViewMode){
+    const line=polylines[routeId];
+    if(line&&line.getBounds&&line.getBounds().isValid())openStreetViewAtLatLng(line.getBounds().getCenter());
+    return;
   }
+  if(activeRouteFilterId===routeId){
+    clearActiveRouteFilter();
+    activeStopFilterId=null;
+    renderRoutes();
+    renderUA();
+    renderMap();
+    renderLegend();
+    return;
+  }
+  if(!activeRouteFilterId)activeRouteFilterSnapshot=captureMapVisibilityForFilter();
+  activeRouteFilterId=routeId;
+  activeStopFilterId=null;
+  expanded.add(routeId);
+  fitRouteToMap(routeId);
   renderRoutes();
   renderUA();
   renderMap();
@@ -1094,7 +1133,7 @@ function toggleStopFilter(stopId){
   if(streetViewMode){openStreetViewForStop(stopId);return;}
   if(measureMilesMode){handleMeasureStopClick(stopId);return;}
   activeStopFilterId=activeStopFilterId===stopId?null:stopId;
-  activeRouteFilterId=null;
+  clearActiveRouteFilter();
   if(activeStopFilterId&&s&&s.routeId) expanded.add(s.routeId);
   renderRoutes();
   renderUA();
@@ -1109,9 +1148,9 @@ function stopMatchesFilter(stop){
   if(activeStopFilterId)return stop.id===activeStopFilterId;
   return true;
 }
-function clearLeftFilter(){activeRouteFilterId=null;activeStopFilterId=null;renderRoutes();renderUA();renderMap();renderLegend();}
+function clearLeftFilter(){clearActiveRouteFilter();activeStopFilterId=null;renderRoutes();renderUA();renderMap();renderLegend();}
 function clearAllFilters(){
-  activeRouteFilterId=null;
+  clearActiveRouteFilter();
   activeStopFilterId=null;
   routeDayDisplayFilter='';
   potColors={};
@@ -1230,7 +1269,7 @@ function renderRoutes(){
   if(dayFilterSelect)dayFilterSelect.value=routeDayDisplayFilter;
   const displayCount=routes.filter(routeMatchesDayDisplayFilter).filter(routeMatchesFilter).length;
   const badgeText=routeDayDisplayFilter?`${displayCount} ${routeDayDisplayFilter} route(s)`:routes.length+' routes';
-  document.getElementById('route-badge').innerHTML=activeRouteFilterId?`<span class="filter-pill" onclick="activeRouteFilterId=null;renderRoutes()">Route Filter ×</span>`:badgeText;
+  document.getElementById('route-badge').innerHTML=activeRouteFilterId?`<span class="filter-pill" onclick="clearActiveRouteFilter();renderRoutes();renderUA();renderMap();renderLegend()">Route Filter ×</span>`:badgeText;
   if(!routes.length){
     el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4"/></svg><p>No routes yet — import or create one</p></div>';
     return;
@@ -1415,7 +1454,11 @@ function renderMap(){
     if(fin&&fin.lat&&fin.lng)points.push([fin.lat,fin.lng]);
     if(points.length<2 || !routeLinesVisible) return;
     polylines[r.id]=L.polyline(points,{color,weight:4,opacity:.72,dashArray:'5,4'}).addTo(map);
-    polylines[r.id].on('click',(ev)=>{L.DomEvent.stopPropagation(ev);toggleRouteFilter(r.id);});
+    polylines[r.id].on('click',(ev)=>{
+      L.DomEvent.stopPropagation(ev);
+      if(streetViewMode){openStreetViewAtLatLng(ev.latlng);return;}
+      toggleRouteFilter(r.id);
+    });
     polylines[r.id].on('mouseover',()=>{highlightRoute(r.id); if(polylines[r.id]) polylines[r.id].setStyle({weight:8,opacity:.95});});
     polylines[r.id].on('mouseout',()=>{clearMapHighlight(); if(polylines[r.id]) polylines[r.id].setStyle({weight:4,opacity:.72});});
     polylines[r.id].on('contextmenu',ev=>{
@@ -1896,6 +1939,12 @@ function updateMapToolButtons(){
 function toggleStreetViewMode(){
   streetViewMode=!streetViewMode;
   if(streetViewMode){measureMilesMode=false;lassoStopsMode=false;measureStartStopId=null;showToast('Street View mode: click a stop on the map.');}
+  updateMapToolButtons();
+}
+function openStreetViewAtLatLng(latlng){
+  if(!latlng||!Number.isFinite(latlng.lat)||!Number.isFinite(latlng.lng)){showToast('Click a valid map location for Street View.');return;}
+  window.open(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${latlng.lat},${latlng.lng}`,'_blank');
+  streetViewMode=false;
   updateMapToolButtons();
 }
 function openStreetViewForStop(stopId){
@@ -4483,6 +4532,7 @@ function clearSession(){
   routeDayDisplayFilter = "";
   activeRouteFilterId = null;
   activeStopFilterId = null;
+  activeRouteFilterSnapshot = null;
 
   Object.values(markers).forEach(m=>{
     try{ map.removeLayer(m); }catch(e){}
