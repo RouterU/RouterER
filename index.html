@@ -4345,17 +4345,83 @@ function holidayRouteFinalLimitCheck(routeId){
   if(!weightOk)parts.push(`weight ${Math.round(load.weight).toLocaleString()} / ${Math.round(cap.weight).toLocaleString()}`);
   return {ok:timeOk&&cubeOk&&weightOk,timeOk,cubeOk,weightOk,totalMinutes,maxMinutes,load,cap,reason:parts.join('; ')};
 }
+function holidayOptimizeRouteForWindows(routeId){
+  const routeStops=stops.filter(s=>s.routeId===routeId&&s.lat!==null&&s.lng!==null&&!isNaN(s.lat)&&!isNaN(s.lng));
+  if(routeStops.length>=2){
+    return optimizeRouteSequence(routeId,{optimizationDriver:'delivery_windows',respectResource:false,respectPosition:false}).ok;
+  }
+  if(routeStops.length===1)routeStops[0].seq=1;
+  invalidateAllRouteMetrics();
+  return true;
+}
+function holidayRouteExactFinalCheck(routeId){
+  const route=routes.find(r=>r.id===routeId);
+  if(!route)return {ok:false,reason:'Route not found'};
+
+  holidayOptimizeRouteForWindows(routeId);
+
+  const holidayCheck=holidayRouteFinalLimitCheck(routeId);
+  const optRows=routeTimelineRowsForOptimization(routeId,{optimizationDriver:'delivery_windows'});
+  const optMinutes=optRows.length?optRows[optRows.length-1].depart-optRows[0].arrive:0;
+  const maxMinutes=holidayRouteWindowMinutes(route);
+  const lateRows=routeTimelineRows(routeId).filter(r=>r.type==='stop'&&r.twStatus==='LATE');
+  const lateMissMinutes=lateRows.reduce((sum,row)=>{
+    const latest=timeToMinutes(row.stop?.latestTimeWindow);
+    return sum+(latest!==null&&row.arrive>latest?row.arrive-latest:0);
+  },0);
+
+  // For normal one-day routes, use the same clock-aware runtime check as Optimize Selected.
+  // For 2-day / layover routes, keep the holiday-specific Work Duration + daily cap check so the required rest period does not falsely count as work time.
+  const runtimeOk=routeIsTwoDay(route)
+    ? holidayCheck.timeOk
+    : (maxMinutes>0&&optMinutes<=maxMinutes&&holidayCheck.timeOk);
+
+  const parts=[];
+  if(!runtimeOk){
+    const actual=routeIsTwoDay(route)?holidayCheck.totalMinutes:Math.max(optMinutes,holidayCheck.totalMinutes||0);
+    parts.push(`route runtime ${fmtMinutes(actual)} exceeds allowed Work Duration ${fmtMinutes(maxMinutes)}`);
+  }
+  if(!holidayCheck.cubeOk||!holidayCheck.weightOk)parts.push(holidayCheck.reason);
+  if(lateRows.length)parts.push(`${lateRows.length} stop(s) outside delivery window after best sequencing (${fmtMinutes(lateMissMinutes)} total miss time)`);
+
+  return {
+    ok:runtimeOk&&holidayCheck.cubeOk&&holidayCheck.weightOk,
+    runtimeOk,
+    capacityOk:holidayCheck.cubeOk&&holidayCheck.weightOk,
+    lateStops:lateRows.length,
+    lateMissMinutes,
+    totalMinutes:routeIsTwoDay(route)?holidayCheck.totalMinutes:optMinutes,
+    maxMinutes,
+    reason:parts.filter(Boolean).join('; ')
+  };
+}
+function holidayPickStopToReject(routeId,check){
+  const timeline=routeTimelineRows(routeId);
+  const lateRank=new Map();
+  timeline.forEach(row=>{
+    if(row.type!=='stop'||!row.stop)return;
+    const latest=timeToMinutes(row.stop.latestTimeWindow);
+    const late=latest!==null&&row.arrive>latest?row.arrive-latest:0;
+    if(late>0)lateRank.set(row.stop.id,late);
+  });
+  return stops
+    .filter(s=>s.routeId===routeId&&s.holidayPlanning&&s.needsHolidayPlanning)
+    .sort((a,b)=>{
+      const lateDiff=(lateRank.get(b.id)||0)-(lateRank.get(a.id)||0);
+      if(lateDiff)return lateDiff;
+      return (b.seq||0)-(a.seq||0);
+    })[0]||null;
+}
 function holidayEnforceFinalRouteLimits(routeIds){
   let removed=0;
   (routeIds||[]).forEach(routeId=>{
     let guard=0;
     while(guard++<500){
       reseq();
-      resequenceRouteByDistanceSilent(routeId);
-      const check=holidayRouteFinalLimitCheck(routeId);
+      holidayOptimizeRouteForWindows(routeId);
+      const check=holidayRouteExactFinalCheck(routeId);
       if(check.ok)break;
-      const assigned=stops.filter(s=>s.routeId===routeId).sort((a,b)=>(b.seq||0)-(a.seq||0));
-      const removable=assigned.find(s=>s.holidayPlanning&&s.needsHolidayPlanning);
+      const removable=holidayPickStopToReject(routeId,check);
       if(!removable)break;
       const route=routes.find(r=>r.id===routeId);
       removable.routeId=null;
@@ -4363,12 +4429,13 @@ function holidayEnforceFinalRouteLimits(routeIds){
       removable.suggestedDeliveryDay='Not Routed';
       removable.suggestedRouteName='Unassigned';
       removable.suggestedRouteId='';
-      removable.holidayReason=`Not routed: ${check.reason}. Best candidate was ${route?route.name:'route'}, but the route cannot exceed Work Duration, the 2-day daily cap, or capacity.`;
+      removable.holidayReason=`Not routed: ${check.reason}. Best candidate was ${route?route.name:'route'}, but the route cannot exceed Work Duration, the 2-day daily cap, or capacity. Delivery windows were optimized first, then the route was revalidated.`;
       removable.suggestionStep='Final validation';
       removable.suggestionType='Rejected by route limit';
       removed++;
     }
   });
+  (routeIds||[]).forEach(routeId=>holidayOptimizeRouteForWindows(routeId));
   return removed;
 }
 function holidayBestCapacityBlockedCandidate(stop,availableByDay,routeAssignedStops,preferredOnly=false){
@@ -4450,7 +4517,7 @@ function planHoliday(){
       Object.entries(availableByDay).forEach(([day,dayRoutes])=>{dayRoutes.filter(r=>holidayRouteMatchesCustomer(r,s)).forEach(r=>sameRouteCandidates.push({day,route:r}));});
       sameRouteCandidates.sort((a,b)=>holidayRouteRoomMinutes(b.route,routeAssignedStops[b.route.id])-holidayRouteRoomMinutes(a.route,routeAssignedStops[a.route.id]));
       for(const cand of sameRouteCandidates){
-        if(holidayCandidateFits(cand.route,routeAssignedStops[cand.route.id],s)){holidayPlaceStopOnRoute(s,cand.route,cand.day,routeAssignedStops,`Step 2: moved from ${s.originalDeliveryDay} holiday to same locked route on ${cand.day}, without exceeding latest end time.`,'Step 2','Same locked route');sameRoutePlaced++;placed=true;break;}
+        if(holidayCandidateFits(cand.route,routeAssignedStops[cand.route.id],s)){holidayPlaceStopOnRoute(s,cand.route,cand.day,routeAssignedStops,`Step 2: moved from ${s.originalDeliveryDay} holiday to same locked route on ${cand.day}, without exceeding Work Duration and route limits.`,'Step 2','Same locked route');sameRoutePlaced++;placed=true;break;}
       }
     }
     if(!placed&&holidayOvernightCustomer(s)){
@@ -4476,7 +4543,7 @@ function planHoliday(){
         s.suggestionType='Capacity blocked';
         capacityBlocked++;
       }else{
-        s.holidayReason='No available route/day found within route template latest end time after same-route, overnight, layover, and closest-route checks.';
+        s.holidayReason='No available route/day found within route Work Duration, daily cap, capacity, and delivery-window scoring after same-route, overnight, layover, and closest-route checks.';
         s.suggestionStep='Step 2';
         s.suggestionType=holidayOvernightCustomer(s)?'Overnight not routed':'Not routed';
       }
@@ -4486,7 +4553,7 @@ function planHoliday(){
 
   const affectedRouteIds=new Set(stops.filter(s=>s.routeId).map(s=>s.routeId));
   affectedRouteIds.forEach(routeId=>{expanded.add(routeId);resequenceRouteByDistanceSilent(routeId);});
-  const holidayStage2=secondStageRouteOptimization([...affectedRouteIds],{optimizationDriver:'distance',respectResource:false,respectPosition:false});
+  const holidayStage2=secondStageRouteOptimization([...affectedRouteIds],{optimizationDriver:'delivery_windows',respectResource:false,respectPosition:false});
   const finalRejected=holidayEnforceFinalRouteLimits([...affectedRouteIds]);
   reseq();holidaySession.planned=true;
   holidaySession.lastPlanStats={baselineRouted,baselineUnrouted,overnightTotal,overnightRouted,sameRoutePlaced,closestStopPlaced,layoverPlaced,generalPlaced,capacityBlocked,finalRejected,holidayStage2,blockedRoutes:routes.filter(holidayRouteBlocked).length,truckTemplates:trucks.length};
