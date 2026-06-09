@@ -708,6 +708,7 @@ let lassoStopsMode=false;
 let lassoStartPoint=null;
 let lassoRectangle=null;
 let lassoSelectedStopIds=new Set();
+let lassoMenuJustOpened=false;
 let hiddenStopIds=new Set();
 let routeLinesVisible=true;
 
@@ -2047,6 +2048,10 @@ function initLassoSelection(){
     if(selected){
       const oe=ev.originalEvent||{};
       openLassoActionMenu(oe.clientX||0,oe.clientY||0);
+      lassoMenuJustOpened=true;
+      if(oe.stopPropagation)oe.stopPropagation();
+      if(oe.preventDefault)oe.preventDefault();
+      setTimeout(()=>{lassoMenuJustOpened=false;},350);
       showToast(`Lasso selected ${selected} stop(s). Choose an action from the menu.`);
     }else{
       closeStopContextMenu();
@@ -2454,6 +2459,10 @@ function resequnceRouteByDistance(routeId){
 
 document.addEventListener('click',e=>{
   const menu=document.getElementById('stop-context-menu');
+  if(lassoMenuJustOpened){
+    lassoMenuJustOpened=false;
+    return;
+  }
   if(menu&&menu.style.display==='block'&&!menu.contains(e.target))closeStopContextMenu();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeStopContextMenu();});
