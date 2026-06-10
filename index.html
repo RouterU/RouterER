@@ -3225,7 +3225,7 @@ function confirmImport(){
 
     // In All Templates mode, import depots first so route start/end locations can be attached immediately.
     const ordered=importMode==='all'
-      ? [...sheets.filter(x=>x.type==='depots'), ...sheets.filter(x=>x.type==='routes'), ...sheets.filter(x=>x.type==='trucks'), ...sheets.filter(x=>x.type==='stops')]
+      ? [...sheets.filter(x=>x.type==='depots'), ...sheets.filter(x=>x.type==='routes'), ...sheets.filter(x=>x.type==='trucks'), ...sheets.filter(x=>x.type==='stops'||x.type==='customer order history')]
       : sheets;
 
     ordered.forEach(({data,type})=>{
@@ -3233,7 +3233,7 @@ function confirmImport(){
         if(type==='depots'){importDepots(data);lc+=data.length;return;}
         if(type==='routes'){rc+=importRoutes(data);return;}
         if(type==='trucks'){importTrucks(data);dc+=data.length;return;}
-        if(type==='stops'){importStops(data);sc+=data.length;return;}
+        if(type==='stops'||type==='customer order history'){importStops(data);sc+=data.length;return;}
         if(type==='reference only'){return;}
         skipped+=data.length;return;
       }
@@ -3244,7 +3244,7 @@ function confirmImport(){
       if(importMode==='depots'&&(type==='depots'||singleSheet)){importDepots(data);lc+=data.length;return;}
       if(importMode==='routes'&&(type==='routes'||singleSheet)){rc+=importRoutes(data);return;}
       if(importMode==='trucks'&&(type==='trucks'||singleSheet)){importTrucks(data);dc+=data.length;return;}
-      if(importMode==='stops'&&(type==='stops'||singleSheet)){importStops(data);sc+=data.length;return;}
+      if(importMode==='stops'&&(type==='stops'||type==='customer order history'||singleSheet)){importStops(data);sc+=data.length;return;}
       if(type==='reference only')return;
       skipped+=data.length;
     });
