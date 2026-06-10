@@ -2938,30 +2938,31 @@ function optimizeSelectedRoutes(opts){
     const result=optimizeRouteSequence(routeId,opts);
     if(result.ok){
       optimized++;
-      if(!routeWithinBasicLimits(routeId,opts)){
-        const route=routes.find(r=>r.id===routeId);
-        const overBy=routeTotalMinutesForOptimization(routeId,opts)-optimizationRouteLimitMinutes(route,opts);
-        const lateStops=optimizationRespectsWindows(opts)?routeTimelineRows(routeId).filter(r=>r.twStatus==='LATE').length:0;
-        const parts=[];
-        if(overBy>0)parts.push(`over route run-time limit by ${fmtMinutes(overBy)}`);
-        if(lateStops>0)parts.push(`${lateStops} late stop(s)`);
-        warnings.push(`${route?.name||'Route'} optimized, but still has ${parts.join(' and ')||'a constraint issue'}`);
-      }
     }
     locked+=result.locked||0;
     if(!result.ok)warnings.push(result.message);
   });
   const stage2=secondStageRouteOptimization(routeIds,opts);
-  const net=optimizationSummaryForRoutes(optimizationDayRouteIds(routeIds),opts);
+
+  // Final corrective pass: do not only warn on bad routes. If the optimizer still leaves
+  // a selected/day route over runtime, capacity, or customer delivery windows, remove the
+  // least-efficient stop(s) needed to make the route valid. Removed stops become unassigned
+  // so the user can see what could not fit inside the selected rules.
+  const correctionScope=optimizationDayRouteIds(routeIds);
+  const correction=autoCorrectOptimizationRoutes(correctionScope,opts);
+  correction.warnings.forEach(w=>warnings.push(w));
+
+  const net=optimizationSummaryForRoutes(correctionScope,opts);
   render();
   showJob('&#9889; Optimize Selected Route(s)',`
     <strong>Optimization Driver:</strong> ${optimizationDriverLabel(opts.optimizationDriver)}<br/>
     <strong>Stage 1:</strong> ${optimized} selected route(s) resequenced<br/>
     <strong>Stage 2:</strong> reviewed ${stage2.routesReviewed} route(s) for the day, consolidated ${stage2.consolidated} stop move(s), accepted ${stage2.swapped} route-to-route swap(s)${stage2.performanceLimited?' <span style="color:var(--warn);">(performance-limited review)</span>':''}<br/>
+    <strong>Corrective Pass:</strong> ${correction.unassigned} stop(s) unassigned from routes that were still over runtime, capacity, or delivery-window limits<br/>
     <strong>Network Result:</strong> ${net.activeRoutes} active route(s), ${net.miles.toFixed(1)} total mile(s), ${fmtMinutes(net.wait)} wait time, ${fmtMinutes(net.late)} late-window miss time<br/>
     <strong>${locked}</strong> stop(s) locked because of selected preferred-resource or preferred-position rules<br/>
     <strong>Delivery Windows:</strong> ${optimizationRespectsWindows(opts)?'Respected when possible / closest miss if impossible':'Ignored'}<br/>
-    ${warnings.length?`<br/><strong>Warnings:</strong><br/>${warnings.map(w=>'&bull; '+escapeHtml(w)).join('<br/>')}`:''}
+    ${warnings.length?`<br/><strong>Corrections / Warnings:</strong><br/>${warnings.map(w=>'&bull; '+escapeHtml(w)).join('<br/>')}`:''}
   `);
 }
 function optimizeRouteSequence(routeId,opts={}){
@@ -3072,6 +3073,129 @@ function routeWithinBasicLimits(routeId,opts={}){
   return true;
 }
 
+function routeViolationDetails(routeId,opts={}){
+  const route=routes.find(r=>r.id===routeId);
+  const rs=getRouteStops(routeId);
+  const drv=route?(trucks.find(d=>d.truckKey===route.truckKey||d.driverKey===route.driverKey)||{}):{};
+  const capCases=parseFloat(drv.measure1)||0;
+  const capWeight=parseFloat(drv.measure2)||0;
+  const capCube=parseFloat(drv.measure3)||0;
+  const cases=rs.reduce((a,s)=>a+tCases(s),0);
+  const weight=rs.reduce((a,s)=>a+tWeight(s),0);
+  const cube=rs.reduce((a,s)=>a+tCube(s),0);
+  const maxMinutes=route?optimizationRouteLimitMinutes(route,opts):0;
+  const totalMinutes=route?routeTotalMinutesForOptimization(routeId,opts):0;
+  const rows=optimizationRespectsWindows(opts)?routeTimelineRows(routeId).filter(r=>r.type==='stop'):[];
+  const lateRows=rows.filter(r=>r.twStatus==='LATE');
+  const lateMins=lateRows.reduce((a,row)=>{
+    const latest=timeToMinutes(row.stop?.latestTimeWindow);
+    return a+(latest!==null&&row.arrive>latest?row.arrive-latest:0);
+  },0);
+  return {
+    route,rs,cases,weight,cube,totalMinutes,maxMinutes,
+    overRuntime:route&&Number.isFinite(maxMinutes)&&maxMinutes>0?Math.max(0,totalMinutes-maxMinutes):0,
+    overCases:capCases?Math.max(0,cases-capCases):0,
+    overWeight:capWeight?Math.max(0,weight-capWeight):0,
+    overCube:capCube?Math.max(0,cube-capCube):0,
+    lateStops:lateRows.length,
+    lateMins,
+    invalid:false
+  };
+}
+function routeViolationScore(routeId,opts={}){
+  const v=routeViolationDetails(routeId,opts);
+  return (v.overRuntime*900)+(v.lateMins*1200)+(v.lateStops*2400)+(v.overCases*12)+(v.overWeight*.12)+(v.overCube*60);
+}
+function stopIsProtectedForCorrection(stop,route,opts={}){
+  // Respect hard user-selected locks first. If every stop is protected and the route is still invalid,
+  // the corrective pass will remove the least damaging protected stop as a last resort.
+  if(opts.respectPosition&&preferredPosition(stop))return true;
+  if(opts.respectResource&&!preferredResourceMatchesRoute(stop,route))return true;
+  return false;
+}
+function selectStopToUnassignForCorrection(routeId,opts={}){
+  const route=routes.find(r=>r.id===routeId);
+  if(!route)return null;
+  const currentStops=getRouteStops(routeId).filter(s=>s.lat&&s.lng);
+  if(!currentStops.length)return null;
+  const baseScore=routeViolationScore(routeId,opts);
+  const timeline=routeTimelineRows(routeId).filter(r=>r.type==='stop');
+  const lateByStop=new Map();
+  timeline.forEach(row=>{
+    const latest=timeToMinutes(row.stop?.latestTimeWindow);
+    const late=latest!==null&&row.arrive>latest?row.arrive-latest:0;
+    lateByStop.set(row.stop?.id,late);
+  });
+
+  const pools=[currentStops.filter(s=>!stopIsProtectedForCorrection(s,route,opts)),currentStops];
+  for(const pool of pools){
+    if(!pool.length)continue;
+    let best=null,bestScore=Infinity;
+    pool.forEach(stop=>{
+      const snap=snapshotOptimizationState([routeId]);
+      const oldRoute=stop.routeId, oldSeq=stop.seq;
+      stop.routeId=null; stop.seq=0;
+      optimizeRouteIfPossible(routeId,opts);
+      const afterScore=routeViolationScore(routeId,opts);
+      const remainingMiles=routeDistanceMiles(routeId);
+      const service=stopServiceMinutes(stop);
+      const cases=tCases(stop);
+      const late=lateByStop.get(stop.id)||0;
+      restoreOptimizationState(snap);
+      optimizeRouteIfPossible(routeId,opts);
+
+      // Lowest score wins. Prefer the stop that removes the most violation with the least lost case volume,
+      // while still strongly favoring late-window and high-service/time contributors.
+      const improvement=Math.max(0,baseScore-afterScore);
+      const candidateScore=afterScore-(improvement*0.35)-(late*850)-(service*25)+(cases*1.5)+(remainingMiles*.1);
+      if(candidateScore<bestScore){bestScore=candidateScore;best=stop;}
+      stop.routeId=oldRoute; stop.seq=oldSeq;
+    });
+    if(best)return best;
+  }
+  return null;
+}
+function autoCorrectOptimizationRoutes(routeIds,opts={}){
+  const warnings=[];
+  let unassigned=0, correctedRoutes=0, stillInvalid=0;
+  const ids=(routeIds&&routeIds.length?routeIds:routes.map(r=>r.id));
+  ids.forEach(routeId=>{
+    const route=routes.find(r=>r.id===routeId);
+    if(!route)return;
+    optimizeRouteIfPossible(routeId,opts);
+    let removedForRoute=0;
+    const maxRemovals=Math.max(0,getRouteStops(routeId).length);
+    while(!routeWithinBasicLimits(routeId,opts)&&removedForRoute<maxRemovals){
+      const stop=selectStopToUnassignForCorrection(routeId,opts);
+      if(!stop)break;
+      stop.routeId=null;
+      stop.seq=0;
+      stop.uiChecked=true;
+      visibleStopIds.add(stop.id);
+      removedForRoute++;
+      unassigned++;
+      optimizeRouteIfPossible(routeId,opts);
+    }
+    reseq();
+    if(removedForRoute){
+      correctedRoutes++;
+      warnings.push(`${route.name||'Route'} corrected by unassigning ${removedForRoute} stop(s) that could not fit while respecting runtime/capacity/windows.`);
+    }
+    if(!routeWithinBasicLimits(routeId,opts)){
+      stillInvalid++;
+      const v=routeViolationDetails(routeId,opts);
+      const parts=[];
+      if(v.overRuntime>0)parts.push(`still over runtime by ${fmtMinutes(v.overRuntime)}`);
+      if(v.lateStops>0)parts.push(`${v.lateStops} late stop(s)`);
+      if(v.overCases>0)parts.push(`${Math.round(v.overCases)} cases over capacity`);
+      if(v.overWeight>0)parts.push(`${Math.round(v.overWeight)} lbs over capacity`);
+      if(v.overCube>0)parts.push(`${v.overCube.toFixed(1)} cube over capacity`);
+      warnings.push(`${route.name||'Route'} could not be fully corrected (${parts.join(', ')||'constraint issue remains'}).`);
+    }
+  });
+  return {unassigned,correctedRoutes,stillInvalid,warnings};
+}
+
 function routeWindowCostMinutes(routeId,opts={}){
   if(!optimizationRespectsWindows(opts))return {wait:0,late:0,early:0};
   const rows=routeTimelineRows(routeId).filter(r=>r.type==='stop');
@@ -3123,11 +3247,14 @@ function restoreOptimizationState(snap){
     const stop=stops.find(s=>s.id===id);
     if(stop){stop.routeId=state.routeId;stop.seq=state.seq;}
   });
+  invalidateAllRouteMetrics();
 }
 function optimizeRouteIfPossible(routeId,opts={}){
+  invalidateAllRouteMetrics();
   const count=stops.filter(s=>s.routeId===routeId&&s.lat&&s.lng).length;
   if(count>=2)return optimizeRouteSequence(routeId,opts).ok;
-  if(count===1){const one=stops.find(s=>s.routeId===routeId&&s.lat&&s.lng); if(one)one.seq=1; return true;}
+  if(count===1){const one=stops.find(s=>s.routeId===routeId&&s.lat&&s.lng); if(one)one.seq=1; invalidateAllRouteMetrics(); return true;}
+  invalidateAllRouteMetrics();
   return true;
 }
 function canMoveStopForSecondStage(stop,fromRouteId,targetRoute,opts={}){
