@@ -155,9 +155,6 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
 .map-drop-hint{font-size:10px;color:var(--text3);padding:0 4px;white-space:nowrap;}
 .map-layer-toggle{background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text1);font-size:11px;font-family:'Sora',sans-serif;padding:5px 7px;}
 .map-layer-toggle:focus{outline:none;border-color:var(--accent);}
-.lasso-rectangle{position:absolute;border:2px dashed var(--accent);background:rgba(79,140,255,.16);pointer-events:none;z-index:1200;display:none;}
-.lasso-selected-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:999px;background:var(--accent);color:#fff;font-family:'DM Mono',monospace;font-size:10px;font-weight:800;margin-left:4px;}
-.btn.active-tool{background:var(--accent);border-color:var(--accent);color:#fff;}
 .stop-context-item.disabled{opacity:.4;cursor:not-allowed;}
 .stop-context-item.disabled:hover{background:transparent;}
 .stop-context-routes{max-height:190px;overflow-y:auto;margin-top:4px;border-top:1px solid var(--border);padding-top:4px;}
@@ -383,14 +380,9 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
       <button class="btn" onclick="clearMapView()" title="Remove all routes and stops from the map">Clear Map</button>
       <button class="btn" onclick="displayAllRoutesOnMap()" title="Display every assigned route on the map">Display All Routes</button>
       <button class="btn" onclick="displayAllUnassignedStopsOnMap()" title="Display every unassigned stop on the map">Display All Unassigned Stops</button>
-      <button class="btn" id="street-view-btn" onclick="toggleStreetViewMode()" title="Click this, then click a stop to open Street View">&#128694; Street View</button>
-      <button class="btn" id="measure-miles-btn" onclick="toggleMeasureMilesMode()" title="Click this, then click two stops to measure miles">&#128207; Measure Miles</button>
-      <button class="btn" id="lasso-stops-btn" onclick="toggleLassoStops()" title="Draw a box on the map to select visible stops">&#9744; Lasso Stops</button>
-      <button class="btn" id="route-lines-btn" onclick="toggleRouteLines()" title="Show or hide dotted route lines">&#9745; Route Lines</button>
       <span class="map-drop-hint">Drag routes/stops here to display</span>
     </div>
     <div id="map"></div>
-    <div id="lasso-rectangle" class="lasso-rectangle"></div>
     <div class="map-legend" id="map-legend">
       <div class="map-legend-title">Routes</div>
       <div id="legend-items"></div>
@@ -428,7 +420,7 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
       ondrop="handleDrop(event)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       <p>Click or drag &amp; drop Excel / CSV file here</p>
-      <span id="imp-hint">Upload one file with sheets named "Routes", "Trucks", "Stops", and "Depot Locations" â€” or load individually</span>
+      <span id="imp-hint">Upload one file with sheets named "Routes", "Trucks", "Stops", and "Depot Locations" — or load individually</span>
     </div>
     <div id="route-day-filter" style="margin:10px 0 8px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);">
       <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">Route Day Filter <span style="font-weight:400;color:var(--text3);text-transform:none;letter-spacing:0;">(uses Route Templates UDFString2)</span></div>
@@ -497,7 +489,7 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
     </div>
     <div class="input-row">
       <div class="field"><label>Assign to Route</label>
-        <select id="s-route"><option value="">â€” Unassigned â€”</option></select>
+        <select id="s-route"><option value="">— Unassigned —</option></select>
       </div>
     </div>
     <div class="modal-actions">
@@ -700,17 +692,6 @@ let routeSort=""; // optional route sort; blank keeps import/original order
 let routeDayDisplayFilter=""; // optional left-panel route day filter; blank shows all days
 let activeRouteFilterId=null;
 let activeStopFilterId=null;
-let activeRouteFilterSnapshot=null;
-let streetViewMode=false;
-let measureMilesMode=false;
-let measureStartStopId=null;
-let lassoStopsMode=false;
-let lassoStartPoint=null;
-let lassoRectangle=null;
-let lassoSelectedStopIds=new Set();
-let lassoMenuJustOpened=false;
-let hiddenStopIds=new Set();
-let routeLinesVisible=true;
 
 // ============================================================
 // PERFORMANCE CACHE
@@ -781,14 +762,6 @@ window.addEventListener('DOMContentLoaded',()=>{
   const mapEl=document.getElementById('map');
   mapEl.addEventListener('dragover',e=>e.preventDefault());
   mapEl.addEventListener('drop',dropOnMap);
-  map.on('click',(ev)=>{
-    if(streetViewMode){
-      openStreetViewAtLatLng(ev.latlng);
-      return;
-    }
-    if(!measureMilesMode && !lassoStopsMode){ clearAllFilters(); }
-  });
-  initLassoSelection();
   initSplitter();
   render();
 });
@@ -956,7 +929,7 @@ function fmtTiming(r){
   if(r.startupTime) p.push('+'+Math.round(durationToMinutes(r.startupTime))+'min startup');
   if(r.earliestStartTime) p.push('Est:'+excelTimeToHHMM(r.earliestStartTime));
   if(r.latestEndTime) p.push('End by:'+excelTimeToHHMM(r.latestEndTime));
-  return p.join(' Â· ')||'No time set';
+  return p.join(' · ')||'No time set';
 }
 
 function cleanTimeValue(value){
@@ -1082,67 +1055,22 @@ function routeTimelineRows(routeId){
 }
 
 function minutesToHHMM(total){
-  if(total===null||total===undefined||!isFinite(total))return 'â€”';
+  if(total===null||total===undefined||!isFinite(total))return '—';
   const normalized=((Math.round(total)%1440)+1440)%1440;
   const h=Math.floor(normalized/60), m=normalized%60;
   return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
 }
-function captureMapVisibilityForFilter(){
-  return {
-    mapCleared,
-    visibleStopIds:Array.from(visibleStopIds),
-    visibleRouteIds:Array.from(visibleRouteIds)
-  };
-}
-function restoreMapVisibilityFromFilter(){
-  if(!activeRouteFilterSnapshot)return;
-  mapCleared=activeRouteFilterSnapshot.mapCleared;
-  visibleStopIds.clear();
-  (activeRouteFilterSnapshot.visibleStopIds||[]).forEach(id=>visibleStopIds.add(id));
-  visibleRouteIds.clear();
-  (activeRouteFilterSnapshot.visibleRouteIds||[]).forEach(id=>visibleRouteIds.add(id));
-  activeRouteFilterSnapshot=null;
-}
-function clearActiveRouteFilter(){
-  if(activeRouteFilterId)restoreMapVisibilityFromFilter();
-  activeRouteFilterId=null;
-}
 function toggleRouteFilter(routeId){
-  if(streetViewMode){
-    const line=polylines[routeId];
-    if(line&&line.getBounds&&line.getBounds().isValid())openStreetViewAtLatLng(line.getBounds().getCenter());
-    return;
-  }
-  if(activeRouteFilterId===routeId){
-    clearActiveRouteFilter();
-    activeStopFilterId=null;
-    renderRoutes();
-    renderUA();
-    renderMap();
-    renderLegend();
-    return;
-  }
-  if(!activeRouteFilterId)activeRouteFilterSnapshot=captureMapVisibilityForFilter();
-  activeRouteFilterId=routeId;
-  activeStopFilterId=null;
-  expanded.add(routeId);
-  fitRouteToMap(routeId);
+  activeRouteFilterId=activeRouteFilterId===routeId?null:routeId;
+  if(activeRouteFilterId) expanded.add(routeId);
   renderRoutes();
-  renderUA();
-  renderMap();
-  renderLegend();
 }
 function toggleStopFilter(stopId){
-  const s=stops.find(x=>x.id===stopId);
-  if(streetViewMode){openStreetViewForStop(stopId);return;}
-  if(measureMilesMode){handleMeasureStopClick(stopId);return;}
   activeStopFilterId=activeStopFilterId===stopId?null:stopId;
-  clearActiveRouteFilter();
+  const s=stops.find(x=>x.id===stopId);
   if(activeStopFilterId&&s&&s.routeId) expanded.add(s.routeId);
   renderRoutes();
   renderUA();
-  renderMap();
-  renderLegend();
 }
 function routeMatchesFilter(route){
   if(activeRouteFilterId)return route.id===activeRouteFilterId;
@@ -1152,25 +1080,7 @@ function stopMatchesFilter(stop){
   if(activeStopFilterId)return stop.id===activeStopFilterId;
   return true;
 }
-function clearLeftFilter(){clearActiveRouteFilter();activeStopFilterId=null;renderRoutes();renderUA();renderMap();renderLegend();}
-function clearAllFilters(){
-  clearActiveRouteFilter();
-  activeStopFilterId=null;
-  routeDayDisplayFilter='';
-  potColors={};
-  potRouteSuggestions={};
-  lassoSelectedStopIds.clear();
-  hiddenStopIds.clear();
-  measureStartStopId=null;
-  streetViewMode=false;
-  measureMilesMode=false;
-  lassoStopsMode=false;
-  updateMapToolButtons();
-  const dayFilterSelect=document.getElementById('route-day-display-filter');
-  if(dayFilterSelect)dayFilterSelect.value='';
-  renderRoutes();renderUA();renderMap();renderLegend();updateAssignPotentialButton();
-  showToast('Filters cleared');
-}
+function clearLeftFilter(){activeRouteFilterId=null;activeStopFilterId=null;renderRoutes();renderUA();}
 
 function normalizeKey(value){return (value??'').toString().trim();}
 function findDepotByKey(key){
@@ -1204,7 +1114,7 @@ function renderDepotRouteRow(route,type,color){
     <span class="s-dot" style="background:${color}"></span>
     <div class="s-info">
       <div class="s-name">${label}: ${name}</div>
-      <div class="s-detail">LocationKey: ${key||'â€”'}${detail?` &middot; ${detail}`:''}</div>
+      <div class="s-detail">LocationKey: ${key||'—'}${detail?` &middot; ${detail}`:''}</div>
     </div>
   </div>`;
 }
@@ -1215,7 +1125,7 @@ function depotLatLng(depot){return depot&&depot.lat&&depot.lng?[depot.lat,depot.
 // ============================================================
 function render(){
   if(routeCacheDirty)rebuildRouteStopIndex();
-  renderStats(); renderRoutes(); renderUA(); renderMap(); renderLegend(); updateApplyBar(); updateAssignPotentialButton(); updateMapToolButtons();
+  renderStats(); renderRoutes(); renderUA(); renderMap(); renderLegend(); updateApplyBar(); updateAssignPotentialButton();
 }
 
 function renderStats(){
@@ -1233,9 +1143,6 @@ function renderStats(){
     <div class="stat"><div class="stat-val">${tc.toLocaleString()}</div><div class="stat-lbl">Cases</div></div>
     <div class="stat"><div class="stat-val">${Math.round(tw).toLocaleString()}</div><div class="stat-lbl">Weight</div></div>
     <div class="stat"><div class="stat-val">${tcu.toFixed(1)}</div><div class="stat-lbl">Cube</div></div>
-    <div style="display:flex;align-items:center;padding:4px 10px;border-right:1px solid var(--border);">
-      <button class="btn" onclick="clearAllFilters()" title="Clear route, stop, day, selected map, lasso, and potential filters" style="padding:4px 9px;font-size:10px;">Clear Filters</button>
-    </div>
     <div class="stats-actions">
       <button class="btn" onclick="openOptimizationModal('selected')" title="Optimize the checked route(s), or the open route manifest route">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h6l3-9 3 18 3-9h3"/></svg>
@@ -1275,9 +1182,9 @@ function renderRoutes(){
   if(dayFilterSelect)dayFilterSelect.value=routeDayDisplayFilter;
   const displayCount=routes.filter(routeMatchesDayDisplayFilter).filter(routeMatchesFilter).length;
   const badgeText=routeDayDisplayFilter?`${displayCount} ${routeDayDisplayFilter} route(s)`:routes.length+' routes';
-  document.getElementById('route-badge').innerHTML=activeRouteFilterId?`<span class="filter-pill" onclick="clearActiveRouteFilter();renderRoutes();renderUA();renderMap();renderLegend()">Route Filter Ã—</span>`:badgeText;
+  document.getElementById('route-badge').innerHTML=activeRouteFilterId?`<span class="filter-pill" onclick="activeRouteFilterId=null;renderRoutes()">Route Filter ×</span>`:badgeText;
   if(!routes.length){
-    el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4"/></svg><p>No routes yet â€” import or create one</p></div>';
+    el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4"/></svg><p>No routes yet — import or create one</p></div>';
     return;
   }
   const displayRoutes=sortedRoutesForDisplay().filter(routeMatchesDayDisplayFilter).filter(routeMatchesFilter);
@@ -1289,7 +1196,7 @@ function renderRoutes(){
     const wt=rStops.reduce((a,s)=>a+tWeight(s),0);
     const cu=rStops.reduce((a,s)=>a+tCube(s),0);
     const drv=trucks.find(d=>d.truckKey===r.truckKey||d.driverKey===r.driverKey);
-    const dname=r.driverFirstName?(r.driverFirstName+' '+(r.driverLastName||'')).trim():(drv?drv.name:'â€”');
+    const dname=r.driverFirstName?(r.driverFirstName+' '+(r.driverLastName||'')).trim():(drv?drv.name:'—');
     const isOpen=expanded.has(r.id);
     return`<div class="route-card" id="rc-${r.id}" draggable="true" ondragstart="onRouteDragStart(event,'${r.id}')" ondragend="onDragEnd()" onmouseenter="highlightRoute('${r.id}')" onmouseleave="clearMapHighlight()">
       <div class="r-header" onclick="openRouteDetail('${r.id}')">
@@ -1297,7 +1204,7 @@ function renderRoutes(){
         <div class="r-info">
           <div class="r-name">${r.name}</div>
           <div class="r-meta">${rStops.length} stops &middot; ${cs}cs &middot; ${Math.round(wt)}lbs &middot; ${cu.toFixed(1)}cu &middot; ${routeDistanceMiles(r.id).toFixed(1)}mi &middot; ${fmtMinutes(routeTotalMinutes(r.id))} &middot; ${dname}</div>
-          <div class="r-timing">${fmtTiming(r)}${r.udfNumber1?' Â· UDF#1:'+r.udfNumber1:''}${r.initialLocationKey||r.finalLocationKey?' Â· Depot '+(r.initialLocationKey||'â€”')+' â†’ '+(r.finalLocationKey||'â€”'):''}</div>
+          <div class="r-timing">${fmtTiming(r)}${r.udfNumber1?' · UDF#1:'+r.udfNumber1:''}${r.initialLocationKey||r.finalLocationKey?' · Depot '+(r.initialLocationKey||'—')+' → '+(r.finalLocationKey||'—'):''}</div>
         </div>
         <div class="r-ctrl">
           <button class="icon-btn" title="Open Manifest" onclick="event.stopPropagation();openRouteManifest('${r.id}')">&#128196;</button>
@@ -1352,7 +1259,7 @@ function renderUA(){
   const ua=stops.filter(s=>!s.routeId).filter(stopMatchesDayDisplayFilter).filter(stopMatchesFilter);
   const allUaCount=stops.filter(s=>!s.routeId).length;
   const badgeBase=routeDayDisplayFilter?`${ua.length} ${routeDayDisplayFilter} stop(s) / ${allUaCount} total`:ua.length+' stops';
-  document.getElementById('ua-badge').innerHTML=activeStopFilterId?`<span class="filter-pill" onclick="activeStopFilterId=null;renderRoutes();renderUA()">Stop Filter Ã—</span>`:badgeBase;
+  document.getElementById('ua-badge').innerHTML=activeStopFilterId?`<span class="filter-pill" onclick="activeStopFilterId=null;renderRoutes();renderUA()">Stop Filter ×</span>`:badgeBase;
   if(!ua.length){
     el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p>All stops assigned!</p></div>';
     return;
@@ -1388,8 +1295,8 @@ function renderTrucks(){
     const assignedRoute=routes.find(r=>r.truckKey===d.truckKey||r.driverKey===d.driverKey);
     return`<div class="driver-card">
       <div class="d-name">${d.name||d.truckId||'Truck'}</div>
-      <div class="d-meta">TruckKey: ${d.truckKey||'â€”'} &middot; Type: ${d.vehicleType||'â€”'} &middot; ${(d.active+'').toUpperCase()==='Y'||d.active===true?'&#10003; Active':'Inactive'}</div>
-      <div class="d-truck">TruckID: ${d.truckId||'â€”'} &middot; Company: ${d.company||'â€”'} &middot; ${assignedRoute?'Assigned: '+assignedRoute.name:'Not assigned'}</div>
+      <div class="d-meta">TruckKey: ${d.truckKey||'—'} &middot; Type: ${d.vehicleType||'—'} &middot; ${(d.active+'').toUpperCase()==='Y'||d.active===true?'&#10003; Active':'Inactive'}</div>
+      <div class="d-truck">TruckID: ${d.truckId||'—'} &middot; Company: ${d.company||'—'} &middot; ${assignedRoute?'Assigned: '+assignedRoute.name:'Not assigned'}</div>
     </div>`;
   }).join('');
 }
@@ -1400,17 +1307,11 @@ function renderMap(){
   markers={}; polylines={};
   stops.forEach(s=>{
     if(!s.lat||!s.lng) return;
-    if(hiddenStopIds.has(s.id)) return;
-    if(activeRouteFilterId && s.routeId!==activeRouteFilterId) return;
-    if(activeStopFilterId && s.id!==activeStopFilterId) return;
     if(mapCleared && !visibleStopIds.has(s.id) && !(s.routeId&&visibleRouteIds.has(s.routeId))) return;
     const color=s.routeId?routeColor(s.routeId):(potColors[s.id]||'#5c6480');
     const label=s.routeId?s.seq:'?';
-    const lassoSelected=lassoSelectedStopIds.has(s.id);
-    const markerBorder=lassoSelected?'#fbbf24':(s.routeId?'#fff':'rgba(255,255,255,.35)');
-    const markerShadow=lassoSelected?'0 0 0 4px rgba(251,191,36,.35),0 2px 10px rgba(0,0,0,.55)':'0 2px 8px rgba(0,0,0,.5)';
     const icon=L.divIcon({className:'',
-      html:`<div style="width:24px;height:24px;border-radius:50%;background:${color};border:2px solid ${markerBorder};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;font-family:DM Mono,monospace;box-shadow:${markerShadow};">${label}</div>`,
+      html:`<div style="width:24px;height:24px;border-radius:50%;background:${color};border:2px solid ${s.routeId?'#fff':'rgba(255,255,255,.35)'};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;font-family:DM Mono,monospace;box-shadow:0 2px 8px rgba(0,0,0,.5);">${label}</div>`,
       iconSize:[24,24],iconAnchor:[12,12]});
     const m=L.marker([s.lat,s.lng],{icon,draggable:true}).addTo(map);
     const r=routes.find(x=>x.id===s.routeId)||{};
@@ -1418,9 +1319,9 @@ function renderMap(){
       <b>${s.customerName||'Stop'}</b><br/>
       <span style="color:#666;font-size:11px;">${s.address||''} ${s.city||''} ${s.state||''}</span>
       <hr style="margin:5px 0;border-color:#eee;"/>
-      <b>Order:</b> ${s.orderNumber||'â€”'} &nbsp;|&nbsp; <b>Cases:</b> ${tCases(s)}<br/>
+      <b>Order:</b> ${s.orderNumber||'—'} &nbsp;|&nbsp; <b>Cases:</b> ${tCases(s)}<br/>
       <b>Weight:</b> ${tWeight(s).toFixed(0)} &nbsp;|&nbsp; <b>Cube:</b> ${tCube(s).toFixed(1)}<br/>
-      <b>Window:</b> ${s.earliestTimeWindow||'â€”'} â€“ ${s.latestTimeWindow||'â€”'}<br/>
+      <b>Window:</b> ${s.earliestTimeWindow||'—'} – ${s.latestTimeWindow||'—'}<br/>
       ${r.name?`<b>Route:</b> ${r.name}`:'<b style="color:#f59e0b;">Unassigned</b>'}
       ${s.preferredResourceKey?`<br/><b>Pref Key:</b> ${s.preferredResourceKey}`:''}
       <br/><span style="font-size:10px;color:#999;">Right-click marker for actions</span>
@@ -1430,20 +1331,14 @@ function renderMap(){
       const original=ev.originalEvent||{};
       openStopContextMenu(s.id, original.clientX || 0, original.clientY || 0);
     });
-    m.on('click',(ev)=>{L.DomEvent.stopPropagation(ev);toggleStopFilter(s.id);});
-    m.on('dragstart',()=>{
-      const selectedIds=lassoSelectedStopIds.has(s.id)?Array.from(lassoSelectedStopIds):[];
-      dragState={sid:s.id,mapMarker:true,fromRoute:s.routeId||null,lassoStopIds:selectedIds};
-      if(selectedIds.length>1)showToast(`Dragging ${selectedIds.length} lasso-selected stop(s). Drop on a route line.`);
-    });
+    m.on('click',()=>toggleStopFilter(s.id));
+    m.on('dragstart',()=>{dragState={sid:s.id,mapMarker:true,fromRoute:s.routeId||null};});
     m.on('dragend',(ev)=>handleMarkerDropOnRouteLine(s.id, ev.target.getLatLng()));
     m.on('mouseover',()=>highlightStop(s.id));
     m.on('mouseout',()=>clearMapHighlight());
     markers[s.id]=m;
   });
   routes.forEach((r,ri)=>{
-    if(activeRouteFilterId && r.id!==activeRouteFilterId) return;
-    if(activeStopFilterId && !getRouteStops(r.id).some(s=>s.id===activeStopFilterId)) return;
     if(mapCleared && !visibleRouteIds.has(r.id)) return;
     const color=COLORS[ri%COLORS.length];
     const init=routeInitialDepot(r);
@@ -1461,18 +1356,14 @@ function renderMap(){
       markers[depotId]=m;
     });
 
-    const rs=getRouteStops(r.id).filter(s=>s.lat&&s.lng&&!hiddenStopIds.has(s.id));
+    const rs=getRouteStops(r.id).filter(s=>s.lat&&s.lng);
     const points=[];
     if(init&&init.lat&&init.lng)points.push([init.lat,init.lng]);
     rs.forEach(s=>points.push([s.lat,s.lng]));
     if(fin&&fin.lat&&fin.lng)points.push([fin.lat,fin.lng]);
-    if(points.length<2 || !routeLinesVisible) return;
+    if(points.length<2) return;
     polylines[r.id]=L.polyline(points,{color,weight:4,opacity:.72,dashArray:'5,4'}).addTo(map);
-    polylines[r.id].on('click',(ev)=>{
-      L.DomEvent.stopPropagation(ev);
-      if(streetViewMode){openStreetViewAtLatLng(ev.latlng);return;}
-      toggleRouteFilter(r.id);
-    });
+    polylines[r.id].on('click',()=>toggleRouteFilter(r.id));
     polylines[r.id].on('mouseover',()=>{highlightRoute(r.id); if(polylines[r.id]) polylines[r.id].setStyle({weight:8,opacity:.95});});
     polylines[r.id].on('mouseout',()=>{clearMapHighlight(); if(polylines[r.id]) polylines[r.id].setStyle({weight:4,opacity:.72});});
     polylines[r.id].on('contextmenu',ev=>{
@@ -1485,7 +1376,7 @@ function renderMap(){
 
 function renderLegend(){
   document.getElementById('legend-items').innerHTML=
-    routes.filter(r=>!activeRouteFilterId||r.id===activeRouteFilterId).filter(r=>!activeStopFilterId||getRouteStops(r.id).some(s=>s.id===activeStopFilterId)).map((r,ri)=>`<div class="legend-item"><div class="legend-dot" style="background:${routeColor(r.id)}"></div><div class="legend-label">${r.name}</div></div>`).join('')||
+    routes.map((r,ri)=>`<div class="legend-item"><div class="legend-dot" style="background:${COLORS[ri%COLORS.length]}"></div><div class="legend-label">${r.name}</div></div>`).join('')||
     '<div style="font-size:10px;color:var(--text3)">No routes</div>';
 }
 
@@ -1621,7 +1512,7 @@ function openStopDetail(stopId){
   const s=stops.find(x=>x.id===stopId);
   if(!s)return;
   activeDetailStopId=stopId;
-  const routeOptions=[{value:'',label:'â€” Unassigned â€”'},...routes.map(r=>({value:r.id,label:r.name||r.routeTemplateKey||'Route'}))];
+  const routeOptions=[{value:'',label:'— Unassigned —'},...routes.map(r=>({value:r.id,label:r.name||r.routeTemplateKey||'Route'}))];
   document.getElementById('stop-detail-title').textContent=`Edit Stop Details: ${s.customerName||s.orderNumber||'Stop'}`;
   document.getElementById('stop-detail-body').innerHTML=`<div class="stop-detail-grid">
     ${detailInput('ed-s-customerName','Customer Name',s.customerName)}
@@ -1922,263 +1813,19 @@ function handleMarkerDropOnRouteLine(stopId,latlng){
     showToast('Drop the stop on or near a route line to move it.');
     return;
   }
-  const clusterIds=(dragState&&Array.isArray(dragState.lassoStopIds)&&dragState.lassoStopIds.length)?dragState.lassoStopIds:[stopId];
-  const route=routes.find(r=>r.id===targetRouteId);
-  clusterIds.forEach((id,idx)=>{
-    const item=stops.find(s=>s.id===id);
-    if(!item)return;
-    item.routeId=targetRouteId;
-    if(idx===0)insertStopAfterClosestStop(item,targetRouteId,latlng);
-    else item.seq=Math.max(0,...stops.filter(x=>x.routeId===targetRouteId&&x.id!==item.id).map(x=>x.seq||0))+1;
-    hiddenStopIds.delete(item.id);
-    visibleStopIds.add(item.id);
-  });
+  const oldRouteId=stop.routeId;
+  stop.routeId=targetRouteId;
+  insertStopAfterClosestStop(stop,targetRouteId,latlng);
+  if(oldRouteId)reseq();
   reseq();
   visibleRouteIds.add(targetRouteId);
+  visibleStopIds.add(stop.id);
   expanded.add(targetRouteId);
-  lassoSelectedStopIds.clear();
   render();
-  showToast(clusterIds.length>1?`Moved ${clusterIds.length} lasso-selected stops to ${route?route.name:'route'}`:`Moved stop to ${route?route.name:'route'} after closest stop`);
+  const route=routes.find(r=>r.id===targetRouteId);
+  showToast(`Moved stop to ${route?route.name:'route'} after closest stop`);
 }
 
-
-
-// ============================================================
-// MAP TOOL BUTTONS: STREET VIEW, MEASURE, LASSO, ROUTE LINES
-// ============================================================
-function updateMapToolButtons(){
-  const sv=document.getElementById('street-view-btn');
-  const mm=document.getElementById('measure-miles-btn');
-  const ls=document.getElementById('lasso-stops-btn');
-  const rl=document.getElementById('route-lines-btn');
-  if(sv)sv.classList.toggle('active-tool',streetViewMode);
-  if(mm)mm.classList.toggle('active-tool',measureMilesMode);
-  if(ls){ls.classList.toggle('active-tool',lassoStopsMode);ls.innerHTML=(lassoStopsMode?'&#9745;':'&#9744;')+' Lasso Stops';}
-  if(rl){rl.classList.toggle('active-tool',routeLinesVisible);rl.innerHTML=(routeLinesVisible?'&#9745;':'&#9744;')+' Route Lines';}
-}
-function toggleStreetViewMode(){
-  streetViewMode=!streetViewMode;
-  if(streetViewMode){measureMilesMode=false;lassoStopsMode=false;measureStartStopId=null;showToast('Street View mode: click a stop on the map.');}
-  updateMapToolButtons();
-}
-function openStreetViewAtLatLng(latlng){
-  if(!latlng||!Number.isFinite(latlng.lat)||!Number.isFinite(latlng.lng)){showToast('Click a valid map location for Street View.');return;}
-  window.open(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${latlng.lat},${latlng.lng}`,'_blank');
-  streetViewMode=false;
-  updateMapToolButtons();
-}
-function openStreetViewForStop(stopId){
-  const s=stops.find(x=>x.id===stopId);
-  if(!s||!s.lat||!s.lng){showToast('This stop does not have coordinates.');return;}
-  window.open(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${s.lat},${s.lng}`,'_blank');
-  streetViewMode=false;updateMapToolButtons();
-}
-function contextStreetView(stopId){closeStopContextMenu();openStreetViewForStop(stopId);}
-function toggleMeasureMilesMode(){
-  measureMilesMode=!measureMilesMode;
-  if(measureMilesMode){streetViewMode=false;lassoStopsMode=false;measureStartStopId=null;showToast('Measure mode: click the first stop, then the second stop.');}
-  updateMapToolButtons();
-}
-function contextMeasureFromStop(stopId){
-  closeStopContextMenu();
-  measureMilesMode=true;streetViewMode=false;lassoStopsMode=false;measureStartStopId=stopId;updateMapToolButtons();
-  const s=stops.find(x=>x.id===stopId);
-  showToast(`Measuring from ${s?.customerName||'selected stop'}. Click the second stop.`);
-}
-function handleMeasureStopClick(stopId){
-  if(!measureStartStopId){
-    measureStartStopId=stopId;
-    const s=stops.find(x=>x.id===stopId);
-    showToast(`First point set: ${s?.customerName||'Stop'}. Click the second stop.`);
-    return;
-  }
-  const a=stops.find(x=>x.id===measureStartStopId);
-  const b=stops.find(x=>x.id===stopId);
-  if(!a||!b||!a.lat||!a.lng||!b.lat||!b.lng){showToast('Both stops need coordinates.');return;}
-  const straight=haversine(a.lat,a.lng,b.lat,b.lng);
-  const road=roadAdjustedMiles(straight);
-  showToast(`${a.customerName||'Stop 1'} to ${b.customerName||'Stop 2'}: ${straight.toFixed(1)} straight-line mi / ~${road.toFixed(1)} road mi`);
-  measureStartStopId=null;measureMilesMode=false;updateMapToolButtons();
-}
-function toggleLassoStops(){
-  lassoStopsMode=!lassoStopsMode;
-  if(lassoStopsMode){streetViewMode=false;measureMilesMode=false;measureStartStopId=null;showToast('Lasso mode: drag a box around stops on the map.');}
-  updateMapToolButtons();
-}
-function toggleRouteLines(){
-  routeLinesVisible=!routeLinesVisible;
-  renderMap();
-  updateMapToolButtons();
-  showToast(routeLinesVisible?'Route lines shown':'Route lines hidden');
-}
-function initLassoSelection(){
-  const rect=document.getElementById('lasso-rectangle');
-  const area=document.querySelector('.map-area');
-  if(!rect||!area||!map)return;
-  map.on('mousedown',ev=>{
-    if(!lassoStopsMode)return;
-    lassoStartPoint=map.latLngToContainerPoint(ev.latlng);
-    L.DomEvent.stopPropagation(ev);
-    rect.style.left=lassoStartPoint.x+'px';rect.style.top=lassoStartPoint.y+'px';rect.style.width='0px';rect.style.height='0px';rect.style.display='block';
-    map.dragging.disable();
-  });
-  map.on('mousemove',ev=>{
-    if(!lassoStopsMode||!lassoStartPoint)return;
-    const p=map.latLngToContainerPoint(ev.latlng);
-    const left=Math.min(lassoStartPoint.x,p.x), top=Math.min(lassoStartPoint.y,p.y);
-    const width=Math.abs(p.x-lassoStartPoint.x), height=Math.abs(p.y-lassoStartPoint.y);
-    rect.style.left=left+'px';rect.style.top=top+'px';rect.style.width=width+'px';rect.style.height=height+'px';
-  });
-  map.on('mouseup',ev=>{
-    if(!lassoStopsMode||!lassoStartPoint)return;
-    const end=map.latLngToContainerPoint(ev.latlng);
-    const b=L.bounds(lassoStartPoint,end);
-    let selected=0;
-    lassoSelectedStopIds.clear();
-    stops.forEach(s=>{
-      if(!s.lat||!s.lng)return;
-      if(hiddenStopIds.has(s.id))return;
-      if(activeRouteFilterId&&s.routeId!==activeRouteFilterId)return;
-      if(mapCleared&&!visibleStopIds.has(s.id)&&!(s.routeId&&visibleRouteIds.has(s.routeId)))return;
-      const pt=map.latLngToContainerPoint([s.lat,s.lng]);
-      if(b.contains(pt)){s.uiChecked=true;lassoSelectedStopIds.add(s.id);selected++;}
-    });
-    rect.style.display='none';lassoStartPoint=null;map.dragging.enable();
-    renderRoutes();renderUA();renderMap();
-    if(selected){
-      const oe=ev.originalEvent||{};
-      openLassoActionMenu(oe.clientX||0,oe.clientY||0);
-      lassoMenuJustOpened=true;
-      if(oe.stopPropagation)oe.stopPropagation();
-      if(oe.preventDefault)oe.preventDefault();
-      setTimeout(()=>{lassoMenuJustOpened=false;},350);
-      showToast(`Lasso selected ${selected} stop(s). Choose an action from the menu.`);
-    }else{
-      closeStopContextMenu();
-      showToast('No stops found inside lasso.');
-    }
-  });
-}
-
-
-function selectedLassoStops(){
-  return Array.from(lassoSelectedStopIds).map(id=>stops.find(s=>s.id===id)).filter(Boolean);
-}
-function openLassoActionMenu(x,y){
-  const menu=document.getElementById('stop-context-menu');
-  const selected=selectedLassoStops();
-  if(!menu||!selected.length)return;
-  const routeOptions=routes.length
-    ? routes.map((r,ri)=>`
-      <button class="stop-context-item" onclick="lassoAssignToRoute('${r.id}')">
-        <span><span class="stop-context-route-dot" style="background:${COLORS[ri%COLORS.length]}"></span>${escapeHtml(r.name||'Route')}</span>
-        <span style="color:var(--text3);font-size:10px;">${escapeHtml(r.routeTemplateKey||'')}</span>
-      </button>`).join('')
-    : '<div style="font-size:11px;color:var(--text3);padding:7px 8px;">No routes available</div>';
-  menu.innerHTML=`
-    <div class="stop-context-title">Lasso Selection <span class="lasso-selected-badge">${selected.length}</span></div>
-    <button class="stop-context-item" onclick="lassoShowServiceDetails()"><span>Show Service Details</span><span>&#128202;</span></button>
-    <button class="stop-context-item" onclick="lassoUnassignStops()"><span>Unassign Stops</span><span>&#8617;</span></button>
-    <button class="stop-context-item" onclick="lassoRemoveFromMap()"><span>Remove from map</span><span>&#10005;</span></button>
-    <button class="stop-context-item" onclick="lassoStartDragToRoute()"><span>Drag onto another route</span><span>&#128666;</span></button>
-    <div class="stop-context-routes">
-      <div style="font-size:10px;color:var(--text3);padding:3px 8px 5px;text-transform:uppercase;letter-spacing:.5px;">Assign to Route</div>
-      ${routeOptions}
-    </div>`;
-  menu.style.display='block';
-  const rect=menu.getBoundingClientRect();
-  menu.style.left=Math.max(8,Math.min(x||window.innerWidth/2,window.innerWidth-rect.width-12))+'px';
-  menu.style.top=Math.max(8,Math.min(y||window.innerHeight/2,window.innerHeight-rect.height-12))+'px';
-}
-function lassoAssignToRoute(routeId){
-  const selected=selectedLassoStops();
-  if(!selected.length){showToast('No lasso-selected stops.');return;}
-  selected.forEach(s=>{
-    s.routeId=routeId;
-    s.seq=Math.max(0,...stops.filter(x=>x.routeId===routeId&&x.id!==s.id).map(x=>x.seq||0))+1;
-    hiddenStopIds.delete(s.id);
-    visibleStopIds.add(s.id);
-    s.uiChecked=false;
-  });
-  expanded.add(routeId);
-  visibleRouteIds.add(routeId);
-  lassoSelectedStopIds.clear();
-  reseq();render();closeStopContextMenu();
-  const r=routes.find(x=>x.id===routeId);
-  showToast(`Assigned ${selected.length} selected stop(s) to ${r?.name||'route'}`);
-}
-function lassoUnassignStops(){
-  const selected=selectedLassoStops();
-  if(!selected.length){showToast('No lasso-selected stops.');return;}
-  selected.forEach(s=>{s.routeId=null;s.seq=0;s.uiChecked=false;visibleStopIds.add(s.id);hiddenStopIds.delete(s.id);});
-  lassoSelectedStopIds.clear();
-  reseq();render();closeStopContextMenu();
-  showToast(`Unassigned ${selected.length} selected stop(s)`);
-}
-function lassoRemoveFromMap(){
-  const selected=selectedLassoStops();
-  if(!selected.length){showToast('No lasso-selected stops.');return;}
-  ensureCustomMapView();
-  selected.forEach(s=>{visibleStopIds.delete(s.id);hiddenStopIds.add(s.id);s.uiChecked=false;});
-  lassoSelectedStopIds.clear();
-  render();closeStopContextMenu();
-  showToast(`Removed ${selected.length} selected stop(s) from the map`);
-}
-function lassoClusterMiles(selected){
-  const pts=selected.filter(s=>s.lat&&s.lng);
-  if(pts.length<2)return 0;
-  const sameRoute=pts.every(s=>s.routeId&&s.routeId===pts[0].routeId);
-  const ordered=sameRoute?pts.slice().sort((a,b)=>(a.seq||0)-(b.seq||0)):nearestNeighborOrder(pts);
-  let miles=0;
-  for(let i=1;i<ordered.length;i++)miles+=haversine(ordered[i-1].lat,ordered[i-1].lng,ordered[i].lat,ordered[i].lng);
-  return miles;
-}
-function nearestNeighborOrder(points){
-  if(!points.length)return [];
-  const remaining=points.slice();
-  const ordered=[remaining.shift()];
-  while(remaining.length){
-    const last=ordered[ordered.length-1];
-    let best=0,bestMiles=Infinity;
-    remaining.forEach((p,i)=>{const d=haversine(last.lat,last.lng,p.lat,p.lng);if(d<bestMiles){bestMiles=d;best=i;}});
-    ordered.push(remaining.splice(best,1)[0]);
-  }
-  return ordered;
-}
-function lassoShowServiceDetails(){
-  const selected=selectedLassoStops();
-  if(!selected.length){showToast('No lasso-selected stops.');return;}
-  const cases=selected.reduce((a,s)=>a+tCases(s),0);
-  const weight=selected.reduce((a,s)=>a+tWeight(s),0);
-  const cube=selected.reduce((a,s)=>a+tCube(s),0);
-  const service=selected.reduce((a,s)=>a+stopServiceMinutes(s),0);
-  const straightMiles=lassoClusterMiles(selected);
-  const roadMiles=roadAdjustedMiles(straightMiles);
-  const travel=driveMinutesForMiles(straightMiles);
-  const cpm=roadMiles>0?cases/roadMiles:0;
-  const assignedRoutes=new Set(selected.map(s=>s.routeId).filter(Boolean));
-  showJob('&#128202; Lasso Service Details',`
-    <strong>Selected Stops:</strong> ${selected.length}<br/>
-    <strong>Assigned Routes in Cluster:</strong> ${assignedRoutes.size||'Unassigned only'}<br/>
-    <strong>Total Cases:</strong> ${cases.toLocaleString()}<br/>
-    <strong>Total Weight:</strong> ${Math.round(weight).toLocaleString()} lbs<br/>
-    <strong>Total Cube:</strong> ${cube.toFixed(1)}<br/>
-    <strong>Calculated Service Time:</strong> ${fmtMinutes(service)}<br/>
-    <strong>Estimated Cluster Miles:</strong> ${straightMiles.toFixed(1)} straight-line / ~${roadMiles.toFixed(1)} road miles<br/>
-    <strong>Estimated Travel Time:</strong> ${fmtMinutes(travel)}<br/>
-    <strong>CPM:</strong> ${roadMiles>0?cpm.toFixed(1):'â€”'} cases per mile<br/><br/>
-    <span style="color:var(--text3);">Miles and travel time are estimated by sequencing the selected cluster. If all selected stops are on the same route, current route sequence is used; otherwise a nearest-neighbor estimate is used.</span>
-  `);
-  closeStopContextMenu();
-}
-function lassoStartDragToRoute(){
-  const selected=selectedLassoStops();
-  if(!selected.length){showToast('No lasso-selected stops.');return;}
-  closeStopContextMenu();
-  lassoStopsMode=false;
-  updateMapToolButtons();
-  showToast(`Drag any highlighted selected stop onto a route line to move all ${selected.length} selected stop(s).`);
-}
 
 // ============================================================
 // MAP RIGHT-CLICK STOP MENU
@@ -2199,22 +1846,20 @@ function openStopContextMenu(stopId,x,y){
 
   menu.innerHTML=`
     <div class="stop-context-title">${stop.customerName||'Stop'} ${currentRoute?`&middot; ${currentRoute.name}`:'&middot; Unassigned'}</div>
-    <button class="stop-context-item" onclick="contextStreetView('${stopId}')"><span>Street View</span><span>&#128694;</span></button>
-    <button class="stop-context-item" onclick="contextMeasureFromStop('${stopId}')"><span>Measure miles from this stop</span><span>&#128207;</span></button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextUnassignStop('${stopId}')`:'return false'}">
-      <span>Unassign</span><span>&#8617;</span>
+      <span>Unassign</span><span>↩</span>
     </button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextResequenceRoute('${stop.routeId}')`:'return false'}">
-      <span>Resequence current route</span><span>&#9776;</span>
+      <span>Resequence current route</span><span>≡</span>
     </button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextShowAlongRoad('${stop.routeId}')`:'return false'}">
       <span>Show Along The Road</span><span>&#128739;</span>
     </button>
     <button class="stop-context-item" onclick="contextRemoveStopFromMap('${stopId}')">
-      <span>Remove Stop from Map</span><span>&#10005;</span>
+      <span>Remove Stop from Map</span><span>×</span>
     </button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextRemoveRouteFromMap('${stop.routeId}')`:'return false'}">
-      <span>Remove Route from Map</span><span>&#9633;</span>
+      <span>Remove Route from Map</span><span>□</span>
     </button>
     <div class="stop-context-routes">
       <div style="font-size:10px;color:var(--text3);padding:3px 8px 5px;text-transform:uppercase;letter-spacing:.5px;">Assign to Route</div>
@@ -2235,9 +1880,9 @@ function openRouteContextMenu(routeId,x,y){
   if(!menu||!route)return;
   menu.innerHTML=`
     <div class="stop-context-title">${route.name||'Route'}</div>
-    <button class="stop-context-item" onclick="contextResequenceRoute('${routeId}')"><span>Resequence Route</span><span>&#9776;</span></button>
+    <button class="stop-context-item" onclick="contextResequenceRoute('${routeId}')"><span>Resequence Route</span><span>≡</span></button>
     <button class="stop-context-item" onclick="contextShowAlongRoad('${routeId}')"><span>Show Along The Road</span><span>&#128739;</span></button>
-    <button class="stop-context-item" onclick="contextRemoveRouteFromMap('${routeId}')"><span>Remove Route from Map</span><span>&#9633;</span></button>`;
+    <button class="stop-context-item" onclick="contextRemoveRouteFromMap('${routeId}')"><span>Remove Route from Map</span><span>□</span></button>`;
   menu.style.display='block';
   const rect=menu.getBoundingClientRect();
   menu.style.left=Math.max(8,Math.min(x,window.innerWidth-rect.width-12))+'px';
@@ -2251,7 +1896,7 @@ function ensureCustomMapView(){
   }
 }
 function clearMapView(){
-  mapCleared=true;visibleStopIds.clear();visibleRouteIds.clear();hiddenStopIds.clear();Object.values(roadPolylines).forEach(p=>map.removeLayer(p));roadPolylines={};renderMap();showToast('Map cleared. Drag routes or stops back onto the map.');
+  mapCleared=true;visibleStopIds.clear();visibleRouteIds.clear();Object.values(roadPolylines).forEach(p=>map.removeLayer(p));roadPolylines={};renderMap();showToast('Map cleared. Drag routes or stops back onto the map.');
 }
 
 function showSelectedRoutesOnMap(){
@@ -2273,7 +1918,6 @@ function showSelectedUnassignedOnMap(){
 }
 function displayAllRoutesOnMap(){
   mapCleared=true;
-  hiddenStopIds.clear();
   routes.forEach(r=>visibleRouteIds.add(r.id));
   stops.filter(s=>s.routeId).forEach(s=>visibleStopIds.add(s.id));
   renderMap();
@@ -2282,7 +1926,6 @@ function displayAllRoutesOnMap(){
 }
 function displayAllUnassignedStopsOnMap(){
   mapCleared=true;
-  hiddenStopIds.clear();
   stops.filter(s=>!s.routeId).forEach(s=>visibleStopIds.add(s.id));
   renderMap();
   fitMapToVisible();
@@ -2332,7 +1975,7 @@ function fitRoutesToMap(routeIds){
 }
 
 function contextRemoveStopFromMap(stopId){
-  ensureCustomMapView();visibleStopIds.delete(stopId);hiddenStopIds.add(stopId);renderMap();closeStopContextMenu();showToast('Stop removed from map');
+  ensureCustomMapView();visibleStopIds.delete(stopId);renderMap();closeStopContextMenu();showToast('Stop removed from map');
 }
 function contextRemoveRouteFromMap(routeId){
   ensureCustomMapView();visibleRouteIds.delete(routeId);stops.filter(s=>s.routeId===routeId).forEach(s=>visibleStopIds.delete(s.id));if(roadPolylines[routeId]){map.removeLayer(roadPolylines[routeId]);delete roadPolylines[routeId];}renderMap();closeStopContextMenu();showToast('Route removed from map');
@@ -2459,10 +2102,6 @@ function resequnceRouteByDistance(routeId){
 
 document.addEventListener('click',e=>{
   const menu=document.getElementById('stop-context-menu');
-  if(lassoMenuJustOpened){
-    lassoMenuJustOpened=false;
-    return;
-  }
   if(menu&&menu.style.display==='block'&&!menu.contains(e.target))closeStopContextMenu();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeStopContextMenu();});
@@ -2534,8 +2173,8 @@ function renderRouteManifest(){
     <div class="manifest-stat"><div class="val">${data.cube.toFixed(1)}</div><div class="lbl">Cube</div></div>
     <div class="manifest-stat"><div class="val">${fmtMinutes(data.time)}</div><div class="lbl">Time</div></div>
     <div class="manifest-stat"><div class="val">${data.miles.toFixed(1)}</div><div class="lbl">Miles</div></div>
-    <div class="manifest-stat"><div class="val">${cleanTimeValue(data.start)||'â€”'}</div><div class="lbl">Start Time</div></div>
-    <div class="manifest-stat"><div class="val">${cleanTimeValue(data.end)||'â€”'}</div><div class="lbl">Stop Time</div></div>`;
+    <div class="manifest-stat"><div class="val">${cleanTimeValue(data.start)||'—'}</div><div class="lbl">Start Time</div></div>
+    <div class="manifest-stat"><div class="val">${cleanTimeValue(data.end)||'—'}</div><div class="lbl">Stop Time</div></div>`;
 
   const timeline=routeTimelineRows(activeManifestRouteId);
   let liveStopSeq=0;
@@ -2548,8 +2187,8 @@ function renderRouteManifest(){
     const name=escapeHtml(pt.name||'Stop');
     const seqDisplay=liveSeq;
     const dayBadge=pt.dayLabel?`<span class="tw-badge ${isRest?'tw-wait':'tw-ok'}" style="margin-right:6px;">${escapeHtml(pt.dayLabel)}</span>`:'';
-    const displayName=isRest?`${dayBadge}${name}`:(isDepot?`${dayBadge}${name}`:`${dayBadge}#${escapeHtml(seqDisplay)} Â· ${name}`);
-    const detail=isRest?'8-hour required rest before Day 2 starts':(isDepot?`LocationKey: ${escapeHtml(pt.depot?.locationKey||'')}`:`${escapeHtml(s.orderNumber||'')} Â· ${escapeHtml(s.address||'')} ${escapeHtml(s.city||'')} ${escapeHtml(s.state||'')}`);
+    const displayName=isRest?`${dayBadge}${name}`:(isDepot?`${dayBadge}${name}`:`${dayBadge}#${escapeHtml(seqDisplay)} · ${name}`);
+    const detail=isRest?'8-hour required rest before Day 2 starts':(isDepot?`LocationKey: ${escapeHtml(pt.depot?.locationKey||'')}`:`${escapeHtml(s.orderNumber||'')} · ${escapeHtml(s.address||'')} ${escapeHtml(s.city||'')} ${escapeHtml(s.state||'')}`);
     const violationClass=pt.twStatus==='LATE'?' tw-violation':'';
     const twClass=pt.twStatus==='LATE'?'tw-late':(pt.twStatus==='WAIT'?'tw-wait':'tw-ok');
     const dragAttrs=isDepot?'':`id="manifest-stop-${s.id}" draggable="true"
@@ -2558,29 +2197,29 @@ function renderRouteManifest(){
       ondragleave="manifestDragLeave(event)"
       ondrop="manifestDrop(event,'${s.id}')"
       ondragend="manifestDragEnd()"
-      onclick="openStopDetail('${s.id}')"
+      onclick="toggleStopFilter('${s.id}')"
       onmouseenter="highlightStop('${s.id}')" onmouseleave="clearMapHighlight()"`;
     return `<div class="manifest-row ${isDepot?'depot':'stop'}${violationClass}" ${dragAttrs} style="${isRest?'background:rgba(245,158,11,.16);box-shadow:inset 4px 0 0 var(--warn);':''}">
       <div class="manifest-seq">${seq}</div>
       <div class="manifest-customer"><div class="manifest-name">${displayName}</div><div class="manifest-detail">${detail}</div></div>
       <div>${escapeHtml(pt.city||'')} ${escapeHtml(pt.state||'')}</div>
-      <div>${isDepot?'â€”':tCases(s)}</div>
-      <div>${isDepot?'â€”':Math.round(tWeight(s)).toLocaleString()}</div>
-      <div>${isDepot?'â€”':tCube(s).toFixed(1)}</div>
-      <div>${pt.legMiles?pt.legMiles.toFixed(1):'â€”'}</div>
-      <div>${pt.driveMins?fmtMinutes(pt.driveMins):'â€”'}</div>
-      <div>${isDepot?'â€”':fmtMinutes(pt.serviceMins)}</div>
+      <div>${isDepot?'—':tCases(s)}</div>
+      <div>${isDepot?'—':Math.round(tWeight(s)).toLocaleString()}</div>
+      <div>${isDepot?'—':tCube(s).toFixed(1)}</div>
+      <div>${pt.legMiles?pt.legMiles.toFixed(1):'—'}</div>
+      <div>${pt.driveMins?fmtMinutes(pt.driveMins):'—'}</div>
+      <div>${isDepot?'—':fmtMinutes(pt.serviceMins)}</div>
       <div>${minutesToHHMM(pt.arrive)}</div>
       <div>${minutesToHHMM(pt.depart)}</div>
-      <div>${isDepot?'â€”':(pt.waitMins?fmtMinutes(pt.waitMins):'â€”')}</div>
-      <div>${isRest?'Rest':(isDepot?'Depot':`${escapeHtml(s.earliestTimeWindow||'â€”')} - ${escapeHtml(s.latestTimeWindow||'â€”')}`)}</div>
-      <div>${isRest?`<span class="tw-badge tw-wait">8 Hour Rest</span>`:(isDepot?'â€”':`<span class="tw-badge ${twClass}">${escapeHtml(pt.twLabel||'')}</span>`)}</div>
+      <div>${isDepot?'—':(pt.waitMins?fmtMinutes(pt.waitMins):'—')}</div>
+      <div>${isRest?'Rest':(isDepot?'Depot':`${escapeHtml(s.earliestTimeWindow||'—')} - ${escapeHtml(s.latestTimeWindow||'—')}`)}</div>
+      <div>${isRest?`<span class="tw-badge tw-wait">8 Hour Rest</span>`:(isDepot?'—':`<span class="tw-badge ${twClass}">${escapeHtml(pt.twLabel||'')}</span>`)}</div>
     </div>`;
   }).join('');
 
   document.getElementById('manifest-list').innerHTML=`
     <div class="manifest-row header"><div>Seq</div><div>Stop / Customer</div><div>City</div><div>Cases</div><div>Weight</div><div>Cube</div><div>Leg Mi</div><div>Drive</div><div>Service</div><div>Arrive</div><div>Depart</div><div>Wait</div><div>Window</div><div>Status</div></div>
-    ${rows || '<div class="manifest-row"><div>â€”</div><div>No assigned stops</div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>'}`;
+    ${rows || '<div class="manifest-row"><div>—</div><div>No assigned stops</div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>'}`;
 }
 function manifestDragStart(e,stopId){
   manifestDragStopId=stopId;
@@ -2938,31 +2577,30 @@ function optimizeSelectedRoutes(opts){
     const result=optimizeRouteSequence(routeId,opts);
     if(result.ok){
       optimized++;
+      if(!routeWithinBasicLimits(routeId,opts)){
+        const route=routes.find(r=>r.id===routeId);
+        const overBy=routeTotalMinutesForOptimization(routeId,opts)-optimizationRouteLimitMinutes(route,opts);
+        const lateStops=optimizationRespectsWindows(opts)?routeTimelineRows(routeId).filter(r=>r.twStatus==='LATE').length:0;
+        const parts=[];
+        if(overBy>0)parts.push(`over route run-time limit by ${fmtMinutes(overBy)}`);
+        if(lateStops>0)parts.push(`${lateStops} late stop(s)`);
+        warnings.push(`${route?.name||'Route'} optimized, but still has ${parts.join(' and ')||'a constraint issue'}`);
+      }
     }
     locked+=result.locked||0;
     if(!result.ok)warnings.push(result.message);
   });
   const stage2=secondStageRouteOptimization(routeIds,opts);
-
-  // Final corrective pass: do not only warn on bad routes. If the optimizer still leaves
-  // a selected/day route over runtime, capacity, or customer delivery windows, remove the
-  // least-efficient stop(s) needed to make the route valid. Removed stops become unassigned
-  // so the user can see what could not fit inside the selected rules.
-  const correctionScope=optimizationDayRouteIds(routeIds);
-  const correction=autoCorrectOptimizationRoutes(correctionScope,opts);
-  correction.warnings.forEach(w=>warnings.push(w));
-
-  const net=optimizationSummaryForRoutes(correctionScope,opts);
+  const net=optimizationSummaryForRoutes(optimizationDayRouteIds(routeIds),opts);
   render();
   showJob('&#9889; Optimize Selected Route(s)',`
     <strong>Optimization Driver:</strong> ${optimizationDriverLabel(opts.optimizationDriver)}<br/>
     <strong>Stage 1:</strong> ${optimized} selected route(s) resequenced<br/>
     <strong>Stage 2:</strong> reviewed ${stage2.routesReviewed} route(s) for the day, consolidated ${stage2.consolidated} stop move(s), accepted ${stage2.swapped} route-to-route swap(s)${stage2.performanceLimited?' <span style="color:var(--warn);">(performance-limited review)</span>':''}<br/>
-    <strong>Corrective Pass:</strong> ${correction.unassigned} stop(s) unassigned from routes that were still over runtime, capacity, or delivery-window limits<br/>
     <strong>Network Result:</strong> ${net.activeRoutes} active route(s), ${net.miles.toFixed(1)} total mile(s), ${fmtMinutes(net.wait)} wait time, ${fmtMinutes(net.late)} late-window miss time<br/>
     <strong>${locked}</strong> stop(s) locked because of selected preferred-resource or preferred-position rules<br/>
     <strong>Delivery Windows:</strong> ${optimizationRespectsWindows(opts)?'Respected when possible / closest miss if impossible':'Ignored'}<br/>
-    ${warnings.length?`<br/><strong>Corrections / Warnings:</strong><br/>${warnings.map(w=>'&bull; '+escapeHtml(w)).join('<br/>')}`:''}
+    ${warnings.length?`<br/><strong>Warnings:</strong><br/>${warnings.map(w=>'&bull; '+escapeHtml(w)).join('<br/>')}`:''}
   `);
 }
 function optimizeRouteSequence(routeId,opts={}){
@@ -3073,129 +2711,6 @@ function routeWithinBasicLimits(routeId,opts={}){
   return true;
 }
 
-function routeViolationDetails(routeId,opts={}){
-  const route=routes.find(r=>r.id===routeId);
-  const rs=getRouteStops(routeId);
-  const drv=route?(trucks.find(d=>d.truckKey===route.truckKey||d.driverKey===route.driverKey)||{}):{};
-  const capCases=parseFloat(drv.measure1)||0;
-  const capWeight=parseFloat(drv.measure2)||0;
-  const capCube=parseFloat(drv.measure3)||0;
-  const cases=rs.reduce((a,s)=>a+tCases(s),0);
-  const weight=rs.reduce((a,s)=>a+tWeight(s),0);
-  const cube=rs.reduce((a,s)=>a+tCube(s),0);
-  const maxMinutes=route?optimizationRouteLimitMinutes(route,opts):0;
-  const totalMinutes=route?routeTotalMinutesForOptimization(routeId,opts):0;
-  const rows=optimizationRespectsWindows(opts)?routeTimelineRows(routeId).filter(r=>r.type==='stop'):[];
-  const lateRows=rows.filter(r=>r.twStatus==='LATE');
-  const lateMins=lateRows.reduce((a,row)=>{
-    const latest=timeToMinutes(row.stop?.latestTimeWindow);
-    return a+(latest!==null&&row.arrive>latest?row.arrive-latest:0);
-  },0);
-  return {
-    route,rs,cases,weight,cube,totalMinutes,maxMinutes,
-    overRuntime:route&&Number.isFinite(maxMinutes)&&maxMinutes>0?Math.max(0,totalMinutes-maxMinutes):0,
-    overCases:capCases?Math.max(0,cases-capCases):0,
-    overWeight:capWeight?Math.max(0,weight-capWeight):0,
-    overCube:capCube?Math.max(0,cube-capCube):0,
-    lateStops:lateRows.length,
-    lateMins,
-    invalid:false
-  };
-}
-function routeViolationScore(routeId,opts={}){
-  const v=routeViolationDetails(routeId,opts);
-  return (v.overRuntime*900)+(v.lateMins*1200)+(v.lateStops*2400)+(v.overCases*12)+(v.overWeight*.12)+(v.overCube*60);
-}
-function stopIsProtectedForCorrection(stop,route,opts={}){
-  // Respect hard user-selected locks first. If every stop is protected and the route is still invalid,
-  // the corrective pass will remove the least damaging protected stop as a last resort.
-  if(opts.respectPosition&&preferredPosition(stop))return true;
-  if(opts.respectResource&&!preferredResourceMatchesRoute(stop,route))return true;
-  return false;
-}
-function selectStopToUnassignForCorrection(routeId,opts={}){
-  const route=routes.find(r=>r.id===routeId);
-  if(!route)return null;
-  const currentStops=getRouteStops(routeId).filter(s=>s.lat&&s.lng);
-  if(!currentStops.length)return null;
-  const baseScore=routeViolationScore(routeId,opts);
-  const timeline=routeTimelineRows(routeId).filter(r=>r.type==='stop');
-  const lateByStop=new Map();
-  timeline.forEach(row=>{
-    const latest=timeToMinutes(row.stop?.latestTimeWindow);
-    const late=latest!==null&&row.arrive>latest?row.arrive-latest:0;
-    lateByStop.set(row.stop?.id,late);
-  });
-
-  const pools=[currentStops.filter(s=>!stopIsProtectedForCorrection(s,route,opts)),currentStops];
-  for(const pool of pools){
-    if(!pool.length)continue;
-    let best=null,bestScore=Infinity;
-    pool.forEach(stop=>{
-      const snap=snapshotOptimizationState([routeId]);
-      const oldRoute=stop.routeId, oldSeq=stop.seq;
-      stop.routeId=null; stop.seq=0;
-      optimizeRouteIfPossible(routeId,opts);
-      const afterScore=routeViolationScore(routeId,opts);
-      const remainingMiles=routeDistanceMiles(routeId);
-      const service=stopServiceMinutes(stop);
-      const cases=tCases(stop);
-      const late=lateByStop.get(stop.id)||0;
-      restoreOptimizationState(snap);
-      optimizeRouteIfPossible(routeId,opts);
-
-      // Lowest score wins. Prefer the stop that removes the most violation with the least lost case volume,
-      // while still strongly favoring late-window and high-service/time contributors.
-      const improvement=Math.max(0,baseScore-afterScore);
-      const candidateScore=afterScore-(improvement*0.35)-(late*850)-(service*25)+(cases*1.5)+(remainingMiles*.1);
-      if(candidateScore<bestScore){bestScore=candidateScore;best=stop;}
-      stop.routeId=oldRoute; stop.seq=oldSeq;
-    });
-    if(best)return best;
-  }
-  return null;
-}
-function autoCorrectOptimizationRoutes(routeIds,opts={}){
-  const warnings=[];
-  let unassigned=0, correctedRoutes=0, stillInvalid=0;
-  const ids=(routeIds&&routeIds.length?routeIds:routes.map(r=>r.id));
-  ids.forEach(routeId=>{
-    const route=routes.find(r=>r.id===routeId);
-    if(!route)return;
-    optimizeRouteIfPossible(routeId,opts);
-    let removedForRoute=0;
-    const maxRemovals=Math.max(0,getRouteStops(routeId).length);
-    while(!routeWithinBasicLimits(routeId,opts)&&removedForRoute<maxRemovals){
-      const stop=selectStopToUnassignForCorrection(routeId,opts);
-      if(!stop)break;
-      stop.routeId=null;
-      stop.seq=0;
-      stop.uiChecked=true;
-      visibleStopIds.add(stop.id);
-      removedForRoute++;
-      unassigned++;
-      optimizeRouteIfPossible(routeId,opts);
-    }
-    reseq();
-    if(removedForRoute){
-      correctedRoutes++;
-      warnings.push(`${route.name||'Route'} corrected by unassigning ${removedForRoute} stop(s) that could not fit while respecting runtime/capacity/windows.`);
-    }
-    if(!routeWithinBasicLimits(routeId,opts)){
-      stillInvalid++;
-      const v=routeViolationDetails(routeId,opts);
-      const parts=[];
-      if(v.overRuntime>0)parts.push(`still over runtime by ${fmtMinutes(v.overRuntime)}`);
-      if(v.lateStops>0)parts.push(`${v.lateStops} late stop(s)`);
-      if(v.overCases>0)parts.push(`${Math.round(v.overCases)} cases over capacity`);
-      if(v.overWeight>0)parts.push(`${Math.round(v.overWeight)} lbs over capacity`);
-      if(v.overCube>0)parts.push(`${v.overCube.toFixed(1)} cube over capacity`);
-      warnings.push(`${route.name||'Route'} could not be fully corrected (${parts.join(', ')||'constraint issue remains'}).`);
-    }
-  });
-  return {unassigned,correctedRoutes,stillInvalid,warnings};
-}
-
 function routeWindowCostMinutes(routeId,opts={}){
   if(!optimizationRespectsWindows(opts))return {wait:0,late:0,early:0};
   const rows=routeTimelineRows(routeId).filter(r=>r.type==='stop');
@@ -3247,14 +2762,11 @@ function restoreOptimizationState(snap){
     const stop=stops.find(s=>s.id===id);
     if(stop){stop.routeId=state.routeId;stop.seq=state.seq;}
   });
-  invalidateAllRouteMetrics();
 }
 function optimizeRouteIfPossible(routeId,opts={}){
-  invalidateAllRouteMetrics();
   const count=stops.filter(s=>s.routeId===routeId&&s.lat&&s.lng).length;
   if(count>=2)return optimizeRouteSequence(routeId,opts).ok;
-  if(count===1){const one=stops.find(s=>s.routeId===routeId&&s.lat&&s.lng); if(one)one.seq=1; invalidateAllRouteMetrics(); return true;}
-  invalidateAllRouteMetrics();
+  if(count===1){const one=stops.find(s=>s.routeId===routeId&&s.lat&&s.lng); if(one)one.seq=1; return true;}
   return true;
 }
 function canMoveStopForSecondStage(stop,fromRouteId,targetRoute,opts={}){
@@ -3577,7 +3089,7 @@ function setImportMode(m){
   const holidayOpts=document.getElementById('holiday-import-options');
   if(holidayOpts)holidayOpts.style.display=m==='holiday'?'block':'none';
   const hints={
-    all:'Upload one file with sheets named "Routes", "Trucks", "Stops", and "Depot Locations" â€” or load individually',
+    all:'Upload one file with sheets named "Routes", "Trucks", "Stops", and "Depot Locations" — or load individually',
     routes:'Upload your Route Template file. Include UDFNumber1, UDFString2, InitialLocationKey, and FinalLocationKey.',
     trucks:'Upload your Truck Template file',
     stops:'Upload your Stops/Orders Template file',
@@ -4431,7 +3943,7 @@ function holidayCapacityCheck(route,assignedStops,stop){
   // If no truck row is found, do not falsely allow an overloaded route silently.
   // Time rules can still run, but the reason will expose the missing truck match in Suggested Results.
   if(!cap.truck){
-    return {ok:false,cap,load,nextCube,nextWeight,reason:`no truck capacity found for Route TruckKey ${sval(route?.truckKey||'â€”')}`};
+    return {ok:false,cap,load,nextCube,nextWeight,reason:`no truck capacity found for Route TruckKey ${sval(route?.truckKey||'—')}`};
   }
 
   if(!cap.cube&&!cap.weight){
@@ -4472,83 +3984,17 @@ function holidayRouteFinalLimitCheck(routeId){
   if(!weightOk)parts.push(`weight ${Math.round(load.weight).toLocaleString()} / ${Math.round(cap.weight).toLocaleString()}`);
   return {ok:timeOk&&cubeOk&&weightOk,timeOk,cubeOk,weightOk,totalMinutes,maxMinutes,load,cap,reason:parts.join('; ')};
 }
-function holidayOptimizeRouteForWindows(routeId){
-  const routeStops=stops.filter(s=>s.routeId===routeId&&s.lat!==null&&s.lng!==null&&!isNaN(s.lat)&&!isNaN(s.lng));
-  if(routeStops.length>=2){
-    return optimizeRouteSequence(routeId,{optimizationDriver:'delivery_windows',respectResource:false,respectPosition:false}).ok;
-  }
-  if(routeStops.length===1)routeStops[0].seq=1;
-  invalidateAllRouteMetrics();
-  return true;
-}
-function holidayRouteExactFinalCheck(routeId){
-  const route=routes.find(r=>r.id===routeId);
-  if(!route)return {ok:false,reason:'Route not found'};
-
-  holidayOptimizeRouteForWindows(routeId);
-
-  const holidayCheck=holidayRouteFinalLimitCheck(routeId);
-  const optRows=routeTimelineRowsForOptimization(routeId,{optimizationDriver:'delivery_windows'});
-  const optMinutes=optRows.length?optRows[optRows.length-1].depart-optRows[0].arrive:0;
-  const maxMinutes=holidayRouteWindowMinutes(route);
-  const lateRows=routeTimelineRows(routeId).filter(r=>r.type==='stop'&&r.twStatus==='LATE');
-  const lateMissMinutes=lateRows.reduce((sum,row)=>{
-    const latest=timeToMinutes(row.stop?.latestTimeWindow);
-    return sum+(latest!==null&&row.arrive>latest?row.arrive-latest:0);
-  },0);
-
-  // For normal one-day routes, use the same clock-aware runtime check as Optimize Selected.
-  // For 2-day / layover routes, keep the holiday-specific Work Duration + daily cap check so the required rest period does not falsely count as work time.
-  const runtimeOk=routeIsTwoDay(route)
-    ? holidayCheck.timeOk
-    : (maxMinutes>0&&optMinutes<=maxMinutes&&holidayCheck.timeOk);
-
-  const parts=[];
-  if(!runtimeOk){
-    const actual=routeIsTwoDay(route)?holidayCheck.totalMinutes:Math.max(optMinutes,holidayCheck.totalMinutes||0);
-    parts.push(`route runtime ${fmtMinutes(actual)} exceeds allowed Work Duration ${fmtMinutes(maxMinutes)}`);
-  }
-  if(!holidayCheck.cubeOk||!holidayCheck.weightOk)parts.push(holidayCheck.reason);
-  if(lateRows.length)parts.push(`${lateRows.length} stop(s) outside delivery window after best sequencing (${fmtMinutes(lateMissMinutes)} total miss time)`);
-
-  return {
-    ok:runtimeOk&&holidayCheck.cubeOk&&holidayCheck.weightOk,
-    runtimeOk,
-    capacityOk:holidayCheck.cubeOk&&holidayCheck.weightOk,
-    lateStops:lateRows.length,
-    lateMissMinutes,
-    totalMinutes:routeIsTwoDay(route)?holidayCheck.totalMinutes:optMinutes,
-    maxMinutes,
-    reason:parts.filter(Boolean).join('; ')
-  };
-}
-function holidayPickStopToReject(routeId,check){
-  const timeline=routeTimelineRows(routeId);
-  const lateRank=new Map();
-  timeline.forEach(row=>{
-    if(row.type!=='stop'||!row.stop)return;
-    const latest=timeToMinutes(row.stop.latestTimeWindow);
-    const late=latest!==null&&row.arrive>latest?row.arrive-latest:0;
-    if(late>0)lateRank.set(row.stop.id,late);
-  });
-  return stops
-    .filter(s=>s.routeId===routeId&&s.holidayPlanning&&s.needsHolidayPlanning)
-    .sort((a,b)=>{
-      const lateDiff=(lateRank.get(b.id)||0)-(lateRank.get(a.id)||0);
-      if(lateDiff)return lateDiff;
-      return (b.seq||0)-(a.seq||0);
-    })[0]||null;
-}
 function holidayEnforceFinalRouteLimits(routeIds){
   let removed=0;
   (routeIds||[]).forEach(routeId=>{
     let guard=0;
     while(guard++<500){
       reseq();
-      holidayOptimizeRouteForWindows(routeId);
-      const check=holidayRouteExactFinalCheck(routeId);
+      resequenceRouteByDistanceSilent(routeId);
+      const check=holidayRouteFinalLimitCheck(routeId);
       if(check.ok)break;
-      const removable=holidayPickStopToReject(routeId,check);
+      const assigned=stops.filter(s=>s.routeId===routeId).sort((a,b)=>(b.seq||0)-(a.seq||0));
+      const removable=assigned.find(s=>s.holidayPlanning&&s.needsHolidayPlanning);
       if(!removable)break;
       const route=routes.find(r=>r.id===routeId);
       removable.routeId=null;
@@ -4556,13 +4002,12 @@ function holidayEnforceFinalRouteLimits(routeIds){
       removable.suggestedDeliveryDay='Not Routed';
       removable.suggestedRouteName='Unassigned';
       removable.suggestedRouteId='';
-      removable.holidayReason=`Not routed: ${check.reason}. Best candidate was ${route?route.name:'route'}, but the route cannot exceed Work Duration, the 2-day daily cap, or capacity. Delivery windows were optimized first, then the route was revalidated.`;
+      removable.holidayReason=`Not routed: ${check.reason}. Best candidate was ${route?route.name:'route'}, but the route cannot exceed Work Duration, the 2-day daily cap, or capacity.`;
       removable.suggestionStep='Final validation';
       removable.suggestionType='Rejected by route limit';
       removed++;
     }
   });
-  (routeIds||[]).forEach(routeId=>holidayOptimizeRouteForWindows(routeId));
   return removed;
 }
 function holidayBestCapacityBlockedCandidate(stop,availableByDay,routeAssignedStops,preferredOnly=false){
@@ -4644,7 +4089,7 @@ function planHoliday(){
       Object.entries(availableByDay).forEach(([day,dayRoutes])=>{dayRoutes.filter(r=>holidayRouteMatchesCustomer(r,s)).forEach(r=>sameRouteCandidates.push({day,route:r}));});
       sameRouteCandidates.sort((a,b)=>holidayRouteRoomMinutes(b.route,routeAssignedStops[b.route.id])-holidayRouteRoomMinutes(a.route,routeAssignedStops[a.route.id]));
       for(const cand of sameRouteCandidates){
-        if(holidayCandidateFits(cand.route,routeAssignedStops[cand.route.id],s)){holidayPlaceStopOnRoute(s,cand.route,cand.day,routeAssignedStops,`Step 2: moved from ${s.originalDeliveryDay} holiday to same locked route on ${cand.day}, without exceeding Work Duration and route limits.`,'Step 2','Same locked route');sameRoutePlaced++;placed=true;break;}
+        if(holidayCandidateFits(cand.route,routeAssignedStops[cand.route.id],s)){holidayPlaceStopOnRoute(s,cand.route,cand.day,routeAssignedStops,`Step 2: moved from ${s.originalDeliveryDay} holiday to same locked route on ${cand.day}, without exceeding latest end time.`,'Step 2','Same locked route');sameRoutePlaced++;placed=true;break;}
       }
     }
     if(!placed&&holidayOvernightCustomer(s)){
@@ -4670,7 +4115,7 @@ function planHoliday(){
         s.suggestionType='Capacity blocked';
         capacityBlocked++;
       }else{
-        s.holidayReason='No available route/day found within route Work Duration, daily cap, capacity, and delivery-window scoring after same-route, overnight, layover, and closest-route checks.';
+        s.holidayReason='No available route/day found within route template latest end time after same-route, overnight, layover, and closest-route checks.';
         s.suggestionStep='Step 2';
         s.suggestionType=holidayOvernightCustomer(s)?'Overnight not routed':'Not routed';
       }
@@ -4680,7 +4125,7 @@ function planHoliday(){
 
   const affectedRouteIds=new Set(stops.filter(s=>s.routeId).map(s=>s.routeId));
   affectedRouteIds.forEach(routeId=>{expanded.add(routeId);resequenceRouteByDistanceSilent(routeId);});
-  const holidayStage2=secondStageRouteOptimization([...affectedRouteIds],{optimizationDriver:'delivery_windows',respectResource:false,respectPosition:false});
+  const holidayStage2=secondStageRouteOptimization([...affectedRouteIds],{optimizationDriver:'distance',respectResource:false,respectPosition:false});
   const finalRejected=holidayEnforceFinalRouteLimits([...affectedRouteIds]);
   reseq();holidaySession.planned=true;
   holidaySession.lastPlanStats={baselineRouted,baselineUnrouted,overnightTotal,overnightRouted,sameRoutePlaced,closestStopPlaced,layoverPlaced,generalPlaced,capacityBlocked,finalRejected,holidayStage2,blockedRoutes:routes.filter(holidayRouteBlocked).length,truckTemplates:trucks.length};
@@ -4695,7 +4140,7 @@ function planHoliday(){
   const routesUsed=new Set(holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).map(s=>s.routeId)).size;
   const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
   const heavy=holidayHeaviestDaySummary();
-  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Excluded Planning Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'â€”')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> Route Template Work Duration is used as the runtime cap. LatestEndTime is not used as the hard cap. 2-day routes include an 8-hour rest and each day is capped at 12 hours<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><strong>Step 4 Network Review:</strong> ${holidayStage2.consolidated.toLocaleString()} consolidation move(s) and ${holidayStage2.swapped.toLocaleString()} swap(s) accepted to reduce route count, wait time, and total network miles${holidayStage2.performanceLimited?' (performance-limited review)':''}.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
+  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Excluded Planning Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> Route Template Work Duration is used as the runtime cap. LatestEndTime is not used as the hard cap. 2-day routes include an 8-hour rest and each day is capped at 12 hours<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><strong>Step 4 Network Review:</strong> ${holidayStage2.consolidated.toLocaleString()} consolidation move(s) and ${holidayStage2.swapped.toLocaleString()} swap(s) accepted to reduce route count, wait time, and total network miles${holidayStage2.performanceLimited?' (performance-limited review)':''}.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
 }
 
 function suggestedDaysRowBucket(s){
@@ -4776,7 +4221,7 @@ function openSuggestedDaysResults(){
   const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
   const heavy=holidayHeaviestDaySummary();
   const stats=holidaySession.lastPlanStats||{};
-  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${planned.toLocaleString()}<br/><strong>None Needed:</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'â€”')}<br/><strong>Overnight Customers:</strong> ${(stats.overnightRouted||0).toLocaleString()} routed / ${(stats.overnightTotal||0).toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${(stats.capacityBlocked||0).toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${(stats.truckTemplates||trucks.length||0).toLocaleString()}<br/><strong>Excluded Route Templates:</strong> ${(stats.blockedRoutes||0).toLocaleString()} with UDFString4 X/x`;
+  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${planned.toLocaleString()}<br/><strong>None Needed:</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${(stats.overnightRouted||0).toLocaleString()} routed / ${(stats.overnightTotal||0).toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${(stats.capacityBlocked||0).toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${(stats.truckTemplates||trucks.length||0).toLocaleString()}<br/><strong>Excluded Route Templates:</strong> ${(stats.blockedRoutes||0).toLocaleString()} with UDFString4 X/x`;
   setupSuggestedDaysFilters();
   renderSuggestedDaysTable();
   document.getElementById('suggested-days-modal').style.display='flex';
@@ -4788,7 +4233,7 @@ function openSuggestedDaysResults(){
 function openAddStop(){
   document.getElementById('add-stop-modal').style.display='flex';
   const sel=document.getElementById('s-route');
-  sel.innerHTML='<option value="">â€” Unassigned â€”</option>'+routes.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
+  sel.innerHTML='<option value="">— Unassigned —</option>'+routes.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
 }
 function openAddStopForRoute(rid){openAddStop();document.getElementById('s-route').value=rid;}
 function openAddRoute(){document.getElementById('add-route-modal').style.display='flex';}
@@ -4854,7 +4299,7 @@ function saveRoute(){
 // ============================================================
 function clearSession(){
   const confirmClear = confirm(
-    'Clear the entire session?\n\nThis will remove:\nÃ¢â‚¬Â¢ All routes\nÃ¢â‚¬Â¢ All stops\nÃ¢â‚¬Â¢ All trucks\nÃ¢â‚¬Â¢ All depots\nÃ¢â‚¬Â¢ All map data\nÃ¢â‚¬Â¢ All session assignments'
+    'Clear the entire session?\n\nThis will remove:\n• All routes\n• All stops\n• All trucks\n• All depots\n• All map data\n• All session assignments'
   );
 
   if(!confirmClear) return;
@@ -4885,7 +4330,6 @@ function clearSession(){
   routeDayDisplayFilter = "";
   activeRouteFilterId = null;
   activeStopFilterId = null;
-  activeRouteFilterSnapshot = null;
 
   Object.values(markers).forEach(m=>{
     try{ map.removeLayer(m); }catch(e){}
@@ -5126,27 +4570,7 @@ window.detectImportSheetType=function(name,data){
 };
 function acctFromLocation(v){const t=sval(v),m=[...t.matchAll(/\(([^()]+)\)/g)],raw=m.length?m[m.length-1][1]:t,d=sval(raw).replace(/\D/g,'');return d||sval(raw);}
 function avg(a){const n=(a||[]).map(nval).filter(x=>x>0);return n.length?n.reduce((p,c)=>p+c,0)/n.length:0;}
-function durMin(v){
-  if(v===null||v===undefined||v==='')return 0;
-  if(v instanceof Date&&!isNaN(v))return v.getHours()*60+v.getMinutes()+v.getSeconds()/60;
-  const text=sval(v);
-  const timeMatch=text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
-  if(timeMatch){
-    let h=parseInt(timeMatch[1],10)||0;
-    const m=parseInt(timeMatch[2],10)||0;
-    const s=parseInt(timeMatch[3]||'0',10)||0;
-    const ap=(timeMatch[4]||'').toUpperCase();
-    if(ap==='AM'&&h===12)h=0;
-    // Treat PLAN SERVICE TIME as a duration, not a clock time. Examples:
-    // 0:27 => 27 minutes, 1:05 => 65 minutes, 12:05 AM => 5 minutes.
-    return Math.max(0,(h*60)+m+(s/60));
-  }
-  const n=nval(v);
-  if(!n)return 0;
-  const f=n-Math.floor(n);
-  if(f>0)return f*1440;
-  return n>240?n/60:n;
-}
+function durMin(v){if(v===null||v===undefined||v==='')return 0;if(v instanceof Date&&!isNaN(v))return v.getHours()*60+v.getMinutes()+v.getSeconds()/60;const n=nval(v);if(!n)return 0;const f=n-Math.floor(n);if(f>0)return f*1440;return n>240?n/60:n;}
 window.importHolidayOrderHistory=function(data){const b={};let rows=0;(data||[]).forEach(r=>{const a=acctFromLocation(gc(r,['LOCATION','Location']));if(!a)return;if(!b[a])b[a]={rows:0,cases:[],cube:[],weight:[],plan:[],actual:[]};const x=b[a];x.rows++;rows++;[['cases','CASES ACTUAL'],['cube','CUBE ACTUAL'],['weight','WEIGHT ACTUAL']].forEach(([k,c])=>{const v=nval(gc(r,[c,c.replace(' ACTUAL',' Actual'),c.replace(' ', '')]));if(v>0)x[k].push(v);});const p=durMin(gc(r,['PLAN SERVICE TIME','Plan Service Time','PlanServiceTime'])),q=durMin(gc(r,['ACTUAL SERVICE TIME','Actual Service Time','ActualServiceTime']));if(p>0)x.plan.push(p);if(q>0)x.actual.push(q);});orderHist={};Object.entries(b).forEach(([a,x])=>{const p=avg(x.plan),q=avg(x.actual);orderHist[a]={account:a,orderCount:x.rows,avgCases:avg(x.cases),avgCube:avg(x.cube),avgWeight:avg(x.weight),avgPlanServiceMinutes:p||q,avgActualServiceMinutes:q};});orderRows=rows;window.holidayOrderHistoryRows=rows;return rows;};
 function applyHist(c){const a=sval(c.account||c.customerNumber||c.shipToId),h=orderHist[a]||null;c.orderHistory=h;c.hasRecentOrder=!!h;c.recentOrderCount=h?h.orderCount:0;c.avgCases=h?h.avgCases:0;c.avgCube=h?h.avgCube:0;c.avgWeight=h?h.avgWeight:0;c.avgPlanServiceMinutes=h?h.avgPlanServiceMinutes:0;c.avgActualServiceMinutes=h?h.avgActualServiceMinutes:0;return c;}
 const oldImportCustomers=window.importHolidayCustomers||importHolidayCustomers;
@@ -5178,136 +4602,5 @@ reseq();holidaySession.planned=true;holidaySession.lastPlanStats={baselineRouted
 })();
 
 </script>
-<script>
-(() => {
-  const previousConfirmImport = window.confirmImport || confirmImport;
-  function orderHistoryAccountFromLocation(value){const text=sval(value);const matches=[...text.matchAll(/\(([^()]+)\)/g)];const raw=matches.length?matches[matches.length-1][1]:text;const digits=sval(raw).replace(/\D/g,'');return digits||sval(raw);}
-  function orderHistoryCustomerName(value){return sval(value).replace(/\s*\([^()]*\)\s*$/,'').trim();}
-  function selectedRouteDayNamesForOrderHistory(){return getSelectedRouteDayCodes().map(code=>{const match=Object.entries(HOLIDAY_DAY_CODES).find(([,v])=>v===code);return match?match[0]:dayNameFromAny(code);}).filter(Boolean);}
-  function orderHistoryRowMatchesSelectedDay(row){const selected=selectedRouteDayNamesForOrderHistory();if(!selected.length)return true;const rowDay=dayNameFromAny(gc(row,['DAY','Day']));return selected.includes(rowDay);}
-  function buildCustomerListLookup(rows){const lookup={};(rows||[]).forEach(row=>{const account=sval(gc(row,['Tandem Account Number','Account Number','Customer Number']));if(!account)return;const day=holidayCustomerDay(row)||dayNameFromAny(gc(row,['Day Of Week.1','Day Of Week','DAY','Day']));if(!lookup[account])lookup[account]={byDay:{},any:null};const rec={row,day};if(day)lookup[account].byDay[day]=rec;if(!lookup[account].any)lookup[account].any=rec;});return lookup;}
-  function parseOrderHistoryServiceMinutes(value){if(typeof durMin==='function')return durMin(value);const text=sval(value);const m=text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);if(m){let h=parseInt(m[1],10)||0;const min=parseInt(m[2],10)||0;const sec=parseInt(m[3]||'0',10)||0;const ap=(m[4]||'').toUpperCase();if(ap==='AM'&&h===12)h=0;return (h*60)+min+(sec/60);}const n=nval(value);if(!n)return 0;const frac=n-Math.floor(n);if(frac>0)return frac*1440;return n>240?n/60:n;}
-  function importStopsFromCustomerOrderHistory(orderRows,customerRows){const customerLookup=buildCustomerListLookup(customerRows||[]);let imported=0,skippedNoCustomer=0,skippedNoGeo=0,skippedDay=0;const selectedDays=selectedRouteDayNamesForOrderHistory();(orderRows||[]).forEach((row,index)=>{if(!orderHistoryRowMatchesSelectedDay(row)){skippedDay++;return;}const account=orderHistoryAccountFromLocation(gc(row,['LOCATION','Location']));if(!account)return;const orderDay=dayNameFromAny(gc(row,['DAY','Day']));const customerMatch=customerLookup[account]?.byDay?.[orderDay]||customerLookup[account]?.any;if(!customerMatch){skippedNoCustomer++;return;}const customer=customerMatch.row;const lat=parseFloat(gc(customer,['Latitude','latitude','Lat','lat']));const lng=parseFloat(gc(customer,['Longitude','longitude','Long','long','Lng','lng']));if(isNaN(lat)||isNaN(lng)){skippedNoGeo++;return;}const tripDate=sval(gc(row,['TRIP DATE','Trip Date','TripDate']));const actualStop=sval(gc(row,['ACTUAL STOP NUMBER','Actual Stop Number','ActualStopNumber']));const planStop=sval(gc(row,['PLAN STOP NUMBER','Plan Stop Number','PlanStopNumber']));const route=sval(gc(row,['ROUTE','Route']));const ordNum=['OH',account,tripDate||index+1,actualStop||planStop||index+1].filter(Boolean).join('-');const existing=stops.find(s=>s.orderNumber===ordNum);const service=parseOrderHistoryServiceMinutes(gc(row,['PLAN SERVICE TIME','Plan Service Time','PlanServiceTime']));const customerName=sval(gc(customer,['Account: Account Name','Customer Name','Name']))||orderHistoryCustomerName(gc(row,['LOCATION','Location']))||('Customer '+account);const obj={id:existing?existing.id:uid(),routeId:existing?existing.routeId:null,seq:existing?existing.seq:0,orderNumber:ordNum,shipToId:account,customerNumber:account,orderType:sval(gc(row,['ROUTE TYPE','Route Type']))||'Order History',orderStatus:'Order History',district:sval(gc(row,['MARKET','Market'])),reqDeliveryDate:tripDate,willCallIndicator:'',profit:'',customerName,address:[sval(gc(customer,['Address Line 1','Address','Ship Address'])),sval(gc(customer,['Address Line 2']))].filter(Boolean).join(' '),crossStreet:'',city:sval(gc(row,['CITY','City']))||sval(gc(customer,['City'])),state:sval(gc(customer,['State'])),zip:sval(gc(customer,['Zip','ZIP','Postal Code'])),country:'',lat,lng,deliveryDay:orderDay,originalDeliveryDay:orderDay,dayOfWeekName:orderDay,earliestTimeWindow:excelTimeToHHMM(gc(customer,['Delivery Window Start','Earliest Delivery Time','EarliestDeliveryTime','Earliest Time Window']))||excelTimeToHHMM(gc(row,['TM WNDW OPN 1 PLND']))||'06:00',latestTimeWindow:excelTimeToHHMM(gc(customer,['Delivery Window End','Latest Delivery Time','LatestDeliveryTime','Latest Time Window']))||excelTimeToHHMM(gc(row,['TM WNDW CLS 1 PLND']))||'18:00',fixedServiceTime:service||0,variableServiceTime:0,preferredResourceKey:route,preferredResourceIndicator:route?'1':'',restrictPreferredResource:'',preferredRouteSequence:actualStop||planStop,restrictRoutePosition:'',standardRoute:route,standardSequence:actualStop||planStop,comment:'Imported from Customer Order History. DAY: '+(orderDay||''),dryCases:nval(gc(row,['CASES ACTUAL','Cases Actual','CasesActual'])),dryCube:nval(gc(row,['CUBE ACTUAL','Cube Actual','CubeActual'])),dryWeight:nval(gc(row,['WEIGHT ACTUAL','Weight Actual','WeightActual'])),coolerCases:0,coolerCube:0,coolerWeight:0,frozenCases:0,frozenCube:0,frozenWeight:0,pkgCases:0,pkgCube:0,pkgWeight:0,uiChecked:false,raw:{...row}};if(!obj.routeId&&route){const mr=routes.find(r=>r.name===route||r.routeTemplateKey===route||String(r.udfNumber1||'')===route);if(mr){obj.routeId=mr.id;obj.seq=parseFloat(actualStop||planStop)||999;}}if(existing)Object.assign(existing,obj);else stops.push(obj);imported++;});reseq();return {imported,skippedNoCustomer,skippedNoGeo,skippedDay,selectedDays};}
-  window.confirmImport=function(){if(!pendingWB){showToast('No workbook selected');return;}if(importMode!=='stops')return previousConfirmImport();const btn=document.getElementById('imp-confirm');const originalText=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Importing...';}try{const sheets=pendingWB.SheetNames.map(name=>{const ws=pendingWB.Sheets[name];const data=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});return {name,data,type:detectImportSheetType(name,data)};}).filter(x=>x.data.length);const orderHist=sheets.find(x=>x.type==='customer order history'||x.name.toLowerCase().trim()==='customer order history');const customerList=sheets.find(x=>x.type==='holiday customers'||x.name.toLowerCase().trim()==='customer list');if(orderHist){const result=importStopsFromCustomerOrderHistory(orderHist.data,customerList?.data||[]);invalidateAllRouteMetrics();mapCleared=true;visibleStopIds.clear();visibleRouteIds.clear();potColors={};if(typeof potRouteSuggestions!=='undefined')potRouteSuggestions={};closeModal('import-modal');setTimeout(()=>{render();expanded.clear();renderRoutes();const dayText=result.selectedDays.length?' for '+result.selectedDays.join(', '):'';const skipped=[];if(result.skippedNoCustomer)skipped.push(result.skippedNoCustomer.toLocaleString()+' missing Customer List match');if(result.skippedNoGeo)skipped.push(result.skippedNoGeo.toLocaleString()+' missing geocode');if(result.skippedDay)skipped.push(result.skippedDay.toLocaleString()+' outside selected day filter');showToast('Imported '+result.imported.toLocaleString()+' order-history stop(s)'+dayText+(skipped.length?' ('+skipped.join(', ')+')':''));if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';}},25);return;}return previousConfirmImport();}catch(err){console.error('Stops import failed:',err);if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';}showToast('Stops import failed: '+(err&&err.message?err.message:err));alert('Stops import failed: '+(err&&err.message?err.message:err));}};
-})();
-</script>
-<script>
-(() => {
-  const previousConfirmImportForCondensedStops = window.confirmImport || confirmImport;
-
-  function chAcct(value){
-    const text=sval(value);
-    const matches=[...text.matchAll(/\(([^()]+)\)/g)];
-    const raw=matches.length?matches[matches.length-1][1]:text;
-    const digits=sval(raw).replace(/\D/g,'');
-    return digits||sval(raw);
-  }
-  function chName(value){return sval(value).replace(/\s*\([^()]*\)\s*$/,'').trim();}
-  function chSelectedDays(){return getSelectedRouteDayCodes().map(code=>{const m=Object.entries(HOLIDAY_DAY_CODES).find(([,v])=>v===code);return m?m[0]:dayNameFromAny(code);}).filter(Boolean);}
-  function chMatchesDay(row){const selected=chSelectedDays();if(!selected.length)return true;return selected.includes(dayNameFromAny(gc(row,['DAY','Day'])));}
-  function chService(value){if(typeof durMin==='function')return durMin(value);const n=nval(value);const f=n-Math.floor(n);return f>0?f*1440:n;}
-  function chCustomerLookup(rows){const lookup={};(rows||[]).forEach(row=>{const acct=sval(gc(row,['Tandem Account Number','Account Number','Customer Number']));if(!acct)return;const day=holidayCustomerDay(row)||dayNameFromAny(gc(row,['Day Of Week.1','Day Of Week','DAY','Day']));if(!lookup[acct])lookup[acct]={byDay:{},any:null};const rec={row,day};if(day)lookup[acct].byDay[day]=rec;if(!lookup[acct].any)lookup[acct].any=rec;});return lookup;}
-  function chAddWeighted(bucket,value,weight){const v=nval(value),w=nval(weight);if(v>0&&w>0){bucket.weightedService+=(v*w);bucket.serviceWeight+=w;}else if(v>0){bucket.serviceValues.push(v);}}
-  function chFinalService(bucket){if(bucket.serviceWeight>0)return bucket.weightedService/bucket.serviceWeight;const vals=bucket.serviceValues.filter(v=>v>0);return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;}
-
-  function importCondensedStopsFromCustomerOrderHistory(orderRows,customerRows){
-    const customers=chCustomerLookup(customerRows||[]);
-    const buckets={};
-    let skippedDay=0,skippedNoCustomer=0,skippedNoGeo=0,sourceRows=0;
-    const selectedDays=chSelectedDays();
-
-    (orderRows||[]).forEach((row,index)=>{
-      if(!chMatchesDay(row)){skippedDay++;return;}
-      const account=chAcct(gc(row,['LOCATION','Location']));
-      if(!account)return;
-      const orderDay=dayNameFromAny(gc(row,['DAY','Day']));
-      const cm=customers[account]?.byDay?.[orderDay]||customers[account]?.any;
-      if(!cm){skippedNoCustomer++;return;}
-      const customer=cm.row;
-      const lat=parseFloat(gc(customer,['Latitude','latitude','Lat','lat']));
-      const lng=parseFloat(gc(customer,['Longitude','longitude','Long','long','Lng','lng']));
-      if(isNaN(lat)||isNaN(lng)){skippedNoGeo++;return;}
-
-      const route=sval(gc(row,['ROUTE','Route']));
-      const tripDate=sval(gc(row,['TRIP DATE','Trip Date','TripDate']));
-      const actualStop=sval(gc(row,['ACTUAL STOP NUMBER','Actual Stop Number','ActualStopNumber']));
-      const planStop=sval(gc(row,['PLAN STOP NUMBER','Plan Stop Number','PlanStopNumber']));
-      const key=[account,orderDay||'NoDay',route||'NoRoute'].join('|');
-      const cases=nval(gc(row,['CASES ACTUAL','Cases Actual','CasesActual']));
-      const cube=nval(gc(row,['CUBE ACTUAL','Cube Actual','CubeActual']));
-      const weight=nval(gc(row,['WEIGHT ACTUAL','Weight Actual','WeightActual']));
-      const service=chService(gc(row,['PLAN SERVICE TIME','Plan Service Time','PlanServiceTime']));
-
-      if(!buckets[key]){
-        const customerName=sval(gc(customer,['Account: Account Name','Customer Name','Name']))||chName(gc(row,['LOCATION','Location']))||('Customer '+account);
-        buckets[key]={
-          account,orderDay,route,customer,lat,lng,customerName,
-          orderCount:0,cases:0,cube:0,weight:0,weightedService:0,serviceWeight:0,serviceValues:[],
-          tripDates:new Set(),stopNumbers:[],sourceRows:[],firstIndex:index
-        };
-      }
-      const b=buckets[key];
-      b.orderCount++;sourceRows++;
-      b.cases+=cases;b.cube+=cube;b.weight+=weight;
-      chAddWeighted(b,service,cases||1);
-      if(tripDate)b.tripDates.add(tripDate);
-      if(actualStop||planStop)b.stopNumbers.push(actualStop||planStop);
-      b.sourceRows.push(row);
-    });
-
-    let imported=0;
-    Object.values(buckets).forEach((b,index)=>{
-      const customer=b.customer;
-      const service=chFinalService(b);
-      const ordNum=['OHC',b.account,b.orderDay||'ALL',b.route||'ROUTE'].join('-');
-      const existing=stops.find(s=>s.orderNumber===ordNum);
-      const stopNums=b.stopNumbers.map(n=>parseFloat(n)).filter(n=>Number.isFinite(n));
-      const avgSeq=stopNums.length?stopNums.reduce((a,c)=>a+c,0)/stopNums.length:999;
-      const obj={
-        id:existing?existing.id:uid(),routeId:existing?existing.routeId:null,seq:existing?existing.seq:0,
-        orderNumber:ordNum,shipToId:b.account,customerNumber:b.account,
-        orderType:'Condensed Order History',orderStatus:'Order History',district:'',reqDeliveryDate:Array.from(b.tripDates).join(', '),willCallIndicator:'',profit:'',
-        customerName:b.customerName,address:[sval(gc(customer,['Address Line 1','Address','Ship Address'])),sval(gc(customer,['Address Line 2']))].filter(Boolean).join(' '),crossStreet:'',
-        city:sval(customer?.CITY)||sval(gc(customer,['City'])),state:sval(gc(customer,['State'])),zip:sval(gc(customer,['Zip','ZIP','Postal Code'])),country:'',lat:b.lat,lng:b.lng,
-        deliveryDay:b.orderDay,originalDeliveryDay:b.orderDay,dayOfWeekName:b.orderDay,
-        earliestTimeWindow:excelTimeToHHMM(gc(customer,['Delivery Window Start','Earliest Delivery Time','EarliestDeliveryTime','Earliest Time Window']))||'06:00',
-        latestTimeWindow:excelTimeToHHMM(gc(customer,['Delivery Window End','Latest Delivery Time','LatestDeliveryTime','Latest Time Window']))||'18:00',
-        fixedServiceTime:service||0,variableServiceTime:0,
-        preferredResourceKey:b.route,preferredResourceIndicator:b.route?'1':'',restrictPreferredResource:'',preferredRouteSequence:avgSeq,restrictRoutePosition:'',standardRoute:b.route,standardSequence:avgSeq,
-        comment:`Condensed ${b.orderCount} Customer Order History order(s) for account ${b.account}.`,
-        dryCases:parseFloat(b.cases.toFixed(2)),dryCube:parseFloat(b.cube.toFixed(2)),dryWeight:parseFloat(b.weight.toFixed(2)),
-        coolerCases:0,coolerCube:0,coolerWeight:0,frozenCases:0,frozenCube:0,frozenWeight:0,pkgCases:0,pkgCube:0,pkgWeight:0,
-        condensedOrderCount:b.orderCount,condensedSourceRows:b.sourceRows.length,uiChecked:false,raw:{condensed:true,sourceRows:b.sourceRows}
-      };
-      if(!obj.routeId&&b.route){const mr=routes.find(r=>r.name===b.route||r.routeTemplateKey===b.route||String(r.udfNumber1||'')===b.route);if(mr){obj.routeId=mr.id;obj.seq=avgSeq;}}
-      if(existing)Object.assign(existing,obj);else stops.push(obj);
-      imported++;
-    });
-    reseq();
-    return {imported,sourceRows,skippedNoCustomer,skippedNoGeo,skippedDay,selectedDays};
-  }
-
-  window.confirmImport=function(){
-    if(!pendingWB){showToast('No workbook selected');return;}
-    if(importMode!=='stops')return previousConfirmImportForCondensedStops();
-    const btn=document.getElementById('imp-confirm');const originalText=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Importing...';}
-    try{
-      const sheets=pendingWB.SheetNames.map(name=>{const ws=pendingWB.Sheets[name];const data=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});return {name,data,type:detectImportSheetType(name,data)};}).filter(x=>x.data.length);
-      const orderHist=sheets.find(x=>x.type==='customer order history'||x.name.toLowerCase().trim()==='customer order history');
-      const customerList=sheets.find(x=>x.type==='holiday customers'||x.name.toLowerCase().trim()==='customer list');
-      if(orderHist){
-        const result=importCondensedStopsFromCustomerOrderHistory(orderHist.data,customerList?.data||[]);
-        invalidateAllRouteMetrics();mapCleared=true;visibleStopIds.clear();visibleRouteIds.clear();potColors={};if(typeof potRouteSuggestions!=='undefined')potRouteSuggestions={};
-        closeModal('import-modal');
-        setTimeout(()=>{render();expanded.clear();renderRoutes();const dayText=result.selectedDays.length?' for '+result.selectedDays.join(', '):'';const skipped=[];if(result.skippedNoCustomer)skipped.push(result.skippedNoCustomer.toLocaleString()+' missing Customer List match');if(result.skippedNoGeo)skipped.push(result.skippedNoGeo.toLocaleString()+' missing geocode');if(result.skippedDay)skipped.push(result.skippedDay.toLocaleString()+' outside selected day filter');showToast('Condensed '+result.sourceRows.toLocaleString()+' order row(s) into '+result.imported.toLocaleString()+' customer stop(s)'+dayText+(skipped.length?' ('+skipped.join(', ')+')':''));if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';}},25);
-        return;
-      }
-      return previousConfirmImportForCondensedStops();
-    }catch(err){console.error('Stops import failed:',err);if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';}showToast('Stops import failed: '+(err&&err.message?err.message:err));alert('Stops import failed: '+(err&&err.message?err.message:err));}
-  };
-})();
-</script>
 </body>
 </html>
-
-
