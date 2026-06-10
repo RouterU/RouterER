@@ -692,6 +692,7 @@ let routeSort=""; // optional route sort; blank keeps import/original order
 let routeDayDisplayFilter=""; // optional left-panel route day filter; blank shows all days
 let activeRouteFilterId=null;
 let activeStopFilterId=null;
+let activeRouteFilterSnapshot=null;
 
 // ============================================================
 // PERFORMANCE CACHE
@@ -1060,17 +1061,55 @@ function minutesToHHMM(total){
   const h=Math.floor(normalized/60), m=normalized%60;
   return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
 }
+function captureMapVisibilityForFilter(){
+  return {
+    mapCleared,
+    visibleStopIds:Array.from(visibleStopIds),
+    visibleRouteIds:Array.from(visibleRouteIds)
+  };
+}
+function restoreMapVisibilityFromFilter(){
+  if(!activeRouteFilterSnapshot)return;
+  mapCleared=activeRouteFilterSnapshot.mapCleared;
+  visibleStopIds.clear();
+  (activeRouteFilterSnapshot.visibleStopIds||[]).forEach(id=>visibleStopIds.add(id));
+  visibleRouteIds.clear();
+  (activeRouteFilterSnapshot.visibleRouteIds||[]).forEach(id=>visibleRouteIds.add(id));
+  activeRouteFilterSnapshot=null;
+}
+function clearActiveRouteFilter(){
+  if(activeRouteFilterId)restoreMapVisibilityFromFilter();
+  activeRouteFilterId=null;
+}
 function toggleRouteFilter(routeId){
-  activeRouteFilterId=activeRouteFilterId===routeId?null:routeId;
-  if(activeRouteFilterId) expanded.add(routeId);
+  if(activeRouteFilterId===routeId){
+    clearActiveRouteFilter();
+    activeStopFilterId=null;
+    renderRoutes();
+    renderUA();
+    renderMap();
+    renderLegend();
+    return;
+  }
+  if(!activeRouteFilterId)activeRouteFilterSnapshot=captureMapVisibilityForFilter();
+  activeRouteFilterId=routeId;
+  activeStopFilterId=null;
+  expanded.add(routeId);
+  fitRouteToMap(routeId);
   renderRoutes();
+  renderUA();
+  renderMap();
+  renderLegend();
 }
 function toggleStopFilter(stopId){
-  activeStopFilterId=activeStopFilterId===stopId?null:stopId;
   const s=stops.find(x=>x.id===stopId);
+  activeStopFilterId=activeStopFilterId===stopId?null:stopId;
+  clearActiveRouteFilter();
   if(activeStopFilterId&&s&&s.routeId) expanded.add(s.routeId);
   renderRoutes();
   renderUA();
+  renderMap();
+  renderLegend();
 }
 function routeMatchesFilter(route){
   if(activeRouteFilterId)return route.id===activeRouteFilterId;
@@ -1080,7 +1119,22 @@ function stopMatchesFilter(stop){
   if(activeStopFilterId)return stop.id===activeStopFilterId;
   return true;
 }
-function clearLeftFilter(){activeRouteFilterId=null;activeStopFilterId=null;renderRoutes();renderUA();}
+function clearLeftFilter(){clearActiveRouteFilter();activeStopFilterId=null;renderRoutes();renderUA();renderMap();renderLegend();}
+function clearAllFilters(){
+  clearActiveRouteFilter();
+  activeStopFilterId=null;
+  routeDayDisplayFilter='';
+  potColors={};
+  if(typeof potRouteSuggestions!=='undefined')potRouteSuggestions={};
+  const dayFilterSelect=document.getElementById('route-day-display-filter');
+  if(dayFilterSelect)dayFilterSelect.value='';
+  renderRoutes();
+  renderUA();
+  renderMap();
+  renderLegend();
+  updateAssignPotentialButton();
+  showToast('Filters cleared');
+}
 
 function normalizeKey(value){return (value??'').toString().trim();}
 function findDepotByKey(key){
@@ -1143,6 +1197,9 @@ function renderStats(){
     <div class="stat"><div class="stat-val">${tc.toLocaleString()}</div><div class="stat-lbl">Cases</div></div>
     <div class="stat"><div class="stat-val">${Math.round(tw).toLocaleString()}</div><div class="stat-lbl">Weight</div></div>
     <div class="stat"><div class="stat-val">${tcu.toFixed(1)}</div><div class="stat-lbl">Cube</div></div>
+    <div style="display:flex;align-items:center;padding:4px 10px;border-right:1px solid var(--border);">
+      <button class="btn" onclick="clearAllFilters()" title="Clear route, stop, day, and potential-route filters" style="padding:4px 9px;font-size:10px;">Clear Filters</button>
+    </div>
     <div class="stats-actions">
       <button class="btn" onclick="openOptimizationModal('selected')" title="Optimize the checked route(s), or the open route manifest route">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h6l3-9 3 18 3-9h3"/></svg>
@@ -1182,7 +1239,7 @@ function renderRoutes(){
   if(dayFilterSelect)dayFilterSelect.value=routeDayDisplayFilter;
   const displayCount=routes.filter(routeMatchesDayDisplayFilter).filter(routeMatchesFilter).length;
   const badgeText=routeDayDisplayFilter?`${displayCount} ${routeDayDisplayFilter} route(s)`:routes.length+' routes';
-  document.getElementById('route-badge').innerHTML=activeRouteFilterId?`<span class="filter-pill" onclick="activeRouteFilterId=null;renderRoutes()">Route Filter ×</span>`:badgeText;
+  document.getElementById('route-badge').innerHTML=activeRouteFilterId?`<span class="filter-pill" onclick="clearActiveRouteFilter();renderRoutes();renderUA();renderMap();renderLegend()">Route Filter ×</span>`:badgeText;
   if(!routes.length){
     el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4"/></svg><p>No routes yet — import or create one</p></div>';
     return;
@@ -1259,7 +1316,7 @@ function renderUA(){
   const ua=stops.filter(s=>!s.routeId).filter(stopMatchesDayDisplayFilter).filter(stopMatchesFilter);
   const allUaCount=stops.filter(s=>!s.routeId).length;
   const badgeBase=routeDayDisplayFilter?`${ua.length} ${routeDayDisplayFilter} stop(s) / ${allUaCount} total`:ua.length+' stops';
-  document.getElementById('ua-badge').innerHTML=activeStopFilterId?`<span class="filter-pill" onclick="activeStopFilterId=null;renderRoutes();renderUA()">Stop Filter ×</span>`:badgeBase;
+  document.getElementById('ua-badge').innerHTML=activeStopFilterId?`<span class="filter-pill" onclick="activeStopFilterId=null;renderRoutes();renderUA();renderMap();renderLegend()">Stop Filter ×</span>`:badgeBase;
   if(!ua.length){
     el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p>All stops assigned!</p></div>';
     return;
@@ -1307,6 +1364,8 @@ function renderMap(){
   markers={}; polylines={};
   stops.forEach(s=>{
     if(!s.lat||!s.lng) return;
+    if(activeRouteFilterId && s.routeId!==activeRouteFilterId) return;
+    if(activeStopFilterId && s.id!==activeStopFilterId) return;
     if(mapCleared && !visibleStopIds.has(s.id) && !(s.routeId&&visibleRouteIds.has(s.routeId))) return;
     const color=s.routeId?routeColor(s.routeId):(potColors[s.id]||'#5c6480');
     const label=s.routeId?s.seq:'?';
@@ -1331,7 +1390,7 @@ function renderMap(){
       const original=ev.originalEvent||{};
       openStopContextMenu(s.id, original.clientX || 0, original.clientY || 0);
     });
-    m.on('click',()=>toggleStopFilter(s.id));
+    m.on('click',(ev)=>{L.DomEvent.stopPropagation(ev);toggleStopFilter(s.id);});
     m.on('dragstart',()=>{dragState={sid:s.id,mapMarker:true,fromRoute:s.routeId||null};});
     m.on('dragend',(ev)=>handleMarkerDropOnRouteLine(s.id, ev.target.getLatLng()));
     m.on('mouseover',()=>highlightStop(s.id));
@@ -1339,6 +1398,8 @@ function renderMap(){
     markers[s.id]=m;
   });
   routes.forEach((r,ri)=>{
+    if(activeRouteFilterId && r.id!==activeRouteFilterId) return;
+    if(activeStopFilterId && !getRouteStops(r.id).some(s=>s.id===activeStopFilterId)) return;
     if(mapCleared && !visibleRouteIds.has(r.id)) return;
     const color=COLORS[ri%COLORS.length];
     const init=routeInitialDepot(r);
@@ -1363,7 +1424,7 @@ function renderMap(){
     if(fin&&fin.lat&&fin.lng)points.push([fin.lat,fin.lng]);
     if(points.length<2) return;
     polylines[r.id]=L.polyline(points,{color,weight:4,opacity:.72,dashArray:'5,4'}).addTo(map);
-    polylines[r.id].on('click',()=>toggleRouteFilter(r.id));
+    polylines[r.id].on('click',(ev)=>{L.DomEvent.stopPropagation(ev);toggleRouteFilter(r.id);});
     polylines[r.id].on('mouseover',()=>{highlightRoute(r.id); if(polylines[r.id]) polylines[r.id].setStyle({weight:8,opacity:.95});});
     polylines[r.id].on('mouseout',()=>{clearMapHighlight(); if(polylines[r.id]) polylines[r.id].setStyle({weight:4,opacity:.72});});
     polylines[r.id].on('contextmenu',ev=>{
@@ -1376,7 +1437,7 @@ function renderMap(){
 
 function renderLegend(){
   document.getElementById('legend-items').innerHTML=
-    routes.map((r,ri)=>`<div class="legend-item"><div class="legend-dot" style="background:${COLORS[ri%COLORS.length]}"></div><div class="legend-label">${r.name}</div></div>`).join('')||
+    routes.filter(r=>!activeRouteFilterId||r.id===activeRouteFilterId).filter(r=>!activeStopFilterId||getRouteStops(r.id).some(s=>s.id===activeStopFilterId)).map(r=>`<div class="legend-item"><div class="legend-dot" style="background:${routeColor(r.id)}"></div><div class="legend-label">${r.name}</div></div>`).join('')||
     '<div style="font-size:10px;color:var(--text3)">No routes</div>';
 }
 
@@ -1847,19 +1908,19 @@ function openStopContextMenu(stopId,x,y){
   menu.innerHTML=`
     <div class="stop-context-title">${stop.customerName||'Stop'} ${currentRoute?`&middot; ${currentRoute.name}`:'&middot; Unassigned'}</div>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextUnassignStop('${stopId}')`:'return false'}">
-      <span>Unassign</span><span>↩</span>
+      <span>Unassign</span><span>â†©</span>
     </button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextResequenceRoute('${stop.routeId}')`:'return false'}">
-      <span>Resequence current route</span><span>≡</span>
+      <span>Resequence current route</span><span>âŒ</span>
     </button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextShowAlongRoad('${stop.routeId}')`:'return false'}">
       <span>Show Along The Road</span><span>&#128739;</span>
     </button>
     <button class="stop-context-item" onclick="contextRemoveStopFromMap('${stopId}')">
-      <span>Remove Stop from Map</span><span>×</span>
+      <span>Remove Stop from Map</span><span>âœ•</span>
     </button>
     <button class="stop-context-item ${stop.routeId?'':'disabled'}" onclick="${stop.routeId?`contextRemoveRouteFromMap('${stop.routeId}')`:'return false'}">
-      <span>Remove Route from Map</span><span>□</span>
+      <span>Remove Route from Map</span><span>â–¡</span>
     </button>
     <div class="stop-context-routes">
       <div style="font-size:10px;color:var(--text3);padding:3px 8px 5px;text-transform:uppercase;letter-spacing:.5px;">Assign to Route</div>
@@ -1880,9 +1941,9 @@ function openRouteContextMenu(routeId,x,y){
   if(!menu||!route)return;
   menu.innerHTML=`
     <div class="stop-context-title">${route.name||'Route'}</div>
-    <button class="stop-context-item" onclick="contextResequenceRoute('${routeId}')"><span>Resequence Route</span><span>≡</span></button>
+    <button class="stop-context-item" onclick="contextResequenceRoute('${routeId}')"><span>Resequence Route</span><span>âŒ</span></button>
     <button class="stop-context-item" onclick="contextShowAlongRoad('${routeId}')"><span>Show Along The Road</span><span>&#128739;</span></button>
-    <button class="stop-context-item" onclick="contextRemoveRouteFromMap('${routeId}')"><span>Remove Route from Map</span><span>□</span></button>`;
+    <button class="stop-context-item" onclick="contextRemoveRouteFromMap('${routeId}')"><span>Remove Route from Map</span><span>â–¡</span></button>`;
   menu.style.display='block';
   const rect=menu.getBoundingClientRect();
   menu.style.left=Math.max(8,Math.min(x,window.innerWidth-rect.width-12))+'px';
@@ -3225,7 +3286,7 @@ function confirmImport(){
 
     // In All Templates mode, import depots first so route start/end locations can be attached immediately.
     const ordered=importMode==='all'
-      ? [...sheets.filter(x=>x.type==='depots'), ...sheets.filter(x=>x.type==='routes'), ...sheets.filter(x=>x.type==='trucks'), ...sheets.filter(x=>x.type==='stops'||x.type==='customer order history')]
+      ? [...sheets.filter(x=>x.type==='depots'), ...sheets.filter(x=>x.type==='routes'), ...sheets.filter(x=>x.type==='trucks'), ...sheets.filter(x=>x.type==='stops')]
       : sheets;
 
     ordered.forEach(({data,type})=>{
@@ -3233,7 +3294,7 @@ function confirmImport(){
         if(type==='depots'){importDepots(data);lc+=data.length;return;}
         if(type==='routes'){rc+=importRoutes(data);return;}
         if(type==='trucks'){importTrucks(data);dc+=data.length;return;}
-        if(type==='stops'||type==='customer order history'){importStops(data);sc+=data.length;return;}
+        if(type==='stops'){importStops(data);sc+=data.length;return;}
         if(type==='reference only'){return;}
         skipped+=data.length;return;
       }
@@ -3244,7 +3305,7 @@ function confirmImport(){
       if(importMode==='depots'&&(type==='depots'||singleSheet)){importDepots(data);lc+=data.length;return;}
       if(importMode==='routes'&&(type==='routes'||singleSheet)){rc+=importRoutes(data);return;}
       if(importMode==='trucks'&&(type==='trucks'||singleSheet)){importTrucks(data);dc+=data.length;return;}
-      if(importMode==='stops'&&(type==='stops'||type==='customer order history'||singleSheet)){importStops(data);sc+=data.length;return;}
+      if(importMode==='stops'&&(type==='stops'||singleSheet)){importStops(data);sc+=data.length;return;}
       if(type==='reference only')return;
       skipped+=data.length;
     });
@@ -4299,7 +4360,7 @@ function saveRoute(){
 // ============================================================
 function clearSession(){
   const confirmClear = confirm(
-    'Clear the entire session?\n\nThis will remove:\n• All routes\n• All stops\n• All trucks\n• All depots\n• All map data\n• All session assignments'
+    'Clear the entire session?\n\nThis will remove:\nâ€¢ All routes\nâ€¢ All stops\nâ€¢ All trucks\nâ€¢ All depots\nâ€¢ All map data\nâ€¢ All session assignments'
   );
 
   if(!confirmClear) return;
@@ -4602,248 +4663,5 @@ reseq();holidaySession.planned=true;holidaySession.lastPlanStats={baselineRouted
 })();
 
 </script>
-
-<script>
-// ============================================================
-// CONSOLIDATE CUSTOMER ORDERS BY LOCATION NUMBER
-// ============================================================
-(() => {
-  function orderLocationKeyFromRow(row){
-    const raw=gc(row,['LOCATION','Location','Location Number','LocationNumber','Location #','Location#','SHIP_TO_ID','Ship To ID','ShipToID','CUSTOMER_NUMBER','Customer Number','CustomerNumber']);
-    return orderLocationKey(raw);
-  }
-  function orderLocationKey(value){
-    const text=sval(value);
-    if(!text)return '';
-    const matches=[...text.matchAll(/\(([^()]+)\)/g)];
-    const raw=matches.length?matches[matches.length-1][1]:text;
-    const digits=sval(raw).replace(/\D/g,'');
-    return digits||sval(raw).toUpperCase();
-  }
-  function orderDetailFromRow(row, fallbackOrderNumber){
-    return {
-      orderNumber:sval(gc(row,['ORDER_NUMBER','Order Number','OrderNumber','Invoice','Invoice Number','InvoiceNumber']))||fallbackOrderNumber||'',
-      locationNumber:orderLocationKeyFromRow(row),
-      cases:nval(gc(row,['DRY Total Cases','DRY Cases','Cases','CASES ACTUAL','Cases Actual','CasesActual'])),
-      cube:nval(gc(row,['DRY Cube','Cube','CUBE ACTUAL','Cube Actual','CubeActual'])),
-      weight:nval(gc(row,['DRY Weight','Weight','WEIGHT ACTUAL','Weight Actual','WeightActual'])),
-      planService:sval(gc(row,['PLAN SERVICE TIME','Plan Service Time','PlanServiceTime'])),
-      actualService:sval(gc(row,['ACTUAL SERVICE TIME','Actual Service Time','ActualServiceTime'])),
-      deliveryDate:sval(gc(row,['REQ_DELIVERY_DATE','Req Delivery Date','Delivery Date','DeliveryDate'])),
-      customerName:sval(gc(row,['Customer Name','CustomerName','Account: Account Name','Account Name','Name'])),
-      raw:row
-    };
-  }
-  function consolidateOrderList(stop){
-    const orders=Array.isArray(stop.consolidatedOrders)?stop.consolidatedOrders:[];
-    if(!orders.length){
-      const orderNumber=sval(stop.orderNumber);
-      stop.consolidatedOrders=orderNumber?[{orderNumber,locationNumber:stop.locationNumber||stop.shipToId||stop.customerNumber||'',cases:tCases(stop),cube:tCube(stop),weight:tWeight(stop)}]:[];
-    }
-    stop.orderCount=stop.consolidatedOrders.length||1;
-    stop.consolidatedOrderNumbers=stop.consolidatedOrders.map(o=>sval(o.orderNumber)).filter(Boolean);
-    stop.isConsolidatedCustomerStop=stop.orderCount>1;
-    return stop;
-  }
-  function displayOrderNumber(stop){
-    const orders=Array.isArray(stop.consolidatedOrderNumbers)?stop.consolidatedOrderNumbers.filter(Boolean):[];
-    if(orders.length>1)return `${orders[0]} +${orders.length-1}`;
-    return stop.orderNumber||orders[0]||'';
-  }
-  function mergeTimeWindow(base,incoming){
-    const bEarly=timeToMinutes(base.earliestTimeWindow), iEarly=timeToMinutes(incoming.earliestTimeWindow);
-    const bLate=timeToMinutes(base.latestTimeWindow), iLate=timeToMinutes(incoming.latestTimeWindow);
-    if(iEarly!==null&&(bEarly===null||iEarly>bEarly))base.earliestTimeWindow=incoming.earliestTimeWindow;
-    if(iLate!==null&&(bLate===null||iLate<bLate))base.latestTimeWindow=incoming.latestTimeWindow;
-  }
-  function addLoads(base,incoming){
-    ['dryCases','dryCube','dryWeight','coolerCases','coolerCube','coolerWeight','frozenCases','frozenCube','frozenWeight','pkgCases','pkgCube','pkgWeight'].forEach(k=>{base[k]=nval(base[k])+nval(incoming[k]);});
-  }
-  function mergeStopByLocation(base,incoming,row){
-    const firstRouteId=base.routeId;
-    addLoads(base,incoming);
-    mergeTimeWindow(base,incoming);
-    base.fixedServiceTime=Math.max(nval(base.fixedServiceTime),nval(incoming.fixedServiceTime));
-    base.variableServiceTime=Math.max(nval(base.variableServiceTime),nval(incoming.variableServiceTime));
-    ['shipToId','customerNumber','customerName','address','crossStreet','city','state','zip','country','preferredResourceKey','preferredResourceIndicator','restrictPreferredResource','preferredRouteSequence','restrictRoutePosition','standardRoute','standardSequence','orderType','orderStatus','district','willCallIndicator','profit','comment'].forEach(k=>{if(!sval(base[k])&&sval(incoming[k]))base[k]=incoming[k];});
-    if(!base.routeId&&incoming.routeId)base.routeId=incoming.routeId;
-    if(!base.seq&&incoming.seq)base.seq=incoming.seq;
-    if(!base.lat&&incoming.lat)base.lat=incoming.lat;
-    if(!base.lng&&incoming.lng)base.lng=incoming.lng;
-    const detail=orderDetailFromRow(row,incoming.orderNumber);
-    base.consolidatedOrders=Array.isArray(base.consolidatedOrders)?base.consolidatedOrders:[];
-    base.consolidatedOrders.push(detail);
-    base.orderCount=base.consolidatedOrders.length;
-    base.consolidatedOrderNumbers=base.consolidatedOrders.map(o=>sval(o.orderNumber)).filter(Boolean);
-    base.isConsolidatedCustomerStop=base.orderCount>1;
-    if(base.isConsolidatedCustomerStop)base.orderNumber=displayOrderNumber(base);
-    if(firstRouteId!==base.routeId&&base.routeId)expanded.add(base.routeId);
-  }
-  function buildStopFromOrderRow(row){
-    const lat=parseFloat(gc(row,['Latitude','latitude','Lat','lat']));
-    const lng=parseFloat(gc(row,['Longitude','longitude','Long','long','Lng','lng']));
-    if(isNaN(lat)||isNaN(lng))return null;
-    const ordNum=sval(gc(row,['ORDER_NUMBER','Order Number','OrderNumber','Invoice','Invoice Number','InvoiceNumber']));
-    const stdRoute=sval(gc(row,['Standard Route','StandardRoute']));
-    const stdSeq=gc(row,['Standard Sequence','StandardSequence']);
-    const prefKey=sval(gc(row,['Preferred Resource Key','PreferredResourceKey']));
-    const prefSeq=sval(gc(row,['Route Sequence','RouteSequence']));
-    const obj={
-      id:uid(),routeId:null,seq:0,orderNumber:ordNum,
-      locationNumber:orderLocationKeyFromRow(row),
-      shipToId:sval(gc(row,['SHIP_TO_ID','Ship To ID','ShipToID'])),
-      customerNumber:sval(gc(row,['CUSTOMER_NUMBER','Customer Number','CustomerNumber','Tandem Account Number','Account Number'])),
-      orderType:sval(gc(row,['ORDER_TYPE','Order Type'])),orderStatus:sval(gc(row,['ORDER_STATUS','Order Status'])),district:sval(gc(row,['DISTRICT','District'])),
-      reqDeliveryDate:sval(gc(row,['REQ_DELIVERY_DATE','Req Delivery Date','Delivery Date','DeliveryDate'])),willCallIndicator:sval(gc(row,['WILL_CALL_INDICATOR','Will Call Indicator'])),profit:sval(gc(row,['Profit'])),
-      customerName:sval(gc(row,['Customer Name','CustomerName','Account: Account Name','Account Name','Name'])),
-      address:sval(gc(row,['Address','address','ShipStreet','Ship Street'])),crossStreet:sval(gc(row,['Cross Street','CrossStreet'])),city:sval(gc(row,['City','city','ShipCity','Ship City'])),state:sval(gc(row,['State','state','ShipState','Ship State'])),zip:sval(gc(row,['Zip','ZIP','zip','ShipZipCode','Ship Zip Code'])),country:sval(gc(row,['Country','country'])),
-      lat,lng,
-      earliestTimeWindow:sval(gc(row,['Earliest Time Window','EarliestTimeWindow'])),latestTimeWindow:sval(gc(row,['Latest Time Window','LatestTimeWindow'])),
-      fixedServiceTime:nval(gc(row,['Fixed ServiceTime','Fixed Service Time','FixedServiceTime'])),variableServiceTime:nval(gc(row,['Variable ServiceTime','Variable Service Time','VariableServiceTime'])),
-      preferredResourceKey:prefKey,preferredResourceIndicator:sval(gc(row,['Preferred resource indicator'])),restrictPreferredResource:sval(gc(row,['Restrict preferred resource'])),preferredRouteSequence:prefSeq,restrictRoutePosition:sval(gc(row,['Restrict route position'])),
-      standardRoute:stdRoute,standardSequence:stdSeq,comment:sval(gc(row,['Comment'])),
-      dryCases:nval(gc(row,['DRY Total Cases','DRY Cases','Cases','CASES ACTUAL','Cases Actual','CasesActual'])),dryCube:nval(gc(row,['DRY Cube','Cube','CUBE ACTUAL','Cube Actual','CubeActual'])),dryWeight:nval(gc(row,['DRY Weight','Weight','WEIGHT ACTUAL','Weight Actual','WeightActual'])),
-      coolerCases:nval(gc(row,['Cooler Cases'])),coolerCube:nval(gc(row,['Cooler Cube'])),coolerWeight:nval(gc(row,['Cooler Weight'])),
-      frozenCases:nval(gc(row,['Frozen Cases'])),frozenCube:nval(gc(row,['Frozen Cube'])),frozenWeight:nval(gc(row,['Frozen Weight'])),
-      pkgCases:nval(gc(row,['Package cases','Package Cases'])),pkgCube:nval(gc(row,['Package cube','Package Cube'])),pkgWeight:nval(gc(row,['Package Weight'])),
-      uiChecked:false,consolidatedOrders:[orderDetailFromRow(row,ordNum)],orderCount:1,isConsolidatedCustomerStop:false
-    };
-    if(!obj.shipToId&&obj.locationNumber)obj.shipToId=obj.locationNumber;
-    if(!obj.customerNumber&&obj.locationNumber)obj.customerNumber=obj.locationNumber;
-    if(!obj.routeId&&stdRoute){const mr=routes.find(r=>r.name===stdRoute||r.routeTemplateKey===stdRoute);if(mr){obj.routeId=mr.id;obj.seq=parseFloat(stdSeq)||999;}}
-    obj.consolidatedOrderNumbers=obj.consolidatedOrders.map(o=>sval(o.orderNumber)).filter(Boolean);
-    return obj;
-  }
-
-  importStops=function(data){
-    const byLocation=new Map();
-    (data||[]).forEach(row=>{
-      const obj=buildStopFromOrderRow(row);
-      if(!obj)return;
-      const key=obj.locationNumber||orderLocationKey(obj.shipToId)||orderLocationKey(obj.customerNumber)||obj.orderNumber;
-      const existingByKey=key?byLocation.get(key):null;
-      const existingInStops=key?stops.find(s=>(s.locationNumber||orderLocationKey(s.shipToId)||orderLocationKey(s.customerNumber))===key):null;
-      const target=existingByKey||existingInStops;
-      if(target){
-        if(!target.locationNumber)target.locationNumber=key;
-        if(!Array.isArray(target.consolidatedOrders))target.consolidatedOrders=[];
-        if(!target.consolidatedOrders.length&&target.orderNumber){target.consolidatedOrders.push({orderNumber:target.orderNumber,locationNumber:key,cases:tCases(target),cube:tCube(target),weight:tWeight(target)});}
-        mergeStopByLocation(target,obj,row);
-        byLocation.set(key,target);
-      }else{
-        consolidateOrderList(obj);
-        stops.push(obj);
-        if(key)byLocation.set(key,obj);
-      }
-    });
-    stops.forEach(consolidateOrderList);
-    reseq();
-  };
-
-  const previousOpenStopDetail=openStopDetail;
-  openStopDetail=function(stopId){
-    previousOpenStopDetail(stopId);
-    const s=stops.find(x=>x.id===stopId);
-    const body=document.getElementById('stop-detail-body');
-    if(!s||!body)return;
-    consolidateOrderList(s);
-    const orders=Array.isArray(s.consolidatedOrders)?s.consolidatedOrders:[];
-    if(orders.length<=1)return;
-    const rows=orders.map((o,i)=>`<div style="display:grid;grid-template-columns:46px 1.2fr .8fr .8fr .8fr;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;align-items:center;">
-      <div style="font-family:DM Mono,monospace;color:var(--text3);">${i+1}</div>
-      <div>${escapeHtml(o.orderNumber||'Order')}</div>
-      <div>${Number(o.cases||0).toLocaleString()} cs</div>
-      <div>${Number(o.weight||0).toLocaleString()} lbs</div>
-      <div>${Number(o.cube||0).toFixed(1)} cu</div>
-    </div>`).join('');
-    body.insertAdjacentHTML('beforeend',`<div class="shdr">Consolidated Orders <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0;">(${orders.length} orders at location ${escapeHtml(s.locationNumber||s.shipToId||s.customerNumber||'')})</span></div>
-      <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg2);">
-        <div style="display:grid;grid-template-columns:46px 1.2fr .8fr .8fr .8fr;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;font-weight:700;background:var(--bg3);">
-          <div>#</div><div>Order</div><div>Cases</div><div>Weight</div><div>Cube</div>
-        </div>${rows}
-      </div>`);
-  };
-
-  const previousRenderRouteManifest=renderRouteManifest;
-  renderRouteManifest=function(){
-    previousRenderRouteManifest();
-    if(!activeManifestRouteId)return;
-    const timeline=routeTimelineRows(activeManifestRouteId).filter(pt=>pt.type==='stop');
-    const rowEls=Array.from(document.querySelectorAll('#manifest-list .manifest-row.stop'));
-    rowEls.forEach((el,i)=>{
-      const s=timeline[i]?.stop;
-      if(!s)return;
-      consolidateOrderList(s);
-      const count=s.orderCount||1;
-      if(count<=1)return;
-      const detail=el.querySelector('.manifest-detail');
-      if(detail)detail.insertAdjacentHTML('afterbegin',`<span style="color:var(--accent);font-weight:700;">${count} orders consolidated</span><br/>`);
-    });
-  };
-
-  const oldImportHolidayOrderHistory=window.importHolidayOrderHistory;
-  window.importHolidayOrderHistory=function(data){
-    const count=oldImportHolidayOrderHistory?oldImportHolidayOrderHistory(data):0;
-    const grouped={};
-    (data||[]).forEach(row=>{
-      const key=orderLocationKeyFromRow(row);
-      if(!key)return;
-      if(!grouped[key])grouped[key]=[];
-      grouped[key].push(orderDetailFromRow(row,''));
-    });
-    window.__locationOrderHistoryDetails=grouped;
-    return count;
-  };
-
-  function attachDetailedOrderHistoryToCustomers(){
-    const grouped=window.__locationOrderHistoryDetails||{};
-    (holidayCustomerPool||[]).forEach(c=>{
-      const key=orderLocationKey(c.account||c.customerNumber||c.shipToId);
-      const orders=grouped[key]||[];
-      if(orders.length){
-        c.orderHistoryDetails=orders;
-        c.recentOrderCount=orders.length;
-        c.hasRecentOrder=true;
-      }
-    });
-  }
-  const oldImportHolidayCustomers=window.importHolidayCustomers;
-  window.importHolidayCustomers=function(data,holidayDate,holidayDay){
-    const n=oldImportHolidayCustomers(data,holidayDate,holidayDay);
-    attachDetailedOrderHistoryToCustomers();
-    return n;
-  };
-  const oldRefreshHolidaySessionForDate=window.refreshHolidaySessionForDate;
-  if(oldRefreshHolidaySessionForDate){
-    window.refreshHolidaySessionForDate=function(d){
-      const ok=oldRefreshHolidaySessionForDate(d);
-      attachDetailedOrderHistoryToCustomers();
-      return ok;
-    };
-  }
-  const oldCreateHolidayPlanningStop=window.createHolidayPlanningStop;
-  if(oldCreateHolidayPlanningStop){
-    window.createHolidayPlanningStop=function(c){
-      const s=oldCreateHolidayPlanningStop(c);
-      const orders=c.orderHistoryDetails||c.orderHistory?.orders||[];
-      if(orders.length){
-        s.locationNumber=orderLocationKey(c.account||c.customerNumber||c.shipToId);
-        s.consolidatedOrders=orders.slice();
-        s.orderCount=orders.length;
-        s.consolidatedOrderNumbers=orders.map(o=>sval(o.orderNumber)).filter(Boolean);
-        s.isConsolidatedCustomerStop=s.orderCount>1;
-        if(s.orderCount>1)s.orderNumber=displayOrderNumber(s);
-        s.dryCases=orders.reduce((a,o)=>a+nval(o.cases),0)||s.dryCases;
-        s.dryCube=orders.reduce((a,o)=>a+nval(o.cube),0)||s.dryCube;
-        s.dryWeight=orders.reduce((a,o)=>a+nval(o.weight),0)||s.dryWeight;
-      }else{
-        consolidateOrderList(s);
-      }
-      return s;
-    };
-  }
-})();
-</script>
-
 </body>
 </html>
