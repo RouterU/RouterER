@@ -428,7 +428,7 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
       ondrop="handleDrop(event)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       <p>Click or drag &amp; drop Excel / CSV file here</p>
-      <span id="imp-hint">Upload one file with sheets named "Routes", "Trucks", "Stops", and "Depot Locations" — or load individually</span>
+      <span id="imp-hint">Upload one file with sheets named "Routes", "Trucks", "Stops", and "Depot Locations" â€” or load individually</span>
     </div>
     <div id="route-day-filter" style="margin:10px 0 8px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);">
       <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">Route Day Filter <span style="font-weight:400;color:var(--text3);text-transform:none;letter-spacing:0;">(uses Route Templates UDFString2)</span></div>
@@ -497,7 +497,7 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
     </div>
     <div class="input-row">
       <div class="field"><label>Assign to Route</label>
-        <select id="s-route"><option value="">— Unassigned —</option></select>
+        <select id="s-route"><option value="">â€” Unassigned â€”</option></select>
       </div>
     </div>
     <div class="modal-actions">
@@ -956,7 +956,7 @@ function fmtTiming(r){
   if(r.startupTime) p.push('+'+Math.round(durationToMinutes(r.startupTime))+'min startup');
   if(r.earliestStartTime) p.push('Est:'+excelTimeToHHMM(r.earliestStartTime));
   if(r.latestEndTime) p.push('End by:'+excelTimeToHHMM(r.latestEndTime));
-  return p.join(' · ')||'No time set';
+  return p.join(' Â· ')||'No time set';
 }
 
 function cleanTimeValue(value){
@@ -1082,7 +1082,7 @@ function routeTimelineRows(routeId){
 }
 
 function minutesToHHMM(total){
-  if(total===null||total===undefined||!isFinite(total))return '—';
+  if(total===null||total===undefined||!isFinite(total))return 'â€”';
   const normalized=((Math.round(total)%1440)+1440)%1440;
   const h=Math.floor(normalized/60), m=normalized%60;
   return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
@@ -1204,7 +1204,7 @@ function renderDepotRouteRow(route,type,color){
     <span class="s-dot" style="background:${color}"></span>
     <div class="s-info">
       <div class="s-name">${label}: ${name}</div>
-      <div class="s-detail">LocationKey: ${key||'—'}${detail?` &middot; ${detail}`:''}</div>
+      <div class="s-detail">LocationKey: ${key||'â€”'}${detail?` &middot; ${detail}`:''}</div>
     </div>
   </div>`;
 }
@@ -1275,9 +1275,9 @@ function renderRoutes(){
   if(dayFilterSelect)dayFilterSelect.value=routeDayDisplayFilter;
   const displayCount=routes.filter(routeMatchesDayDisplayFilter).filter(routeMatchesFilter).length;
   const badgeText=routeDayDisplayFilter?`${displayCount} ${routeDayDisplayFilter} route(s)`:routes.length+' routes';
-  document.getElementById('route-badge').innerHTML=activeRouteFilterId?`<span class="filter-pill" onclick="clearActiveRouteFilter();renderRoutes();renderUA();renderMap();renderLegend()">Route Filter ×</span>`:badgeText;
+  document.getElementById('route-badge').innerHTML=activeRouteFilterId?`<span class="filter-pill" onclick="clearActiveRouteFilter();renderRoutes();renderUA();renderMap();renderLegend()">Route Filter Ã—</span>`:badgeText;
   if(!routes.length){
-    el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4"/></svg><p>No routes yet — import or create one</p></div>';
+    el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4"/></svg><p>No routes yet â€” import or create one</p></div>';
     return;
   }
   const displayRoutes=sortedRoutesForDisplay().filter(routeMatchesDayDisplayFilter).filter(routeMatchesFilter);
@@ -1289,7 +1289,7 @@ function renderRoutes(){
     const wt=rStops.reduce((a,s)=>a+tWeight(s),0);
     const cu=rStops.reduce((a,s)=>a+tCube(s),0);
     const drv=trucks.find(d=>d.truckKey===r.truckKey||d.driverKey===r.driverKey);
-    const dname=r.driverFirstName?(r.driverFirstName+' '+(r.driverLastName||'')).trim():(drv?drv.name:'—');
+    const dname=r.driverFirstName?(r.driverFirstName+' '+(r.driverLastName||'')).trim():(drv?drv.name:'â€”');
     const isOpen=expanded.has(r.id);
     return`<div class="route-card" id="rc-${r.id}" draggable="true" ondragstart="onRouteDragStart(event,'${r.id}')" ondragend="onDragEnd()" onmouseenter="highlightRoute('${r.id}')" onmouseleave="clearMapHighlight()">
       <div class="r-header" onclick="openRouteDetail('${r.id}')">
@@ -1297,7 +1297,7 @@ function renderRoutes(){
         <div class="r-info">
           <div class="r-name">${r.name}</div>
           <div class="r-meta">${rStops.length} stops &middot; ${cs}cs &middot; ${Math.round(wt)}lbs &middot; ${cu.toFixed(1)}cu &middot; ${routeDistanceMiles(r.id).toFixed(1)}mi &middot; ${fmtMinutes(routeTotalMinutes(r.id))} &middot; ${dname}</div>
-          <div class="r-timing">${fmtTiming(r)}${r.udfNumber1?' · UDF#1:'+r.udfNumber1:''}${r.initialLocationKey||r.finalLocationKey?' · Depot '+(r.initialLocationKey||'—')+' → '+(r.finalLocationKey||'—'):''}</div>
+          <div class="r-timing">${fmtTiming(r)}${r.udfNumber1?' Â· UDF#1:'+r.udfNumber1:''}${r.initialLocationKey||r.finalLocationKey?' Â· Depot '+(r.initialLocationKey||'â€”')+' â†’ '+(r.finalLocationKey||'â€”'):''}</div>
         </div>
         <div class="r-ctrl">
           <button class="icon-btn" title="Open Manifest" onclick="event.stopPropagation();openRouteManifest('${r.id}')">&#128196;</button>
@@ -1352,7 +1352,7 @@ function renderUA(){
   const ua=stops.filter(s=>!s.routeId).filter(stopMatchesDayDisplayFilter).filter(stopMatchesFilter);
   const allUaCount=stops.filter(s=>!s.routeId).length;
   const badgeBase=routeDayDisplayFilter?`${ua.length} ${routeDayDisplayFilter} stop(s) / ${allUaCount} total`:ua.length+' stops';
-  document.getElementById('ua-badge').innerHTML=activeStopFilterId?`<span class="filter-pill" onclick="activeStopFilterId=null;renderRoutes();renderUA()">Stop Filter ×</span>`:badgeBase;
+  document.getElementById('ua-badge').innerHTML=activeStopFilterId?`<span class="filter-pill" onclick="activeStopFilterId=null;renderRoutes();renderUA()">Stop Filter Ã—</span>`:badgeBase;
   if(!ua.length){
     el.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p>All stops assigned!</p></div>';
     return;
@@ -1388,8 +1388,8 @@ function renderTrucks(){
     const assignedRoute=routes.find(r=>r.truckKey===d.truckKey||r.driverKey===d.driverKey);
     return`<div class="driver-card">
       <div class="d-name">${d.name||d.truckId||'Truck'}</div>
-      <div class="d-meta">TruckKey: ${d.truckKey||'—'} &middot; Type: ${d.vehicleType||'—'} &middot; ${(d.active+'').toUpperCase()==='Y'||d.active===true?'&#10003; Active':'Inactive'}</div>
-      <div class="d-truck">TruckID: ${d.truckId||'—'} &middot; Company: ${d.company||'—'} &middot; ${assignedRoute?'Assigned: '+assignedRoute.name:'Not assigned'}</div>
+      <div class="d-meta">TruckKey: ${d.truckKey||'â€”'} &middot; Type: ${d.vehicleType||'â€”'} &middot; ${(d.active+'').toUpperCase()==='Y'||d.active===true?'&#10003; Active':'Inactive'}</div>
+      <div class="d-truck">TruckID: ${d.truckId||'â€”'} &middot; Company: ${d.company||'â€”'} &middot; ${assignedRoute?'Assigned: '+assignedRoute.name:'Not assigned'}</div>
     </div>`;
   }).join('');
 }
@@ -1418,9 +1418,9 @@ function renderMap(){
       <b>${s.customerName||'Stop'}</b><br/>
       <span style="color:#666;font-size:11px;">${s.address||''} ${s.city||''} ${s.state||''}</span>
       <hr style="margin:5px 0;border-color:#eee;"/>
-      <b>Order:</b> ${s.orderNumber||'—'} &nbsp;|&nbsp; <b>Cases:</b> ${tCases(s)}<br/>
+      <b>Order:</b> ${s.orderNumber||'â€”'} &nbsp;|&nbsp; <b>Cases:</b> ${tCases(s)}<br/>
       <b>Weight:</b> ${tWeight(s).toFixed(0)} &nbsp;|&nbsp; <b>Cube:</b> ${tCube(s).toFixed(1)}<br/>
-      <b>Window:</b> ${s.earliestTimeWindow||'—'} – ${s.latestTimeWindow||'—'}<br/>
+      <b>Window:</b> ${s.earliestTimeWindow||'â€”'} â€“ ${s.latestTimeWindow||'â€”'}<br/>
       ${r.name?`<b>Route:</b> ${r.name}`:'<b style="color:#f59e0b;">Unassigned</b>'}
       ${s.preferredResourceKey?`<br/><b>Pref Key:</b> ${s.preferredResourceKey}`:''}
       <br/><span style="font-size:10px;color:#999;">Right-click marker for actions</span>
@@ -1621,7 +1621,7 @@ function openStopDetail(stopId){
   const s=stops.find(x=>x.id===stopId);
   if(!s)return;
   activeDetailStopId=stopId;
-  const routeOptions=[{value:'',label:'— Unassigned —'},...routes.map(r=>({value:r.id,label:r.name||r.routeTemplateKey||'Route'}))];
+  const routeOptions=[{value:'',label:'â€” Unassigned â€”'},...routes.map(r=>({value:r.id,label:r.name||r.routeTemplateKey||'Route'}))];
   document.getElementById('stop-detail-title').textContent=`Edit Stop Details: ${s.customerName||s.orderNumber||'Stop'}`;
   document.getElementById('stop-detail-body').innerHTML=`<div class="stop-detail-grid">
     ${detailInput('ed-s-customerName','Customer Name',s.customerName)}
@@ -2166,7 +2166,7 @@ function lassoShowServiceDetails(){
     <strong>Calculated Service Time:</strong> ${fmtMinutes(service)}<br/>
     <strong>Estimated Cluster Miles:</strong> ${straightMiles.toFixed(1)} straight-line / ~${roadMiles.toFixed(1)} road miles<br/>
     <strong>Estimated Travel Time:</strong> ${fmtMinutes(travel)}<br/>
-    <strong>CPM:</strong> ${roadMiles>0?cpm.toFixed(1):'—'} cases per mile<br/><br/>
+    <strong>CPM:</strong> ${roadMiles>0?cpm.toFixed(1):'â€”'} cases per mile<br/><br/>
     <span style="color:var(--text3);">Miles and travel time are estimated by sequencing the selected cluster. If all selected stops are on the same route, current route sequence is used; otherwise a nearest-neighbor estimate is used.</span>
   `);
   closeStopContextMenu();
@@ -2534,8 +2534,8 @@ function renderRouteManifest(){
     <div class="manifest-stat"><div class="val">${data.cube.toFixed(1)}</div><div class="lbl">Cube</div></div>
     <div class="manifest-stat"><div class="val">${fmtMinutes(data.time)}</div><div class="lbl">Time</div></div>
     <div class="manifest-stat"><div class="val">${data.miles.toFixed(1)}</div><div class="lbl">Miles</div></div>
-    <div class="manifest-stat"><div class="val">${cleanTimeValue(data.start)||'—'}</div><div class="lbl">Start Time</div></div>
-    <div class="manifest-stat"><div class="val">${cleanTimeValue(data.end)||'—'}</div><div class="lbl">Stop Time</div></div>`;
+    <div class="manifest-stat"><div class="val">${cleanTimeValue(data.start)||'â€”'}</div><div class="lbl">Start Time</div></div>
+    <div class="manifest-stat"><div class="val">${cleanTimeValue(data.end)||'â€”'}</div><div class="lbl">Stop Time</div></div>`;
 
   const timeline=routeTimelineRows(activeManifestRouteId);
   let liveStopSeq=0;
@@ -2548,8 +2548,8 @@ function renderRouteManifest(){
     const name=escapeHtml(pt.name||'Stop');
     const seqDisplay=liveSeq;
     const dayBadge=pt.dayLabel?`<span class="tw-badge ${isRest?'tw-wait':'tw-ok'}" style="margin-right:6px;">${escapeHtml(pt.dayLabel)}</span>`:'';
-    const displayName=isRest?`${dayBadge}${name}`:(isDepot?`${dayBadge}${name}`:`${dayBadge}#${escapeHtml(seqDisplay)} · ${name}`);
-    const detail=isRest?'8-hour required rest before Day 2 starts':(isDepot?`LocationKey: ${escapeHtml(pt.depot?.locationKey||'')}`:`${escapeHtml(s.orderNumber||'')} · ${escapeHtml(s.address||'')} ${escapeHtml(s.city||'')} ${escapeHtml(s.state||'')}`);
+    const displayName=isRest?`${dayBadge}${name}`:(isDepot?`${dayBadge}${name}`:`${dayBadge}#${escapeHtml(seqDisplay)} Â· ${name}`);
+    const detail=isRest?'8-hour required rest before Day 2 starts':(isDepot?`LocationKey: ${escapeHtml(pt.depot?.locationKey||'')}`:`${escapeHtml(s.orderNumber||'')} Â· ${escapeHtml(s.address||'')} ${escapeHtml(s.city||'')} ${escapeHtml(s.state||'')}`);
     const violationClass=pt.twStatus==='LATE'?' tw-violation':'';
     const twClass=pt.twStatus==='LATE'?'tw-late':(pt.twStatus==='WAIT'?'tw-wait':'tw-ok');
     const dragAttrs=isDepot?'':`id="manifest-stop-${s.id}" draggable="true"
@@ -2564,23 +2564,23 @@ function renderRouteManifest(){
       <div class="manifest-seq">${seq}</div>
       <div class="manifest-customer"><div class="manifest-name">${displayName}</div><div class="manifest-detail">${detail}</div></div>
       <div>${escapeHtml(pt.city||'')} ${escapeHtml(pt.state||'')}</div>
-      <div>${isDepot?'—':tCases(s)}</div>
-      <div>${isDepot?'—':Math.round(tWeight(s)).toLocaleString()}</div>
-      <div>${isDepot?'—':tCube(s).toFixed(1)}</div>
-      <div>${pt.legMiles?pt.legMiles.toFixed(1):'—'}</div>
-      <div>${pt.driveMins?fmtMinutes(pt.driveMins):'—'}</div>
-      <div>${isDepot?'—':fmtMinutes(pt.serviceMins)}</div>
+      <div>${isDepot?'â€”':tCases(s)}</div>
+      <div>${isDepot?'â€”':Math.round(tWeight(s)).toLocaleString()}</div>
+      <div>${isDepot?'â€”':tCube(s).toFixed(1)}</div>
+      <div>${pt.legMiles?pt.legMiles.toFixed(1):'â€”'}</div>
+      <div>${pt.driveMins?fmtMinutes(pt.driveMins):'â€”'}</div>
+      <div>${isDepot?'â€”':fmtMinutes(pt.serviceMins)}</div>
       <div>${minutesToHHMM(pt.arrive)}</div>
       <div>${minutesToHHMM(pt.depart)}</div>
-      <div>${isDepot?'—':(pt.waitMins?fmtMinutes(pt.waitMins):'—')}</div>
-      <div>${isRest?'Rest':(isDepot?'Depot':`${escapeHtml(s.earliestTimeWindow||'—')} - ${escapeHtml(s.latestTimeWindow||'—')}`)}</div>
-      <div>${isRest?`<span class="tw-badge tw-wait">8 Hour Rest</span>`:(isDepot?'—':`<span class="tw-badge ${twClass}">${escapeHtml(pt.twLabel||'')}</span>`)}</div>
+      <div>${isDepot?'â€”':(pt.waitMins?fmtMinutes(pt.waitMins):'â€”')}</div>
+      <div>${isRest?'Rest':(isDepot?'Depot':`${escapeHtml(s.earliestTimeWindow||'â€”')} - ${escapeHtml(s.latestTimeWindow||'â€”')}`)}</div>
+      <div>${isRest?`<span class="tw-badge tw-wait">8 Hour Rest</span>`:(isDepot?'â€”':`<span class="tw-badge ${twClass}">${escapeHtml(pt.twLabel||'')}</span>`)}</div>
     </div>`;
   }).join('');
 
   document.getElementById('manifest-list').innerHTML=`
     <div class="manifest-row header"><div>Seq</div><div>Stop / Customer</div><div>City</div><div>Cases</div><div>Weight</div><div>Cube</div><div>Leg Mi</div><div>Drive</div><div>Service</div><div>Arrive</div><div>Depart</div><div>Wait</div><div>Window</div><div>Status</div></div>
-    ${rows || '<div class="manifest-row"><div>—</div><div>No assigned stops</div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>'}`;
+    ${rows || '<div class="manifest-row"><div>â€”</div><div>No assigned stops</div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>'}`;
 }
 function manifestDragStart(e,stopId){
   manifestDragStopId=stopId;
@@ -3577,7 +3577,7 @@ function setImportMode(m){
   const holidayOpts=document.getElementById('holiday-import-options');
   if(holidayOpts)holidayOpts.style.display=m==='holiday'?'block':'none';
   const hints={
-    all:'Upload one file with sheets named "Routes", "Trucks", "Stops", and "Depot Locations" — or load individually',
+    all:'Upload one file with sheets named "Routes", "Trucks", "Stops", and "Depot Locations" â€” or load individually',
     routes:'Upload your Route Template file. Include UDFNumber1, UDFString2, InitialLocationKey, and FinalLocationKey.',
     trucks:'Upload your Truck Template file',
     stops:'Upload your Stops/Orders Template file',
@@ -4431,7 +4431,7 @@ function holidayCapacityCheck(route,assignedStops,stop){
   // If no truck row is found, do not falsely allow an overloaded route silently.
   // Time rules can still run, but the reason will expose the missing truck match in Suggested Results.
   if(!cap.truck){
-    return {ok:false,cap,load,nextCube,nextWeight,reason:`no truck capacity found for Route TruckKey ${sval(route?.truckKey||'—')}`};
+    return {ok:false,cap,load,nextCube,nextWeight,reason:`no truck capacity found for Route TruckKey ${sval(route?.truckKey||'â€”')}`};
   }
 
   if(!cap.cube&&!cap.weight){
@@ -4695,7 +4695,7 @@ function planHoliday(){
   const routesUsed=new Set(holidaySuggestions.filter(s=>s.routeId&&s.needsHolidayPlanning).map(s=>s.routeId)).size;
   const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
   const heavy=holidayHeaviestDaySummary();
-  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Excluded Planning Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> Route Template Work Duration is used as the runtime cap. LatestEndTime is not used as the hard cap. 2-day routes include an 8-hour rest and each day is capped at 12 hours<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><strong>Step 4 Network Review:</strong> ${holidayStage2.consolidated.toLocaleString()} consolidation move(s) and ${holidayStage2.swapped.toLocaleString()} swap(s) accepted to reduce route count, wait time, and total network miles${holidayStage2.performanceLimited?' (performance-limited review)':''}.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
+  showJob('Holiday Plan Complete',`<strong>Step 1 Baseline Routed:</strong> ${baselineRouted.toLocaleString()} non-holiday customer/day rows<br/><strong>Step 1 Baseline Not Routed:</strong> ${baselineUnrouted.toLocaleString()}<br/><strong>Affected Customers on Holiday:</strong> ${holidaySuggestions.length.toLocaleString()}<br/><strong>Planned to Replacement Route:</strong> ${plannedHoliday.toLocaleString()} / ${affected.length.toLocaleString()}<br/><strong>None Needed (3+ True Delivery Days):</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Used for Replacement Customers:</strong> ${routesUsed.toLocaleString()}<br/><strong>Excluded Planning Days:</strong> ${Array.from(excluded).join(', ')}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'â€”')}<br/><strong>Overnight Customers:</strong> ${overnightRouted.toLocaleString()} routed / ${overnightTotal.toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${capacityBlocked.toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${trucks.length.toLocaleString()}<br/><strong>UDFString4 X/x Routes Excluded:</strong> ${holidaySession.lastPlanStats.blockedRoutes.toLocaleString()}<br/><strong>Pronto Rule:</strong> Route-lock values beginning with 8 are limited to Pronto routes with UDFNumber1 beginning with 8<br/><strong>Route Time Rule:</strong> Route Template Work Duration is used as the runtime cap. LatestEndTime is not used as the hard cap. 2-day routes include an 8-hour rest and each day is capped at 12 hours<br/><strong>Step 3:</strong> All routes resequenced by distance after placement.<br/><strong>Step 4 Network Review:</strong> ${holidayStage2.consolidated.toLocaleString()} consolidation move(s) and ${holidayStage2.swapped.toLocaleString()} swap(s) accepted to reduce route count, wait time, and total network miles${holidayStage2.performanceLimited?' (performance-limited review)':''}.<br/><br/>Use <strong>Suggested Days Results</strong> to review every affected customer, routing suggestion, and reason.`);
 }
 
 function suggestedDaysRowBucket(s){
@@ -4776,7 +4776,7 @@ function openSuggestedDaysResults(){
   const routesNeeded=holidayRoutesNeededEstimate(notRouted,routesUsed);
   const heavy=holidayHeaviestDaySummary();
   const stats=holidaySession.lastPlanStats||{};
-  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${planned.toLocaleString()}<br/><strong>None Needed:</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'—')}<br/><strong>Overnight Customers:</strong> ${(stats.overnightRouted||0).toLocaleString()} routed / ${(stats.overnightTotal||0).toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${(stats.capacityBlocked||0).toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${(stats.truckTemplates||trucks.length||0).toLocaleString()}<br/><strong>Excluded Route Templates:</strong> ${(stats.blockedRoutes||0).toLocaleString()} with UDFString4 X/x`;
+  document.getElementById('suggested-days-summary').innerHTML=`<strong>Holiday:</strong> ${escapeHtml(holidaySession.holidayDate)} (${escapeHtml(holidaySession.holidayDay)})<br/><strong>Affected Customers:</strong> ${rows.length.toLocaleString()}<br/><strong>Suggested / Routed:</strong> ${planned.toLocaleString()}<br/><strong>None Needed:</strong> ${noneNeeded.toLocaleString()}<br/><strong>Not Routed:</strong> ${notRouted.toLocaleString()}<br/><strong>Routes Needed to Address Not Routed Customers:</strong> ${routesNeeded.toLocaleString()}<br/><strong>Heaviest Delivery Day:</strong> ${escapeHtml(heavy||'â€”')}<br/><strong>Overnight Customers:</strong> ${(stats.overnightRouted||0).toLocaleString()} routed / ${(stats.overnightTotal||0).toLocaleString()} total<br/><strong>Capacity Blocked:</strong> ${(stats.capacityBlocked||0).toLocaleString()} left unassigned due to truck cube/weight capacity<br/><strong>Truck Templates Loaded:</strong> ${(stats.truckTemplates||trucks.length||0).toLocaleString()}<br/><strong>Excluded Route Templates:</strong> ${(stats.blockedRoutes||0).toLocaleString()} with UDFString4 X/x`;
   setupSuggestedDaysFilters();
   renderSuggestedDaysTable();
   document.getElementById('suggested-days-modal').style.display='flex';
@@ -4788,7 +4788,7 @@ function openSuggestedDaysResults(){
 function openAddStop(){
   document.getElementById('add-stop-modal').style.display='flex';
   const sel=document.getElementById('s-route');
-  sel.innerHTML='<option value="">— Unassigned —</option>'+routes.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
+  sel.innerHTML='<option value="">â€” Unassigned â€”</option>'+routes.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
 }
 function openAddStopForRoute(rid){openAddStop();document.getElementById('s-route').value=rid;}
 function openAddRoute(){document.getElementById('add-route-modal').style.display='flex';}
@@ -4854,7 +4854,7 @@ function saveRoute(){
 // ============================================================
 function clearSession(){
   const confirmClear = confirm(
-    'Clear the entire session?\n\nThis will remove:\nâ€¢ All routes\nâ€¢ All stops\nâ€¢ All trucks\nâ€¢ All depots\nâ€¢ All map data\nâ€¢ All session assignments'
+    'Clear the entire session?\n\nThis will remove:\nÃ¢â‚¬Â¢ All routes\nÃ¢â‚¬Â¢ All stops\nÃ¢â‚¬Â¢ All trucks\nÃ¢â‚¬Â¢ All depots\nÃ¢â‚¬Â¢ All map data\nÃ¢â‚¬Â¢ All session assignments'
   );
 
   if(!confirmClear) return;
@@ -5126,7 +5126,27 @@ window.detectImportSheetType=function(name,data){
 };
 function acctFromLocation(v){const t=sval(v),m=[...t.matchAll(/\(([^()]+)\)/g)],raw=m.length?m[m.length-1][1]:t,d=sval(raw).replace(/\D/g,'');return d||sval(raw);}
 function avg(a){const n=(a||[]).map(nval).filter(x=>x>0);return n.length?n.reduce((p,c)=>p+c,0)/n.length:0;}
-function durMin(v){if(v===null||v===undefined||v==='')return 0;if(v instanceof Date&&!isNaN(v))return v.getHours()*60+v.getMinutes()+v.getSeconds()/60;const n=nval(v);if(!n)return 0;const f=n-Math.floor(n);if(f>0)return f*1440;return n>240?n/60:n;}
+function durMin(v){
+  if(v===null||v===undefined||v==='')return 0;
+  if(v instanceof Date&&!isNaN(v))return v.getHours()*60+v.getMinutes()+v.getSeconds()/60;
+  const text=sval(v);
+  const timeMatch=text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if(timeMatch){
+    let h=parseInt(timeMatch[1],10)||0;
+    const m=parseInt(timeMatch[2],10)||0;
+    const s=parseInt(timeMatch[3]||'0',10)||0;
+    const ap=(timeMatch[4]||'').toUpperCase();
+    if(ap==='AM'&&h===12)h=0;
+    // Treat PLAN SERVICE TIME as a duration, not a clock time. Examples:
+    // 0:27 => 27 minutes, 1:05 => 65 minutes, 12:05 AM => 5 minutes.
+    return Math.max(0,(h*60)+m+(s/60));
+  }
+  const n=nval(v);
+  if(!n)return 0;
+  const f=n-Math.floor(n);
+  if(f>0)return f*1440;
+  return n>240?n/60:n;
+}
 window.importHolidayOrderHistory=function(data){const b={};let rows=0;(data||[]).forEach(r=>{const a=acctFromLocation(gc(r,['LOCATION','Location']));if(!a)return;if(!b[a])b[a]={rows:0,cases:[],cube:[],weight:[],plan:[],actual:[]};const x=b[a];x.rows++;rows++;[['cases','CASES ACTUAL'],['cube','CUBE ACTUAL'],['weight','WEIGHT ACTUAL']].forEach(([k,c])=>{const v=nval(gc(r,[c,c.replace(' ACTUAL',' Actual'),c.replace(' ', '')]));if(v>0)x[k].push(v);});const p=durMin(gc(r,['PLAN SERVICE TIME','Plan Service Time','PlanServiceTime'])),q=durMin(gc(r,['ACTUAL SERVICE TIME','Actual Service Time','ActualServiceTime']));if(p>0)x.plan.push(p);if(q>0)x.actual.push(q);});orderHist={};Object.entries(b).forEach(([a,x])=>{const p=avg(x.plan),q=avg(x.actual);orderHist[a]={account:a,orderCount:x.rows,avgCases:avg(x.cases),avgCube:avg(x.cube),avgWeight:avg(x.weight),avgPlanServiceMinutes:p||q,avgActualServiceMinutes:q};});orderRows=rows;window.holidayOrderHistoryRows=rows;return rows;};
 function applyHist(c){const a=sval(c.account||c.customerNumber||c.shipToId),h=orderHist[a]||null;c.orderHistory=h;c.hasRecentOrder=!!h;c.recentOrderCount=h?h.orderCount:0;c.avgCases=h?h.avgCases:0;c.avgCube=h?h.avgCube:0;c.avgWeight=h?h.avgWeight:0;c.avgPlanServiceMinutes=h?h.avgPlanServiceMinutes:0;c.avgActualServiceMinutes=h?h.avgActualServiceMinutes:0;return c;}
 const oldImportCustomers=window.importHolidayCustomers||importHolidayCustomers;
