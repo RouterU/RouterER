@@ -5191,6 +5191,123 @@ reseq();holidaySession.planned=true;holidaySession.lastPlanStats={baselineRouted
   window.confirmImport=function(){if(!pendingWB){showToast('No workbook selected');return;}if(importMode!=='stops')return previousConfirmImport();const btn=document.getElementById('imp-confirm');const originalText=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Importing...';}try{const sheets=pendingWB.SheetNames.map(name=>{const ws=pendingWB.Sheets[name];const data=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});return {name,data,type:detectImportSheetType(name,data)};}).filter(x=>x.data.length);const orderHist=sheets.find(x=>x.type==='customer order history'||x.name.toLowerCase().trim()==='customer order history');const customerList=sheets.find(x=>x.type==='holiday customers'||x.name.toLowerCase().trim()==='customer list');if(orderHist){const result=importStopsFromCustomerOrderHistory(orderHist.data,customerList?.data||[]);invalidateAllRouteMetrics();mapCleared=true;visibleStopIds.clear();visibleRouteIds.clear();potColors={};if(typeof potRouteSuggestions!=='undefined')potRouteSuggestions={};closeModal('import-modal');setTimeout(()=>{render();expanded.clear();renderRoutes();const dayText=result.selectedDays.length?' for '+result.selectedDays.join(', '):'';const skipped=[];if(result.skippedNoCustomer)skipped.push(result.skippedNoCustomer.toLocaleString()+' missing Customer List match');if(result.skippedNoGeo)skipped.push(result.skippedNoGeo.toLocaleString()+' missing geocode');if(result.skippedDay)skipped.push(result.skippedDay.toLocaleString()+' outside selected day filter');showToast('Imported '+result.imported.toLocaleString()+' order-history stop(s)'+dayText+(skipped.length?' ('+skipped.join(', ')+')':''));if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';}},25);return;}return previousConfirmImport();}catch(err){console.error('Stops import failed:',err);if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';}showToast('Stops import failed: '+(err&&err.message?err.message:err));alert('Stops import failed: '+(err&&err.message?err.message:err));}};
 })();
 </script>
+<script>
+(() => {
+  const previousConfirmImportForCondensedStops = window.confirmImport || confirmImport;
+
+  function chAcct(value){
+    const text=sval(value);
+    const matches=[...text.matchAll(/\(([^()]+)\)/g)];
+    const raw=matches.length?matches[matches.length-1][1]:text;
+    const digits=sval(raw).replace(/\D/g,'');
+    return digits||sval(raw);
+  }
+  function chName(value){return sval(value).replace(/\s*\([^()]*\)\s*$/,'').trim();}
+  function chSelectedDays(){return getSelectedRouteDayCodes().map(code=>{const m=Object.entries(HOLIDAY_DAY_CODES).find(([,v])=>v===code);return m?m[0]:dayNameFromAny(code);}).filter(Boolean);}
+  function chMatchesDay(row){const selected=chSelectedDays();if(!selected.length)return true;return selected.includes(dayNameFromAny(gc(row,['DAY','Day'])));}
+  function chService(value){if(typeof durMin==='function')return durMin(value);const n=nval(value);const f=n-Math.floor(n);return f>0?f*1440:n;}
+  function chCustomerLookup(rows){const lookup={};(rows||[]).forEach(row=>{const acct=sval(gc(row,['Tandem Account Number','Account Number','Customer Number']));if(!acct)return;const day=holidayCustomerDay(row)||dayNameFromAny(gc(row,['Day Of Week.1','Day Of Week','DAY','Day']));if(!lookup[acct])lookup[acct]={byDay:{},any:null};const rec={row,day};if(day)lookup[acct].byDay[day]=rec;if(!lookup[acct].any)lookup[acct].any=rec;});return lookup;}
+  function chAddWeighted(bucket,value,weight){const v=nval(value),w=nval(weight);if(v>0&&w>0){bucket.weightedService+=(v*w);bucket.serviceWeight+=w;}else if(v>0){bucket.serviceValues.push(v);}}
+  function chFinalService(bucket){if(bucket.serviceWeight>0)return bucket.weightedService/bucket.serviceWeight;const vals=bucket.serviceValues.filter(v=>v>0);return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;}
+
+  function importCondensedStopsFromCustomerOrderHistory(orderRows,customerRows){
+    const customers=chCustomerLookup(customerRows||[]);
+    const buckets={};
+    let skippedDay=0,skippedNoCustomer=0,skippedNoGeo=0,sourceRows=0;
+    const selectedDays=chSelectedDays();
+
+    (orderRows||[]).forEach((row,index)=>{
+      if(!chMatchesDay(row)){skippedDay++;return;}
+      const account=chAcct(gc(row,['LOCATION','Location']));
+      if(!account)return;
+      const orderDay=dayNameFromAny(gc(row,['DAY','Day']));
+      const cm=customers[account]?.byDay?.[orderDay]||customers[account]?.any;
+      if(!cm){skippedNoCustomer++;return;}
+      const customer=cm.row;
+      const lat=parseFloat(gc(customer,['Latitude','latitude','Lat','lat']));
+      const lng=parseFloat(gc(customer,['Longitude','longitude','Long','long','Lng','lng']));
+      if(isNaN(lat)||isNaN(lng)){skippedNoGeo++;return;}
+
+      const route=sval(gc(row,['ROUTE','Route']));
+      const tripDate=sval(gc(row,['TRIP DATE','Trip Date','TripDate']));
+      const actualStop=sval(gc(row,['ACTUAL STOP NUMBER','Actual Stop Number','ActualStopNumber']));
+      const planStop=sval(gc(row,['PLAN STOP NUMBER','Plan Stop Number','PlanStopNumber']));
+      const key=[account,orderDay||'NoDay',route||'NoRoute'].join('|');
+      const cases=nval(gc(row,['CASES ACTUAL','Cases Actual','CasesActual']));
+      const cube=nval(gc(row,['CUBE ACTUAL','Cube Actual','CubeActual']));
+      const weight=nval(gc(row,['WEIGHT ACTUAL','Weight Actual','WeightActual']));
+      const service=chService(gc(row,['PLAN SERVICE TIME','Plan Service Time','PlanServiceTime']));
+
+      if(!buckets[key]){
+        const customerName=sval(gc(customer,['Account: Account Name','Customer Name','Name']))||chName(gc(row,['LOCATION','Location']))||('Customer '+account);
+        buckets[key]={
+          account,orderDay,route,customer,lat,lng,customerName,
+          orderCount:0,cases:0,cube:0,weight:0,weightedService:0,serviceWeight:0,serviceValues:[],
+          tripDates:new Set(),stopNumbers:[],sourceRows:[],firstIndex:index
+        };
+      }
+      const b=buckets[key];
+      b.orderCount++;sourceRows++;
+      b.cases+=cases;b.cube+=cube;b.weight+=weight;
+      chAddWeighted(b,service,cases||1);
+      if(tripDate)b.tripDates.add(tripDate);
+      if(actualStop||planStop)b.stopNumbers.push(actualStop||planStop);
+      b.sourceRows.push(row);
+    });
+
+    let imported=0;
+    Object.values(buckets).forEach((b,index)=>{
+      const customer=b.customer;
+      const service=chFinalService(b);
+      const ordNum=['OHC',b.account,b.orderDay||'ALL',b.route||'ROUTE'].join('-');
+      const existing=stops.find(s=>s.orderNumber===ordNum);
+      const stopNums=b.stopNumbers.map(n=>parseFloat(n)).filter(n=>Number.isFinite(n));
+      const avgSeq=stopNums.length?stopNums.reduce((a,c)=>a+c,0)/stopNums.length:999;
+      const obj={
+        id:existing?existing.id:uid(),routeId:existing?existing.routeId:null,seq:existing?existing.seq:0,
+        orderNumber:ordNum,shipToId:b.account,customerNumber:b.account,
+        orderType:'Condensed Order History',orderStatus:'Order History',district:'',reqDeliveryDate:Array.from(b.tripDates).join(', '),willCallIndicator:'',profit:'',
+        customerName:b.customerName,address:[sval(gc(customer,['Address Line 1','Address','Ship Address'])),sval(gc(customer,['Address Line 2']))].filter(Boolean).join(' '),crossStreet:'',
+        city:sval(customer?.CITY)||sval(gc(customer,['City'])),state:sval(gc(customer,['State'])),zip:sval(gc(customer,['Zip','ZIP','Postal Code'])),country:'',lat:b.lat,lng:b.lng,
+        deliveryDay:b.orderDay,originalDeliveryDay:b.orderDay,dayOfWeekName:b.orderDay,
+        earliestTimeWindow:excelTimeToHHMM(gc(customer,['Delivery Window Start','Earliest Delivery Time','EarliestDeliveryTime','Earliest Time Window']))||'06:00',
+        latestTimeWindow:excelTimeToHHMM(gc(customer,['Delivery Window End','Latest Delivery Time','LatestDeliveryTime','Latest Time Window']))||'18:00',
+        fixedServiceTime:service||0,variableServiceTime:0,
+        preferredResourceKey:b.route,preferredResourceIndicator:b.route?'1':'',restrictPreferredResource:'',preferredRouteSequence:avgSeq,restrictRoutePosition:'',standardRoute:b.route,standardSequence:avgSeq,
+        comment:`Condensed ${b.orderCount} Customer Order History order(s) for account ${b.account}.`,
+        dryCases:parseFloat(b.cases.toFixed(2)),dryCube:parseFloat(b.cube.toFixed(2)),dryWeight:parseFloat(b.weight.toFixed(2)),
+        coolerCases:0,coolerCube:0,coolerWeight:0,frozenCases:0,frozenCube:0,frozenWeight:0,pkgCases:0,pkgCube:0,pkgWeight:0,
+        condensedOrderCount:b.orderCount,condensedSourceRows:b.sourceRows.length,uiChecked:false,raw:{condensed:true,sourceRows:b.sourceRows}
+      };
+      if(!obj.routeId&&b.route){const mr=routes.find(r=>r.name===b.route||r.routeTemplateKey===b.route||String(r.udfNumber1||'')===b.route);if(mr){obj.routeId=mr.id;obj.seq=avgSeq;}}
+      if(existing)Object.assign(existing,obj);else stops.push(obj);
+      imported++;
+    });
+    reseq();
+    return {imported,sourceRows,skippedNoCustomer,skippedNoGeo,skippedDay,selectedDays};
+  }
+
+  window.confirmImport=function(){
+    if(!pendingWB){showToast('No workbook selected');return;}
+    if(importMode!=='stops')return previousConfirmImportForCondensedStops();
+    const btn=document.getElementById('imp-confirm');const originalText=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Importing...';}
+    try{
+      const sheets=pendingWB.SheetNames.map(name=>{const ws=pendingWB.Sheets[name];const data=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});return {name,data,type:detectImportSheetType(name,data)};}).filter(x=>x.data.length);
+      const orderHist=sheets.find(x=>x.type==='customer order history'||x.name.toLowerCase().trim()==='customer order history');
+      const customerList=sheets.find(x=>x.type==='holiday customers'||x.name.toLowerCase().trim()==='customer list');
+      if(orderHist){
+        const result=importCondensedStopsFromCustomerOrderHistory(orderHist.data,customerList?.data||[]);
+        invalidateAllRouteMetrics();mapCleared=true;visibleStopIds.clear();visibleRouteIds.clear();potColors={};if(typeof potRouteSuggestions!=='undefined')potRouteSuggestions={};
+        closeModal('import-modal');
+        setTimeout(()=>{render();expanded.clear();renderRoutes();const dayText=result.selectedDays.length?' for '+result.selectedDays.join(', '):'';const skipped=[];if(result.skippedNoCustomer)skipped.push(result.skippedNoCustomer.toLocaleString()+' missing Customer List match');if(result.skippedNoGeo)skipped.push(result.skippedNoGeo.toLocaleString()+' missing geocode');if(result.skippedDay)skipped.push(result.skippedDay.toLocaleString()+' outside selected day filter');showToast('Condensed '+result.sourceRows.toLocaleString()+' order row(s) into '+result.imported.toLocaleString()+' customer stop(s)'+dayText+(skipped.length?' ('+skipped.join(', ')+')':''));if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';}},25);
+        return;
+      }
+      return previousConfirmImportForCondensedStops();
+    }catch(err){console.error('Stops import failed:',err);if(btn){btn.disabled=false;btn.textContent=originalText||'Import Data';}showToast('Stops import failed: '+(err&&err.message?err.message:err));alert('Stops import failed: '+(err&&err.message?err.message:err));}
+  };
+})();
+</script>
 </body>
 </html>
+
 
