@@ -4602,5 +4602,248 @@ reseq();holidaySession.planned=true;holidaySession.lastPlanStats={baselineRouted
 })();
 
 </script>
+
+<script>
+// ============================================================
+// CONSOLIDATE CUSTOMER ORDERS BY LOCATION NUMBER
+// ============================================================
+(() => {
+  function orderLocationKeyFromRow(row){
+    const raw=gc(row,['LOCATION','Location','Location Number','LocationNumber','Location #','Location#','SHIP_TO_ID','Ship To ID','ShipToID','CUSTOMER_NUMBER','Customer Number','CustomerNumber']);
+    return orderLocationKey(raw);
+  }
+  function orderLocationKey(value){
+    const text=sval(value);
+    if(!text)return '';
+    const matches=[...text.matchAll(/\(([^()]+)\)/g)];
+    const raw=matches.length?matches[matches.length-1][1]:text;
+    const digits=sval(raw).replace(/\D/g,'');
+    return digits||sval(raw).toUpperCase();
+  }
+  function orderDetailFromRow(row, fallbackOrderNumber){
+    return {
+      orderNumber:sval(gc(row,['ORDER_NUMBER','Order Number','OrderNumber','Invoice','Invoice Number','InvoiceNumber']))||fallbackOrderNumber||'',
+      locationNumber:orderLocationKeyFromRow(row),
+      cases:nval(gc(row,['DRY Total Cases','DRY Cases','Cases','CASES ACTUAL','Cases Actual','CasesActual'])),
+      cube:nval(gc(row,['DRY Cube','Cube','CUBE ACTUAL','Cube Actual','CubeActual'])),
+      weight:nval(gc(row,['DRY Weight','Weight','WEIGHT ACTUAL','Weight Actual','WeightActual'])),
+      planService:sval(gc(row,['PLAN SERVICE TIME','Plan Service Time','PlanServiceTime'])),
+      actualService:sval(gc(row,['ACTUAL SERVICE TIME','Actual Service Time','ActualServiceTime'])),
+      deliveryDate:sval(gc(row,['REQ_DELIVERY_DATE','Req Delivery Date','Delivery Date','DeliveryDate'])),
+      customerName:sval(gc(row,['Customer Name','CustomerName','Account: Account Name','Account Name','Name'])),
+      raw:row
+    };
+  }
+  function consolidateOrderList(stop){
+    const orders=Array.isArray(stop.consolidatedOrders)?stop.consolidatedOrders:[];
+    if(!orders.length){
+      const orderNumber=sval(stop.orderNumber);
+      stop.consolidatedOrders=orderNumber?[{orderNumber,locationNumber:stop.locationNumber||stop.shipToId||stop.customerNumber||'',cases:tCases(stop),cube:tCube(stop),weight:tWeight(stop)}]:[];
+    }
+    stop.orderCount=stop.consolidatedOrders.length||1;
+    stop.consolidatedOrderNumbers=stop.consolidatedOrders.map(o=>sval(o.orderNumber)).filter(Boolean);
+    stop.isConsolidatedCustomerStop=stop.orderCount>1;
+    return stop;
+  }
+  function displayOrderNumber(stop){
+    const orders=Array.isArray(stop.consolidatedOrderNumbers)?stop.consolidatedOrderNumbers.filter(Boolean):[];
+    if(orders.length>1)return `${orders[0]} +${orders.length-1}`;
+    return stop.orderNumber||orders[0]||'';
+  }
+  function mergeTimeWindow(base,incoming){
+    const bEarly=timeToMinutes(base.earliestTimeWindow), iEarly=timeToMinutes(incoming.earliestTimeWindow);
+    const bLate=timeToMinutes(base.latestTimeWindow), iLate=timeToMinutes(incoming.latestTimeWindow);
+    if(iEarly!==null&&(bEarly===null||iEarly>bEarly))base.earliestTimeWindow=incoming.earliestTimeWindow;
+    if(iLate!==null&&(bLate===null||iLate<bLate))base.latestTimeWindow=incoming.latestTimeWindow;
+  }
+  function addLoads(base,incoming){
+    ['dryCases','dryCube','dryWeight','coolerCases','coolerCube','coolerWeight','frozenCases','frozenCube','frozenWeight','pkgCases','pkgCube','pkgWeight'].forEach(k=>{base[k]=nval(base[k])+nval(incoming[k]);});
+  }
+  function mergeStopByLocation(base,incoming,row){
+    const firstRouteId=base.routeId;
+    addLoads(base,incoming);
+    mergeTimeWindow(base,incoming);
+    base.fixedServiceTime=Math.max(nval(base.fixedServiceTime),nval(incoming.fixedServiceTime));
+    base.variableServiceTime=Math.max(nval(base.variableServiceTime),nval(incoming.variableServiceTime));
+    ['shipToId','customerNumber','customerName','address','crossStreet','city','state','zip','country','preferredResourceKey','preferredResourceIndicator','restrictPreferredResource','preferredRouteSequence','restrictRoutePosition','standardRoute','standardSequence','orderType','orderStatus','district','willCallIndicator','profit','comment'].forEach(k=>{if(!sval(base[k])&&sval(incoming[k]))base[k]=incoming[k];});
+    if(!base.routeId&&incoming.routeId)base.routeId=incoming.routeId;
+    if(!base.seq&&incoming.seq)base.seq=incoming.seq;
+    if(!base.lat&&incoming.lat)base.lat=incoming.lat;
+    if(!base.lng&&incoming.lng)base.lng=incoming.lng;
+    const detail=orderDetailFromRow(row,incoming.orderNumber);
+    base.consolidatedOrders=Array.isArray(base.consolidatedOrders)?base.consolidatedOrders:[];
+    base.consolidatedOrders.push(detail);
+    base.orderCount=base.consolidatedOrders.length;
+    base.consolidatedOrderNumbers=base.consolidatedOrders.map(o=>sval(o.orderNumber)).filter(Boolean);
+    base.isConsolidatedCustomerStop=base.orderCount>1;
+    if(base.isConsolidatedCustomerStop)base.orderNumber=displayOrderNumber(base);
+    if(firstRouteId!==base.routeId&&base.routeId)expanded.add(base.routeId);
+  }
+  function buildStopFromOrderRow(row){
+    const lat=parseFloat(gc(row,['Latitude','latitude','Lat','lat']));
+    const lng=parseFloat(gc(row,['Longitude','longitude','Long','long','Lng','lng']));
+    if(isNaN(lat)||isNaN(lng))return null;
+    const ordNum=sval(gc(row,['ORDER_NUMBER','Order Number','OrderNumber','Invoice','Invoice Number','InvoiceNumber']));
+    const stdRoute=sval(gc(row,['Standard Route','StandardRoute']));
+    const stdSeq=gc(row,['Standard Sequence','StandardSequence']);
+    const prefKey=sval(gc(row,['Preferred Resource Key','PreferredResourceKey']));
+    const prefSeq=sval(gc(row,['Route Sequence','RouteSequence']));
+    const obj={
+      id:uid(),routeId:null,seq:0,orderNumber:ordNum,
+      locationNumber:orderLocationKeyFromRow(row),
+      shipToId:sval(gc(row,['SHIP_TO_ID','Ship To ID','ShipToID'])),
+      customerNumber:sval(gc(row,['CUSTOMER_NUMBER','Customer Number','CustomerNumber','Tandem Account Number','Account Number'])),
+      orderType:sval(gc(row,['ORDER_TYPE','Order Type'])),orderStatus:sval(gc(row,['ORDER_STATUS','Order Status'])),district:sval(gc(row,['DISTRICT','District'])),
+      reqDeliveryDate:sval(gc(row,['REQ_DELIVERY_DATE','Req Delivery Date','Delivery Date','DeliveryDate'])),willCallIndicator:sval(gc(row,['WILL_CALL_INDICATOR','Will Call Indicator'])),profit:sval(gc(row,['Profit'])),
+      customerName:sval(gc(row,['Customer Name','CustomerName','Account: Account Name','Account Name','Name'])),
+      address:sval(gc(row,['Address','address','ShipStreet','Ship Street'])),crossStreet:sval(gc(row,['Cross Street','CrossStreet'])),city:sval(gc(row,['City','city','ShipCity','Ship City'])),state:sval(gc(row,['State','state','ShipState','Ship State'])),zip:sval(gc(row,['Zip','ZIP','zip','ShipZipCode','Ship Zip Code'])),country:sval(gc(row,['Country','country'])),
+      lat,lng,
+      earliestTimeWindow:sval(gc(row,['Earliest Time Window','EarliestTimeWindow'])),latestTimeWindow:sval(gc(row,['Latest Time Window','LatestTimeWindow'])),
+      fixedServiceTime:nval(gc(row,['Fixed ServiceTime','Fixed Service Time','FixedServiceTime'])),variableServiceTime:nval(gc(row,['Variable ServiceTime','Variable Service Time','VariableServiceTime'])),
+      preferredResourceKey:prefKey,preferredResourceIndicator:sval(gc(row,['Preferred resource indicator'])),restrictPreferredResource:sval(gc(row,['Restrict preferred resource'])),preferredRouteSequence:prefSeq,restrictRoutePosition:sval(gc(row,['Restrict route position'])),
+      standardRoute:stdRoute,standardSequence:stdSeq,comment:sval(gc(row,['Comment'])),
+      dryCases:nval(gc(row,['DRY Total Cases','DRY Cases','Cases','CASES ACTUAL','Cases Actual','CasesActual'])),dryCube:nval(gc(row,['DRY Cube','Cube','CUBE ACTUAL','Cube Actual','CubeActual'])),dryWeight:nval(gc(row,['DRY Weight','Weight','WEIGHT ACTUAL','Weight Actual','WeightActual'])),
+      coolerCases:nval(gc(row,['Cooler Cases'])),coolerCube:nval(gc(row,['Cooler Cube'])),coolerWeight:nval(gc(row,['Cooler Weight'])),
+      frozenCases:nval(gc(row,['Frozen Cases'])),frozenCube:nval(gc(row,['Frozen Cube'])),frozenWeight:nval(gc(row,['Frozen Weight'])),
+      pkgCases:nval(gc(row,['Package cases','Package Cases'])),pkgCube:nval(gc(row,['Package cube','Package Cube'])),pkgWeight:nval(gc(row,['Package Weight'])),
+      uiChecked:false,consolidatedOrders:[orderDetailFromRow(row,ordNum)],orderCount:1,isConsolidatedCustomerStop:false
+    };
+    if(!obj.shipToId&&obj.locationNumber)obj.shipToId=obj.locationNumber;
+    if(!obj.customerNumber&&obj.locationNumber)obj.customerNumber=obj.locationNumber;
+    if(!obj.routeId&&stdRoute){const mr=routes.find(r=>r.name===stdRoute||r.routeTemplateKey===stdRoute);if(mr){obj.routeId=mr.id;obj.seq=parseFloat(stdSeq)||999;}}
+    obj.consolidatedOrderNumbers=obj.consolidatedOrders.map(o=>sval(o.orderNumber)).filter(Boolean);
+    return obj;
+  }
+
+  importStops=function(data){
+    const byLocation=new Map();
+    (data||[]).forEach(row=>{
+      const obj=buildStopFromOrderRow(row);
+      if(!obj)return;
+      const key=obj.locationNumber||orderLocationKey(obj.shipToId)||orderLocationKey(obj.customerNumber)||obj.orderNumber;
+      const existingByKey=key?byLocation.get(key):null;
+      const existingInStops=key?stops.find(s=>(s.locationNumber||orderLocationKey(s.shipToId)||orderLocationKey(s.customerNumber))===key):null;
+      const target=existingByKey||existingInStops;
+      if(target){
+        if(!target.locationNumber)target.locationNumber=key;
+        if(!Array.isArray(target.consolidatedOrders))target.consolidatedOrders=[];
+        if(!target.consolidatedOrders.length&&target.orderNumber){target.consolidatedOrders.push({orderNumber:target.orderNumber,locationNumber:key,cases:tCases(target),cube:tCube(target),weight:tWeight(target)});}
+        mergeStopByLocation(target,obj,row);
+        byLocation.set(key,target);
+      }else{
+        consolidateOrderList(obj);
+        stops.push(obj);
+        if(key)byLocation.set(key,obj);
+      }
+    });
+    stops.forEach(consolidateOrderList);
+    reseq();
+  };
+
+  const previousOpenStopDetail=openStopDetail;
+  openStopDetail=function(stopId){
+    previousOpenStopDetail(stopId);
+    const s=stops.find(x=>x.id===stopId);
+    const body=document.getElementById('stop-detail-body');
+    if(!s||!body)return;
+    consolidateOrderList(s);
+    const orders=Array.isArray(s.consolidatedOrders)?s.consolidatedOrders:[];
+    if(orders.length<=1)return;
+    const rows=orders.map((o,i)=>`<div style="display:grid;grid-template-columns:46px 1.2fr .8fr .8fr .8fr;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;align-items:center;">
+      <div style="font-family:DM Mono,monospace;color:var(--text3);">${i+1}</div>
+      <div>${escapeHtml(o.orderNumber||'Order')}</div>
+      <div>${Number(o.cases||0).toLocaleString()} cs</div>
+      <div>${Number(o.weight||0).toLocaleString()} lbs</div>
+      <div>${Number(o.cube||0).toFixed(1)} cu</div>
+    </div>`).join('');
+    body.insertAdjacentHTML('beforeend',`<div class="shdr">Consolidated Orders <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0;">(${orders.length} orders at location ${escapeHtml(s.locationNumber||s.shipToId||s.customerNumber||'')})</span></div>
+      <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg2);">
+        <div style="display:grid;grid-template-columns:46px 1.2fr .8fr .8fr .8fr;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;font-weight:700;background:var(--bg3);">
+          <div>#</div><div>Order</div><div>Cases</div><div>Weight</div><div>Cube</div>
+        </div>${rows}
+      </div>`);
+  };
+
+  const previousRenderRouteManifest=renderRouteManifest;
+  renderRouteManifest=function(){
+    previousRenderRouteManifest();
+    if(!activeManifestRouteId)return;
+    const timeline=routeTimelineRows(activeManifestRouteId).filter(pt=>pt.type==='stop');
+    const rowEls=Array.from(document.querySelectorAll('#manifest-list .manifest-row.stop'));
+    rowEls.forEach((el,i)=>{
+      const s=timeline[i]?.stop;
+      if(!s)return;
+      consolidateOrderList(s);
+      const count=s.orderCount||1;
+      if(count<=1)return;
+      const detail=el.querySelector('.manifest-detail');
+      if(detail)detail.insertAdjacentHTML('afterbegin',`<span style="color:var(--accent);font-weight:700;">${count} orders consolidated</span><br/>`);
+    });
+  };
+
+  const oldImportHolidayOrderHistory=window.importHolidayOrderHistory;
+  window.importHolidayOrderHistory=function(data){
+    const count=oldImportHolidayOrderHistory?oldImportHolidayOrderHistory(data):0;
+    const grouped={};
+    (data||[]).forEach(row=>{
+      const key=orderLocationKeyFromRow(row);
+      if(!key)return;
+      if(!grouped[key])grouped[key]=[];
+      grouped[key].push(orderDetailFromRow(row,''));
+    });
+    window.__locationOrderHistoryDetails=grouped;
+    return count;
+  };
+
+  function attachDetailedOrderHistoryToCustomers(){
+    const grouped=window.__locationOrderHistoryDetails||{};
+    (holidayCustomerPool||[]).forEach(c=>{
+      const key=orderLocationKey(c.account||c.customerNumber||c.shipToId);
+      const orders=grouped[key]||[];
+      if(orders.length){
+        c.orderHistoryDetails=orders;
+        c.recentOrderCount=orders.length;
+        c.hasRecentOrder=true;
+      }
+    });
+  }
+  const oldImportHolidayCustomers=window.importHolidayCustomers;
+  window.importHolidayCustomers=function(data,holidayDate,holidayDay){
+    const n=oldImportHolidayCustomers(data,holidayDate,holidayDay);
+    attachDetailedOrderHistoryToCustomers();
+    return n;
+  };
+  const oldRefreshHolidaySessionForDate=window.refreshHolidaySessionForDate;
+  if(oldRefreshHolidaySessionForDate){
+    window.refreshHolidaySessionForDate=function(d){
+      const ok=oldRefreshHolidaySessionForDate(d);
+      attachDetailedOrderHistoryToCustomers();
+      return ok;
+    };
+  }
+  const oldCreateHolidayPlanningStop=window.createHolidayPlanningStop;
+  if(oldCreateHolidayPlanningStop){
+    window.createHolidayPlanningStop=function(c){
+      const s=oldCreateHolidayPlanningStop(c);
+      const orders=c.orderHistoryDetails||c.orderHistory?.orders||[];
+      if(orders.length){
+        s.locationNumber=orderLocationKey(c.account||c.customerNumber||c.shipToId);
+        s.consolidatedOrders=orders.slice();
+        s.orderCount=orders.length;
+        s.consolidatedOrderNumbers=orders.map(o=>sval(o.orderNumber)).filter(Boolean);
+        s.isConsolidatedCustomerStop=s.orderCount>1;
+        if(s.orderCount>1)s.orderNumber=displayOrderNumber(s);
+        s.dryCases=orders.reduce((a,o)=>a+nval(o.cases),0)||s.dryCases;
+        s.dryCube=orders.reduce((a,o)=>a+nval(o.cube),0)||s.dryCube;
+        s.dryWeight=orders.reduce((a,o)=>a+nval(o.weight),0)||s.dryWeight;
+      }else{
+        consolidateOrderList(s);
+      }
+      return s;
+    };
+  }
+})();
+</script>
+
 </body>
 </html>
