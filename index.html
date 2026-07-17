@@ -220,7 +220,7 @@ body{font-family:'Sora',sans-serif;background:#0f1117;color:#e8e6e0;height:100vh
 .order-expand summary{cursor:pointer;padding:9px 10px;font-size:11px;font-weight:700;color:var(--text1);background:var(--bg3);list-style:none;}
 .order-expand summary::-webkit-details-marker{display:none;}
 .order-table{max-height:260px;overflow:auto;}
-.order-table-row{display:grid;grid-template-columns:110px 90px 80px 80px 80px 90px 90px 150px 1fr;gap:8px;padding:7px 10px;border-top:1px solid var(--border);font-size:10px;align-items:center;min-width:1120px;}
+.order-table-row{display:grid;grid-template-columns:110px 90px 80px 80px 90px 90px 90px 100px 100px 100px 120px 140px 140px 150px 1fr;gap:8px;padding:7px 10px;border-top:1px solid var(--border);font-size:10px;align-items:center;min-width:1900px;}
 .order-table-row.header{position:sticky;top:0;background:var(--bg2);color:var(--text3);font-size:9px;text-transform:uppercase;letter-spacing:.4px;font-weight:800;z-index:1;}
 .order-badge{display:inline-block;margin-left:4px;padding:1px 5px;border-radius:999px;background:rgba(79,140,255,.16);color:var(--accent);font-size:8px;font-weight:800;vertical-align:middle;}
 
@@ -3945,6 +3945,8 @@ function makeOrderFromRow(row,requireGeo=true){
   const hasGeo=!isNaN(lat)&&!isNaN(lng);
   if(requireGeo&&!hasGeo)return null;
   return {
+    standardRoute:sval(gc(row,['Standard Route','StandardRoute'])),
+    standardSequence:sval(gc(row,['Standard Sequence','StandardSequence'])),
     orderNumber:sval(gc(row,['ORDER_NUMBER','Order Number','OrderNumber'])),
     shipToId:sval(gc(row,['SHIP_TO_ID','Ship To ID','ShipToId'])),
     customerNumber:sval(gc(row,['CUSTOMER_NUMBER','Customer Number','CustomerNumber'])),
@@ -3955,6 +3957,7 @@ function makeOrderFromRow(row,requireGeo=true){
     actualShipDate:sval(gc(row,['ACTUAL_SHIP_DATE','Actual Ship Date'])),
     reqDeliveryDate:sval(gc(row,['REQ_DELIVERY_DATE','Req Delivery Date'])),
     willCallIndicator:sval(gc(row,['WILL_CALL_INDICATOR','Will Call Indicator'])),
+    profit:nval(gc(row,['Profit'])),
     orderRequirements:sval(gc(row,['Order Requirements','Requirements'])),
     variableServiceTime:nval(gc(row,['Variable Service Time','VariableServiceTime'])),
     cutId:sval(gc(row,['CUTID','Cut ID'])),
@@ -4004,6 +4007,15 @@ function makeOrderFromRow(row,requireGeo=true){
     pkgCube:nval(gc(row,['Package cube','Package Cube'])),
     pkgWeight:nval(gc(row,['Package Weight'])),
     pkgHazmat:nval(gc(row,['Package Zone Hazmat','Package Hazmat'])),
+    parentCustomer:sval(gc(row,['PARENT_CUSTOMER','Parent Customer','ParentCustomer'])),
+    locationKey:sval(gc(row,['LocationKey','Location Key'])),
+    activityWindowEarliestTimeRaw:rawImportedDateTime(gc(row,['ActivityWindowEarliestTime','Activity Window Earliest Time'])),
+    activityWindowLatestTimeRaw:rawImportedDateTime(gc(row,['ActivityWindowLatestTime','Activity Window Latest Time'])),
+    activityWindowEarliestTime:excelTimeToHHMM(gc(row,['ActivityWindowEarliestTime','Activity Window Earliest Time'])),
+    activityWindowLatestTime:excelTimeToHHMM(gc(row,['ActivityWindowLatestTime','Activity Window Latest Time'])),
+    locationWindowEarliestTime:excelTimeToHHMM(gc(row,['LocationWindowEarliestTime','Location Window Earliest Time'])),
+    locationWindowLatestTime:excelTimeToHHMM(gc(row,['LocationWindowLatestTime','Location Window Latest Time'])),
+    frequency:nval(gc(row,['Frequency'])),
     raw:{...row}
   };
 }
@@ -4055,6 +4067,16 @@ function buildConsolidatedStopFromOrders(orders, existing){
     restrictRoutePosition:orders.some(o=>isYesFlag(o.restrictRoutePosition))?'Y':firstNonEmpty(orders.map(o=>o.restrictRoutePosition)),
     standardRoute:stdRoute,
     standardSequence:stdSeq,
+    profit:orders.reduce((a,o)=>a+nval(o.profit),0),
+    parentCustomer:firstNonEmpty(orders.map(o=>o.parentCustomer)),
+    locationKey:firstNonEmpty(orders.map(o=>o.locationKey)),
+    activityWindowEarliestTimeRaw:firstNonEmpty(orders.map(o=>o.activityWindowEarliestTimeRaw)),
+    activityWindowLatestTimeRaw:firstNonEmpty(orders.map(o=>o.activityWindowLatestTimeRaw)),
+    activityWindowEarliestTime:firstNonEmpty(orders.map(o=>o.activityWindowEarliestTime).filter(Boolean).sort()),
+    activityWindowLatestTime:firstNonEmpty(orders.map(o=>o.activityWindowLatestTime).filter(Boolean).sort().reverse()),
+    locationWindowEarliestTime:firstNonEmpty(orders.map(o=>o.locationWindowEarliestTime).filter(Boolean).sort()),
+    locationWindowLatestTime:firstNonEmpty(orders.map(o=>o.locationWindowLatestTime).filter(Boolean).sort().reverse()),
+    frequency:firstNonEmpty(orders.map(o=>o.frequency)),
     comment:uniqueJoined(orders.map(o=>o.comment),' | '),
     totalDollars:orders.reduce((a,o)=>a+nval(o.totalDollars),0),
     dryCases:orders.reduce((a,o)=>a+nval(o.dryCases),0),
@@ -4080,10 +4102,15 @@ function buildConsolidatedStopFromOrders(orders, existing){
 function renderStopOrdersHtml(stop){
   const orders=Array.isArray(stop.orders)&&stop.orders.length?stop.orders:[{
     orderNumber:stop.orderNumber, cutId:stop.cutId, orderType:stop.orderType, orderStatus:stop.orderStatus,
+    standardRoute:stop.standardRoute, standardSequence:stop.standardSequence, profit:stop.profit,
+    parentCustomer:stop.parentCustomer, locationKey:stop.locationKey, frequency:stop.frequency,
     dryCases:stop.dryCases, coolerCases:stop.coolerCases, frozenCases:stop.frozenCases, pkgCases:stop.pkgCases,
     dryWeight:stop.dryWeight, coolerWeight:stop.coolerWeight, frozenWeight:stop.frozenWeight, pkgWeight:stop.pkgWeight,
     dryCube:stop.dryCube, coolerCube:stop.coolerCube, frozenCube:stop.frozenCube, pkgCube:stop.pkgCube,
-    earliestTimeWindow:stop.earliestTimeWindow, latestTimeWindow:stop.latestTimeWindow, earliestTimeWindowRaw:stop.earliestTimeWindowRaw, latestTimeWindowRaw:stop.latestTimeWindowRaw, comment:stop.comment
+    earliestTimeWindow:stop.earliestTimeWindow, latestTimeWindow:stop.latestTimeWindow, earliestTimeWindowRaw:stop.earliestTimeWindowRaw, latestTimeWindowRaw:stop.latestTimeWindowRaw,
+    activityWindowEarliestTime:stop.activityWindowEarliestTime, activityWindowLatestTime:stop.activityWindowLatestTime,
+    activityWindowEarliestTimeRaw:stop.activityWindowEarliestTimeRaw, activityWindowLatestTimeRaw:stop.activityWindowLatestTimeRaw,
+    comment:stop.comment
   }];
   const rows=orders.map(o=>`
     <div class="order-table-row">
@@ -4091,16 +4118,22 @@ function renderStopOrdersHtml(stop){
       <div>${escapeHtml(o.cutId||'')}</div>
       <div>${escapeHtml(o.orderType||'')}</div>
       <div>${escapeHtml(o.orderStatus||'')}</div>
+      <div>${escapeHtml(o.standardRoute||'')}</div>
+      <div>${escapeHtml(o.standardSequence||'')}</div>
+      <div>${nval(o.profit).toLocaleString(undefined,{maximumFractionDigits:2})}</div>
+      <div>${escapeHtml(o.parentCustomer||'')}</div>
+      <div>${escapeHtml(o.locationKey||'')}</div>
+      <div>${escapeHtml(o.frequency||'')}</div>
       <div>${(nval(o.dryCases)+nval(o.coolerCases)+nval(o.frozenCases)+nval(o.pkgCases)).toLocaleString()}</div>
       <div>${(nval(o.dryWeight)+nval(o.coolerWeight)+nval(o.frozenWeight)+nval(o.pkgWeight)).toFixed(0)}</div>
       <div>${(nval(o.dryCube)+nval(o.coolerCube)+nval(o.frozenCube)+nval(o.pkgCube)).toFixed(2)}</div>
-      <div>${escapeHtml(fullWindowDisplay(o.earliestTimeWindowRaw,o.earliestTimeWindow)||'—')}</div>
-      <div>${escapeHtml(fullWindowDisplay(o.latestTimeWindowRaw,o.latestTimeWindow)||'—')}${o.comment?`<br/><span style="color:var(--text3);">${escapeHtml(o.comment)}</span>`:''}</div>
+      <div>${escapeHtml(fullWindowDisplay(o.activityWindowEarliestTimeRaw,o.activityWindowEarliestTime)||fullWindowDisplay(o.earliestTimeWindowRaw,o.earliestTimeWindow)||'—')}</div>
+      <div>${escapeHtml(fullWindowDisplay(o.activityWindowLatestTimeRaw,o.activityWindowLatestTime)||fullWindowDisplay(o.latestTimeWindowRaw,o.latestTimeWindow)||'—')}${o.comment?`<br/><span style="color:var(--text3);">${escapeHtml(o.comment)}</span>`:''}</div>
     </div>`).join('');
   return `<details class="order-expand" open>
     <summary>Orders inside this stop <span class="order-badge">${orders.length}</span></summary>
     <div class="order-table">
-      <div class="order-table-row header"><div>Order #</div><div>CUTID</div><div>Type</div><div>Status</div><div>Cases</div><div>Weight</div><div>Cube</div><div>Earliest Window</div><div>Latest Window / Comment</div></div>
+      <div class="order-table-row header"><div>Order #</div><div>CUTID</div><div>Type</div><div>Status</div><div>Std Route</div><div>Std Seq</div><div>Profit</div><div>Parent Customer</div><div>LocationKey</div><div>Frequency</div><div>Cases</div><div>Weight</div><div>Cube</div><div>Activity Earliest</div><div>Activity Latest / Comment</div></div>
       ${rows}
     </div>
   </details>`;
@@ -4980,17 +5013,17 @@ function buildOutputFileRows(routeIdSet=null){
         const variable=variableServiceSecondsForOutput(order,stop);
         const fixed=fixedServiceSecondsForOutput(order,stop);
         const region=outputRegionCode||sval(rawField(order,['Region_Code','Region Code','REGION_CODE','Region']))||route.regionCode||route.region||'';
-        const parent=sval(rawField(order,['Parent Account','ParentAccount','PARENT_ACCOUNT']))||order.alternativeCustomerNumber||'';
+        const parent=order.parentCustomer||sval(rawField(order,['PARENT_CUSTOMER','Parent Customer','ParentCustomer','Parent Account','ParentAccount','PARENT_ACCOUNT']))||order.alternativeCustomerNumber||'';
         rows.push({
           'District':order.district||stop.district||'',
           'Region Code':region,
           'Route':exportRouteValue(route),
-          'Customer':order.customerNumber||stop.customerNumber||order.shipToId||stop.shipToId||'',
+          'Customer':order.locationKey||stop.locationKey||order.customerNumber||stop.customerNumber||order.shipToId||stop.shipToId||'',
           'Sequence':stop.seq||'',
           'Order_number':order.orderNumber||stop.orderNumber||'',
           'Parent Account':parent,
-          'EarliestDate':outputDateTime(order.earliestTimeWindowRaw||order.earliestTimeWindow||stop.earliestTimeWindowRaw||stop.earliestTimeWindow,sessionDate,'00:00'),
-          'LatestDate':outputDateTime(order.latestTimeWindowRaw||order.latestTimeWindow||stop.latestTimeWindowRaw||stop.latestTimeWindow,sessionDate,'23:59'),
+          'EarliestDate':outputDateTime(order.activityWindowEarliestTimeRaw||order.activityWindowEarliestTime||order.earliestTimeWindowRaw||order.earliestTimeWindow||stop.activityWindowEarliestTimeRaw||stop.activityWindowEarliestTime||stop.earliestTimeWindowRaw||stop.earliestTimeWindow,sessionDate,'00:00'),
+          'LatestDate':outputDateTime(order.activityWindowLatestTimeRaw||order.activityWindowLatestTime||order.latestTimeWindowRaw||order.latestTimeWindow||stop.activityWindowLatestTimeRaw||stop.activityWindowLatestTime||stop.latestTimeWindowRaw||stop.latestTimeWindow,sessionDate,'23:59'),
           'projectedArrivalDate':outputDateOnlyFromMinutes(route,pt.arrive),
           'projectedBegunDate':outputDateOnlyFromMinutes(route,pt.depart),
           'serviceDurationPerCaseInSeconds':cases?parseFloat((variable/cases).toFixed(6)):0,
@@ -5006,7 +5039,17 @@ function buildOutputFileRows(routeIdSet=null){
           'Measure1':cases,
           'Measure2':parseFloat(cube.toFixed(2)),
           'Measure3':parseFloat(weight.toFixed(2)),
-          'udfString3':order.alternativeCustomerNumber||sval(rawField(order,['Alternative customer number','Alternative Customer Number','AlternativeCustomerNumber']))
+          'udfString3':order.alternativeCustomerNumber||sval(rawField(order,['Alternative customer number','Alternative Customer Number','AlternativeCustomerNumber'])),
+          'Standard Route':order.standardRoute||stop.standardRoute||'',
+          'Standard Sequence':order.standardSequence||stop.standardSequence||'',
+          'Profit':nval(order.profit),
+          'PARENT_CUSTOMER':order.parentCustomer||stop.parentCustomer||'',
+          'LocationKey':order.locationKey||stop.locationKey||'',
+          'ActivityWindowEarliestTime':order.activityWindowEarliestTimeRaw||order.activityWindowEarliestTime||'',
+          'ActivityWindowLatestTime':order.activityWindowLatestTimeRaw||order.activityWindowLatestTime||'',
+          'LocationWindowEarliestTime':order.locationWindowEarliestTime||'',
+          'LocationWindowLatestTime':order.locationWindowLatestTime||'',
+          'Frequency':order.frequency||''
         });
       });
     });
@@ -5026,12 +5069,12 @@ function buildOutputFileRows(routeIdSet=null){
         'District':order.district||stop.district||'',
         'Region Code':outputRegionCode||sval(rawField(order,['Region_Code','Region Code','REGION_CODE','Region'])),
         'Route':'',
-        'Customer':order.customerNumber||stop.customerNumber||order.shipToId||stop.shipToId||'',
+        'Customer':order.locationKey||stop.locationKey||order.customerNumber||stop.customerNumber||order.shipToId||stop.shipToId||'',
         'Sequence':'',
         'Order_number':order.orderNumber||stop.orderNumber||'',
-        'Parent Account':sval(rawField(order,['Parent Account','ParentAccount','PARENT_ACCOUNT']))||order.alternativeCustomerNumber||'',
-        'EarliestDate':outputDateTime(order.earliestTimeWindowRaw||order.earliestTimeWindow||stop.earliestTimeWindowRaw||stop.earliestTimeWindow,sessionDate,'00:00'),
-        'LatestDate':outputDateTime(order.latestTimeWindowRaw||order.latestTimeWindow||stop.latestTimeWindowRaw||stop.latestTimeWindow,sessionDate,'23:59'),
+        'Parent Account':order.parentCustomer||sval(rawField(order,['PARENT_CUSTOMER','Parent Customer','ParentCustomer','Parent Account','ParentAccount','PARENT_ACCOUNT']))||order.alternativeCustomerNumber||'',
+        'EarliestDate':outputDateTime(order.activityWindowEarliestTimeRaw||order.activityWindowEarliestTime||order.earliestTimeWindowRaw||order.earliestTimeWindow||stop.activityWindowEarliestTimeRaw||stop.activityWindowEarliestTime||stop.earliestTimeWindowRaw||stop.earliestTimeWindow,sessionDate,'00:00'),
+        'LatestDate':outputDateTime(order.activityWindowLatestTimeRaw||order.activityWindowLatestTime||order.latestTimeWindowRaw||order.latestTimeWindow||stop.activityWindowLatestTimeRaw||stop.activityWindowLatestTime||stop.latestTimeWindowRaw||stop.latestTimeWindow,sessionDate,'23:59'),
         'projectedArrivalDate':'',
         'projectedBegunDate':'',
         'serviceDurationPerCaseInSeconds':cases?parseFloat((variable/cases).toFixed(6)):0,
@@ -5047,7 +5090,17 @@ function buildOutputFileRows(routeIdSet=null){
         'Measure1':cases,
         'Measure2':parseFloat(cube.toFixed(2)),
         'Measure3':parseFloat(weight.toFixed(2)),
-        'udfString3':order.alternativeCustomerNumber||sval(rawField(order,['Alternative customer number','Alternative Customer Number','AlternativeCustomerNumber']))
+        'udfString3':order.alternativeCustomerNumber||sval(rawField(order,['Alternative customer number','Alternative Customer Number','AlternativeCustomerNumber'])),
+        'Standard Route':order.standardRoute||stop.standardRoute||'',
+        'Standard Sequence':order.standardSequence||stop.standardSequence||'',
+        'Profit':nval(order.profit),
+        'PARENT_CUSTOMER':order.parentCustomer||stop.parentCustomer||'',
+        'LocationKey':order.locationKey||stop.locationKey||'',
+        'ActivityWindowEarliestTime':order.activityWindowEarliestTimeRaw||order.activityWindowEarliestTime||'',
+        'ActivityWindowLatestTime':order.activityWindowLatestTimeRaw||order.activityWindowLatestTime||'',
+        'LocationWindowEarliestTime':order.locationWindowEarliestTime||'',
+        'LocationWindowLatestTime':order.locationWindowLatestTime||'',
+        'Frequency':order.frequency||''
       });
     });
   });
@@ -5338,6 +5391,16 @@ function exportExcel(options={}){
         'Preferred Resource Key':isStop?(s.preferredResourceKey||''):'',
         'Route Sequence':isStop?(s.seq||''):'',
         'Comment':isStop?(s.comment||''):'',
+        'Standard Route':isStop?(s.standardRoute||''):'',
+        'Standard Sequence':isStop?(s.standardSequence||''):'',
+        'Profit':isStop?(s.profit||0):0,
+        'PARENT_CUSTOMER':isStop?(s.parentCustomer||''):'',
+        'LocationKey':isStop?(s.locationKey||''):(d.locationKey||''),
+        'ActivityWindowEarliestTime':isStop?(fullWindowDisplay(s.activityWindowEarliestTimeRaw,s.activityWindowEarliestTime)||''):'',
+        'ActivityWindowLatestTime':isStop?(fullWindowDisplay(s.activityWindowLatestTimeRaw,s.activityWindowLatestTime)||''):'',
+        'LocationWindowEarliestTime':isStop?(s.locationWindowEarliestTime||''):'',
+        'LocationWindowLatestTime':isStop?(s.locationWindowLatestTime||''):'',
+        'Frequency':isStop?(s.frequency||''):'',
       });
     });
   });
@@ -5367,6 +5430,16 @@ function exportExcel(options={}){
     'Latest Time Window':fullWindowDisplay(s.latestTimeWindowRaw,s.latestTimeWindow)||'',
     'WILL_CALL_INDICATOR':s.willCallIndicator||'',
     'Comment':s.comment||'',
+    'Standard Route':s.standardRoute||'',
+    'Standard Sequence':s.standardSequence||'',
+    'Profit':s.profit||0,
+    'PARENT_CUSTOMER':s.parentCustomer||'',
+    'LocationKey':s.locationKey||'',
+    'ActivityWindowEarliestTime':fullWindowDisplay(s.activityWindowEarliestTimeRaw,s.activityWindowEarliestTime)||'',
+    'ActivityWindowLatestTime':fullWindowDisplay(s.activityWindowLatestTimeRaw,s.activityWindowLatestTime)||'',
+    'LocationWindowEarliestTime':s.locationWindowEarliestTime||'',
+    'LocationWindowLatestTime':s.locationWindowLatestTime||'',
+    'Frequency':s.frequency||'',
   }));
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ua.length?ua:[{Note:'No unassigned stops'}]),'Unassigned Stops');
 
@@ -5382,6 +5455,8 @@ function exportExcel(options={}){
         'Stop Sequence':s.routeId?(s.seq||''):'',
         'Consolidated Stop Customer Name':s.customerName||'',
         'Consolidated Customer Number':s.customerNumber||'',
+        'Standard Route':o.standardRoute||s.standardRoute||'',
+        'Standard Sequence':o.standardSequence||s.standardSequence||'',
         'ORDER_NUMBER':o.orderNumber||s.orderNumber||'',
         'SHIP_TO_ID':o.shipToId||s.shipToId||'',
         'CUSTOMER_NUMBER':o.customerNumber||s.customerNumber||'',
@@ -5401,6 +5476,7 @@ function exportExcel(options={}){
         'Pick Method':o.pickMethod||'',
         'Days to Deliver':o.daysToDeliver||0,
         'Total Dollars':o.totalDollars||0,
+        'Profit':o.profit||0,
         'Preferred Resource Key':o.preferredResourceKey||'',
         'Preferred resource indicator':o.preferredResourceIndicator||'',
         'Restrict preferred resource':o.restrictPreferredResource||'',
@@ -5436,6 +5512,13 @@ function exportExcel(options={}){
         'Package cube':o.pkgCube||0,
         'Package Weight':o.pkgWeight||0,
         'Package Zone Hazmat':o.pkgHazmat||0,
+        'PARENT_CUSTOMER':o.parentCustomer||'',
+        'LocationKey':o.locationKey||'',
+        'ActivityWindowEarliestTime':fullWindowDisplay(o.activityWindowEarliestTimeRaw,o.activityWindowEarliestTime)||'',
+        'ActivityWindowLatestTime':fullWindowDisplay(o.activityWindowLatestTimeRaw,o.activityWindowLatestTime)||'',
+        'LocationWindowEarliestTime':o.locationWindowEarliestTime||'',
+        'LocationWindowLatestTime':o.locationWindowLatestTime||'',
+        'Frequency':o.frequency||'',
       });
     });
   });
@@ -5466,7 +5549,7 @@ function exportExcel(options={}){
 
   // Tab 7: Output File (production-style session output)
   const outputFileRows=buildOutputFileRows(routeIdSet);
-  const outputHeaders=['District','Region Code','Route','Customer','Sequence','Order_number','Parent Account','EarliestDate','LatestDate','projectedArrivalDate','projectedBegunDate','serviceDurationPerCaseInSeconds','ServiceDuration','FixedserviceDuration','udfString4','truckKey','driverKey','routename','routeprojectedDepartedDate','locationType','stoptype','Measure1','Measure2','Measure3','udfString3'];
+  const outputHeaders=['District','Region Code','Route','Customer','Sequence','Order_number','Parent Account','EarliestDate','LatestDate','projectedArrivalDate','projectedBegunDate','serviceDurationPerCaseInSeconds','ServiceDuration','FixedserviceDuration','udfString4','truckKey','driverKey','routename','routeprojectedDepartedDate','locationType','stoptype','Measure1','Measure2','Measure3','udfString3','Standard Route','Standard Sequence','Profit','PARENT_CUSTOMER','LocationKey','ActivityWindowEarliestTime','ActivityWindowLatestTime','LocationWindowEarliestTime','LocationWindowLatestTime','Frequency'];
   const outputWs=XLSX.utils.json_to_sheet(outputFileRows.length?outputFileRows:[Object.fromEntries(outputHeaders.map(h=>[h,'']))],{header:outputHeaders});
   if(!selectedOnly)applyPublishedHighlight(outputWs,outputHeaders,outputFileRows);
   XLSX.utils.book_append_sheet(wb,outputWs,'Output File');
