@@ -5021,42 +5021,87 @@ function buildOutputFileRows(routeIdSet=null){
   const rows=[];
   const sessionDate=document.getElementById('route-date')?.value||new Date().toISOString().slice(0,10);
   const outputRegionCode=sessionRegionCode||'';
-
   const normalizedRouteIds=routeIdSet?new Set(Array.from(routeIdSet).map(String)):null;
   const outputRoutes=normalizedRouteIds?routes.filter(r=>normalizedRouteIds.has(String(r.id))):routes;
+
+  function routeRawValue(route,keys){
+    return gc(route?.routeTemplateFields||route?.raw||{},keys);
+  }
+  function routeUdfString1(route){
+    return sval(route?.udfString1||routeRawValue(route,['UdfString1','UDFString1','udfString1']))||'TRL';
+  }
+  function routeUdfString2(route){
+    return sval(route?.udfString2||routeRawValue(route,['UdfString2','UDFString2','udfString2']));
+  }
+  function routeRequirements(route){
+    return sval(route?.requirements||routeRawValue(route,['Requirements','Route Requirements']));
+  }
+
   outputRoutes.forEach(route=>{
     const routeCustomerStops=stops.filter(s=>String(s.routeId||'')===String(route.id));
     if(!routeCustomerStops.length)return;
     const timeline=routeTimelineRows(route.id);
+    let cumulativeDistanceMeters=0;
+    let cumulativeDriveSeconds=0;
+
     timeline.forEach(pt=>{
+      cumulativeDistanceMeters+=Math.max(0,nval(pt.legMiles))*1.25*1609.344;
+      cumulativeDriveSeconds+=Math.max(0,nval(pt.driveMins))*60;
+      const projectedDistance=Math.round(cumulativeDistanceMeters);
+      const projectedTimeDriven=Math.round(cumulativeDriveSeconds);
+
       if(pt.type!=='stop'){
         const d=pt.depot||{};
+        const routePerCase=nval(routeRawValue(route,['serviceDurationPerCaseInSeconds','ServiceDurationPerCaseInSeconds','Variable Service Time']));
+        const routeService=nval(routeRawValue(route,['ServiceDuration','Service Duration']))||nval(d.serviceDuration);
+        const routeFixed=nval(routeRawValue(route,['FixedserviceDuration','FixedServiceDuration','Fixed Service Duration']))||nval(d.serviceDuration);
         rows.push({
-          'District':route.district||'',
-          'Region Code':outputRegionCode||route.regionCode||route.region||'',
+          'District':route.district||routeRawValue(route,['District','DISTRICT'])||'',
+          'Region_Code':outputRegionCode||route.regionCode||route.region||routeRawValue(route,['Region_Code','Region Code','REGION_CODE','Region'])||'',
           'Route':exportRouteValue(route),
           'Customer':d.locationKey||'',
-          'Sequence':pt.type==='depot-start'?0:(stops.filter(s=>s.routeId===route.id).length+1),
+          'Sequence':pt.type==='depot-start'?0:(routeCustomerStops.length+1),
           'Order_number':'',
           'Parent Account':'',
           'EarliestDate':outputDateFromMinutes(route,pt.arrive),
           'LatestDate':outputDateFromMinutes(route,pt.depart),
           'projectedArrivalDate':outputDateOnlyFromMinutes(route,pt.arrive),
           'projectedBegunDate':outputDateOnlyFromMinutes(route,pt.depart),
-          'serviceDurationPerCaseInSeconds':0,
-          'ServiceDuration':nval(d.serviceDuration),
-          'FixedserviceDuration':nval(d.serviceDuration),
+          'serviceDurationPerCaseInSeconds':routePerCase,
+          'ServiceDuration':routeService,
+          'FixedserviceDuration':routeFixed,
           'udfString4':'',
           'truckKey':route.truckKey||'',
           'driverKey':route.driverKey||'',
           'routename':route.name||'',
-          'routeprojectedDepartedDate':outputDateOnlyFromMinutes(route,pt.depart),
+          'routeprojectedDepartedDate':pt.type==='depot-start'?outputDateFromMinutes(route,pt.depart):outputDateOnlyFromMinutes(route,pt.depart),
           'locationType':'DEPOT',
           'stoptype':0,
-          'Measure1':'',
-          'Measure2':'',
-          'Measure3':'',
-          'udfString3':''
+          'measure1':'',
+          'measure2':'',
+          'measure3':'',
+          'udfString3':'',
+          'Requirements':routeRequirements(route)||d.requirements||'',
+          'LocationKey':d.locationKey||'',
+          'Address':d.shipStreet||'',
+          'ZipCode':d.shipZipCode||'',
+          'City':d.shipCity||'',
+          'State':d.shipState||'',
+          'Country':d.country||d.shipCountry||'USA',
+          'Latitude':d.lat||'',
+          'Longitude':d.lng||'',
+          'ActivityWindowEarliestTime':'',
+          'ActivityWindowLatestTime':'',
+          'LocationWindowEarliestTime':'',
+          'LocationWindowLatestTime':'',
+          'Frequency':'',
+          'CustomerName':d.name||d.locationKey||'',
+          'ProjectedDistance':projectedDistance,
+          'ProjectedTimeDriven':projectedTimeDriven,
+          'ProjectedBreaks':'',
+          'ProjectedBreakTime':'',
+          'UdfString1':routeUdfString1(route),
+          'UdfString2':routeUdfString2(route)
         });
         return;
       }
@@ -5071,11 +5116,12 @@ function buildOutputFileRows(routeIdSet=null){
         const fixed=fixedServiceSecondsForOutput(order,stop);
         const region=outputRegionCode||sval(rawField(order,['Region_Code','Region Code','REGION_CODE','Region']))||route.regionCode||route.region||'';
         const parent=order.parentCustomer||sval(rawField(order,['PARENT_CUSTOMER','Parent Customer','ParentCustomer','Parent Account','ParentAccount','PARENT_ACCOUNT']))||order.alternativeCustomerNumber||'';
+        const locationKey=order.locationKey||stop.locationKey||order.customerNumber||stop.customerNumber||order.shipToId||stop.shipToId||'';
         rows.push({
           'District':order.district||stop.district||'',
-          'Region Code':region,
+          'Region_Code':region,
           'Route':exportRouteValue(route),
-          'Customer':order.locationKey||stop.locationKey||order.customerNumber||stop.customerNumber||order.shipToId||stop.shipToId||'',
+          'Customer':locationKey,
           'Sequence':stop.seq||'',
           'Order_number':order.orderNumber||stop.orderNumber||'',
           'Parent Account':parent,
@@ -5084,35 +5130,45 @@ function buildOutputFileRows(routeIdSet=null){
           'projectedArrivalDate':outputDateOnlyFromMinutes(route,pt.arrive),
           'projectedBegunDate':outputDateOnlyFromMinutes(route,pt.depart),
           'serviceDurationPerCaseInSeconds':cases?parseFloat((variable/cases).toFixed(6)):0,
-          'ServiceDuration':fixed,
-          'FixedserviceDuration':variable+fixed,
+          'ServiceDuration':variable,
+          'FixedserviceDuration':fixed,
           'udfString4':order.orderCodes||sval(rawField(order,['Order Codes','OrderCodes','ORDER_CODES'])),
           'truckKey':route.truckKey||'',
           'driverKey':route.driverKey||'',
           'routename':route.name||'',
           'routeprojectedDepartedDate':outputDateOnlyFromMinutes(route,pt.depart),
           'locationType':'CUSTOMER',
-          'stoptype':orderCount(stop),
-          'Measure1':cases,
-          'Measure2':parseFloat(cube.toFixed(2)),
-          'Measure3':parseFloat(weight.toFixed(2)),
+          'stoptype':3,
+          'measure1':cases,
+          'measure2':parseFloat(cube.toFixed(2)),
+          'measure3':parseFloat(weight.toFixed(2)),
           'udfString3':order.alternativeCustomerNumber||sval(rawField(order,['Alternative customer number','Alternative Customer Number','AlternativeCustomerNumber'])),
-          'Standard Route':order.standardRoute||stop.standardRoute||'',
-          'Standard Sequence':order.standardSequence||stop.standardSequence||'',
-          'Profit':nval(order.profit),
-          'PARENT_CUSTOMER':order.parentCustomer||stop.parentCustomer||'',
-          'LocationKey':order.locationKey||stop.locationKey||'',
-          'ActivityWindowEarliestTime':order.activityWindowEarliestTimeRaw||order.activityWindowEarliestTime||'',
-          'ActivityWindowLatestTime':order.activityWindowLatestTimeRaw||order.activityWindowLatestTime||'',
-          'LocationWindowEarliestTime':order.locationWindowEarliestTime||'',
-          'LocationWindowLatestTime':order.locationWindowLatestTime||'',
-          'Frequency':order.frequency||''
+          'Requirements':order.orderRequirements||stop.orderRequirements||sval(rawField(order,['Requirements','Order Requirements']))||'',
+          'LocationKey':locationKey,
+          'Address':order.address||stop.address||'',
+          'ZipCode':order.zip||stop.zip||'',
+          'City':order.city||stop.city||'',
+          'State':order.state||stop.state||'',
+          'Country':order.country||stop.country||'US',
+          'Latitude':order.lat||stop.lat||'',
+          'Longitude':order.lng||stop.lng||'',
+          'ActivityWindowEarliestTime':order.activityWindowEarliestTimeRaw||order.activityWindowEarliestTime||stop.activityWindowEarliestTimeRaw||stop.activityWindowEarliestTime||'',
+          'ActivityWindowLatestTime':order.activityWindowLatestTimeRaw||order.activityWindowLatestTime||stop.activityWindowLatestTimeRaw||stop.activityWindowLatestTime||'',
+          'LocationWindowEarliestTime':order.locationWindowEarliestTime||stop.locationWindowEarliestTime||'',
+          'LocationWindowLatestTime':order.locationWindowLatestTime||stop.locationWindowLatestTime||'',
+          'Frequency':order.frequency||stop.frequency||'',
+          'CustomerName':order.customerName||stop.customerName||'',
+          'ProjectedDistance':projectedDistance,
+          'ProjectedTimeDriven':projectedTimeDriven,
+          'ProjectedBreaks':'',
+          'ProjectedBreakTime':'',
+          'UdfString1':routeUdfString1(route),
+          'UdfString2':routeUdfString2(route)
         });
       });
     });
   });
 
-  // Include unassigned customer orders only on full exports so selected-route exports contain checked routes only.
   if(routeIdSet)return rows;
   stops.filter(s=>!s.routeId).forEach(stop=>{
     const orderRows=Array.isArray(stop.orders)&&stop.orders.length?stop.orders:[stop];
@@ -5122,49 +5178,40 @@ function buildOutputFileRows(routeIdSet=null){
       const weight=totalWeightForOrder(order)||tWeight(stop);
       const variable=variableServiceSecondsForOutput(order,stop);
       const fixed=fixedServiceSecondsForOutput(order,stop);
+      const locationKey=order.locationKey||stop.locationKey||order.customerNumber||stop.customerNumber||order.shipToId||stop.shipToId||'';
       rows.push({
         'District':order.district||stop.district||'',
-        'Region Code':outputRegionCode||sval(rawField(order,['Region_Code','Region Code','REGION_CODE','Region'])),
-        'Route':'',
-        'Customer':order.locationKey||stop.locationKey||order.customerNumber||stop.customerNumber||order.shipToId||stop.shipToId||'',
-        'Sequence':'',
+        'Region_Code':outputRegionCode||sval(rawField(order,['Region_Code','Region Code','REGION_CODE','Region'])),
+        'Route':'','Customer':locationKey,'Sequence':'',
         'Order_number':order.orderNumber||stop.orderNumber||'',
         'Parent Account':order.parentCustomer||sval(rawField(order,['PARENT_CUSTOMER','Parent Customer','ParentCustomer','Parent Account','ParentAccount','PARENT_ACCOUNT']))||order.alternativeCustomerNumber||'',
         'EarliestDate':outputDateTime(order.activityWindowEarliestTimeRaw||order.activityWindowEarliestTime||order.earliestTimeWindowRaw||order.earliestTimeWindow||stop.activityWindowEarliestTimeRaw||stop.activityWindowEarliestTime||stop.earliestTimeWindowRaw||stop.earliestTimeWindow,sessionDate,'00:00'),
         'LatestDate':outputDateTime(order.activityWindowLatestTimeRaw||order.activityWindowLatestTime||order.latestTimeWindowRaw||order.latestTimeWindow||stop.activityWindowLatestTimeRaw||stop.activityWindowLatestTime||stop.latestTimeWindowRaw||stop.latestTimeWindow,sessionDate,'23:59'),
-        'projectedArrivalDate':'',
-        'projectedBegunDate':'',
+        'projectedArrivalDate':'','projectedBegunDate':'',
         'serviceDurationPerCaseInSeconds':cases?parseFloat((variable/cases).toFixed(6)):0,
-        'ServiceDuration':fixed,
-        'FixedserviceDuration':variable+fixed,
+        'ServiceDuration':variable,'FixedserviceDuration':fixed,
         'udfString4':order.orderCodes||sval(rawField(order,['Order Codes','OrderCodes','ORDER_CODES'])),
-        'truckKey':'',
-        'driverKey':'',
-        'routename':'',
-        'routeprojectedDepartedDate':'',
-        'locationType':'CUSTOMER',
-        'stoptype':orderCount(stop),
-        'Measure1':cases,
-        'Measure2':parseFloat(cube.toFixed(2)),
-        'Measure3':parseFloat(weight.toFixed(2)),
+        'truckKey':'','driverKey':'','routename':'','routeprojectedDepartedDate':'',
+        'locationType':'CUSTOMER','stoptype':3,
+        'measure1':cases,'measure2':parseFloat(cube.toFixed(2)),'measure3':parseFloat(weight.toFixed(2)),
         'udfString3':order.alternativeCustomerNumber||sval(rawField(order,['Alternative customer number','Alternative Customer Number','AlternativeCustomerNumber'])),
-        'Standard Route':order.standardRoute||stop.standardRoute||'',
-        'Standard Sequence':order.standardSequence||stop.standardSequence||'',
-        'Profit':nval(order.profit),
-        'PARENT_CUSTOMER':order.parentCustomer||stop.parentCustomer||'',
-        'LocationKey':order.locationKey||stop.locationKey||'',
-        'ActivityWindowEarliestTime':order.activityWindowEarliestTimeRaw||order.activityWindowEarliestTime||'',
-        'ActivityWindowLatestTime':order.activityWindowLatestTimeRaw||order.activityWindowLatestTime||'',
-        'LocationWindowEarliestTime':order.locationWindowEarliestTime||'',
-        'LocationWindowLatestTime':order.locationWindowLatestTime||'',
-        'Frequency':order.frequency||''
+        'Requirements':order.orderRequirements||stop.orderRequirements||sval(rawField(order,['Requirements','Order Requirements']))||'',
+        'LocationKey':locationKey,
+        'Address':order.address||stop.address||'','ZipCode':order.zip||stop.zip||'',
+        'City':order.city||stop.city||'','State':order.state||stop.state||'','Country':order.country||stop.country||'US',
+        'Latitude':order.lat||stop.lat||'','Longitude':order.lng||stop.lng||'',
+        'ActivityWindowEarliestTime':order.activityWindowEarliestTimeRaw||order.activityWindowEarliestTime||stop.activityWindowEarliestTimeRaw||stop.activityWindowEarliestTime||'',
+        'ActivityWindowLatestTime':order.activityWindowLatestTimeRaw||order.activityWindowLatestTime||stop.activityWindowLatestTimeRaw||stop.activityWindowLatestTime||'',
+        'LocationWindowEarliestTime':order.locationWindowEarliestTime||stop.locationWindowEarliestTime||'',
+        'LocationWindowLatestTime':order.locationWindowLatestTime||stop.locationWindowLatestTime||'',
+        'Frequency':order.frequency||stop.frequency||'',
+        'CustomerName':order.customerName||stop.customerName||'',
+        'ProjectedDistance':'','ProjectedTimeDriven':'','ProjectedBreaks':'','ProjectedBreakTime':'','UdfString1':'','UdfString2':''
       });
     });
   });
-
   return rows;
 }
-
 
 function cleanTxtCell(value){
   if(value===null||value===undefined)return '';
@@ -5182,8 +5229,7 @@ function timestampForTextExport(){
     + String(d.getDate()).padStart(2,'0')
     + '_'
     + String(d.getHours()).padStart(2,'0')
-    + String(d.getMinutes()).padStart(2,'0')
-    + String(d.getSeconds()).padStart(2,'0');
+    + String(d.getMinutes()).padStart(2,'0');
 }
 function buildOutputTextContent(outputHeaders,outputRows){
   const lines=[];
@@ -5606,7 +5652,7 @@ function exportExcel(options={}){
 
   // Tab 7: Output File (production-style session output)
   const outputFileRows=buildOutputFileRows(routeIdSet);
-  const outputHeaders=['District','Region Code','Route','Customer','Sequence','Order_number','Parent Account','EarliestDate','LatestDate','projectedArrivalDate','projectedBegunDate','serviceDurationPerCaseInSeconds','ServiceDuration','FixedserviceDuration','udfString4','truckKey','driverKey','routename','routeprojectedDepartedDate','locationType','stoptype','Measure1','Measure2','Measure3','udfString3','Standard Route','Standard Sequence','Profit','PARENT_CUSTOMER','LocationKey','ActivityWindowEarliestTime','ActivityWindowLatestTime','LocationWindowEarliestTime','LocationWindowLatestTime','Frequency'];
+  const outputHeaders=['District','Region_Code','Route','Customer','Sequence','Order_number','Parent Account','EarliestDate','LatestDate','projectedArrivalDate','projectedBegunDate','serviceDurationPerCaseInSeconds','ServiceDuration','FixedserviceDuration','udfString4','truckKey','driverKey','routename','routeprojectedDepartedDate','locationType','stoptype','measure1','measure2','measure3','udfString3','Requirements','LocationKey','Address','ZipCode','City','State','Country','Latitude','Longitude','ActivityWindowEarliestTime','ActivityWindowLatestTime','LocationWindowEarliestTime','LocationWindowLatestTime','Frequency','CustomerName','ProjectedDistance','ProjectedTimeDriven','ProjectedBreaks','ProjectedBreakTime','UdfString1','UdfString2'];
   const outputWs=XLSX.utils.json_to_sheet(outputFileRows.length?outputFileRows:[Object.fromEntries(outputHeaders.map(h=>[h,'']))],{header:outputHeaders});
   if(!selectedOnly)applyPublishedHighlight(outputWs,outputHeaders,outputFileRows);
   XLSX.utils.book_append_sheet(wb,outputWs,'Output File');
