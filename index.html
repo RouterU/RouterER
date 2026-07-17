@@ -892,6 +892,13 @@ function escapeHtml(value){
   return (value??'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function routeColor(routeId){const i=routes.findIndex(r=>r.id===routeId);return i>=0?COLORS[i%COLORS.length]:'#5c6480';}
+function routeDisplayName(route){
+  if(!route)return 'Route';
+  const name=(route.name||route.routeTemplateKey||'Route').toString().trim();
+  const routeNumber=(route.udfNumber1??'').toString().trim();
+  if(!routeNumber)return name;
+  return name.endsWith(' - '+routeNumber)?name:`${name} - ${routeNumber}`;
+}
 function tCases(s){return(s.dryCases||0)+(s.coolerCases||0)+(s.frozenCases||0)+(s.pkgCases||0);}
 function tWeight(s){return(s.dryWeight||0)+(s.coolerWeight||0)+(s.frozenWeight||0)+(s.pkgWeight||0);}
 function tCube(s){return(s.dryCube||0)+(s.coolerCube||0)+(s.frozenCube||0)+(s.pkgCube||0);}
@@ -1254,7 +1261,7 @@ function filterMapToRoute(routeId){
   renderRoutes();
   renderMap();
   fitRouteToMap(routeId);
-  showToast(`Map filtered to ${route.name||'selected route'}. Click the map to clear.`);
+  showToast(`Map filtered to ${routeDisplayName(route)}. Click the map to clear.`);
 }
 function clearAllFilters(){
   activeRouteFilterId=null;
@@ -1363,7 +1370,7 @@ function cloneDepotAsStop(depotId,routeId=''){
 function openDepotDetail(depotId){
   const depot=depotLocations.find(d=>d.id===depotId);
   if(!depot)return;
-  const routeOptions=[{value:'',label:'Clone to Unassigned'},...routes.map(r=>({value:r.id,label:'Clone to '+(r.name||r.routeTemplateKey||'Route')}))];
+  const routeOptions=[{value:'',label:'Clone to Unassigned'},...routes.map(r=>({value:r.id,label:'Clone to '+routeDisplayName(r)}))];
   document.getElementById('job-title').innerHTML='Depot Location Details';
   document.getElementById('job-body').innerHTML=`<div class="stop-detail-grid">
     <div class="stop-detail-field"><div class="lbl">Name</div><div class="val">${escapeHtml(depot.name||'—')}</div></div>
@@ -1469,7 +1476,7 @@ function renderRoutes(){
       <div class="r-header" onclick="openRouteDetail('${r.id}')">
         <div class="r-colorbar" style="background:${color}"></div>
         <div class="r-info">
-          <div class="r-name">${r.name}${r.published?'<span style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;background:rgba(62,207,142,.16);border:1px solid rgba(62,207,142,.45);color:var(--success);font-size:9px;font-weight:800;box-shadow:0 3px 10px rgba(0,0,0,.35);vertical-align:middle;">Published</span>':''}</div>
+          <div class="r-name">${escapeHtml(routeDisplayName(r))}${r.published?'<span style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;background:rgba(62,207,142,.16);border:1px solid rgba(62,207,142,.45);color:var(--success);font-size:9px;font-weight:800;box-shadow:0 3px 10px rgba(0,0,0,.35);vertical-align:middle;">Published</span>':''}</div>
           <div class="r-meta">${rStops.length} stops &middot; ${cs}cs &middot; ${Math.round(wt)}lbs &middot; ${cu.toFixed(1)}cu &middot; ${routeDistanceMiles(r.id).toFixed(1)}mi &middot; ${fmtMinutes(routeTotalMinutes(r.id))} &middot; ${dname}</div>
           <div class="r-timing">${fmtTiming(r)}${r.udfNumber1?' · UDF#1:'+r.udfNumber1:''}${r.initialLocationKey||r.finalLocationKey?' · Depot '+(r.initialLocationKey||'—')+' → '+(r.finalLocationKey||'—'):''}</div>
         </div>
@@ -1532,7 +1539,7 @@ function renderUA(){
       </div>
       <select class="ua-assign" onclick="event.stopPropagation()" onchange="assignStop('${s.id}',this.value);this.value=''">
         <option value="">Assign&hellip;</option>
-        ${routes.map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}
+        ${routes.map(r=>`<option value="${r.id}">${escapeHtml(routeDisplayName(r))}</option>`).join('')}
       </select>
     </div>`;
   }).join('');
@@ -1549,7 +1556,7 @@ function renderTrucks(){
     return`<div class="driver-card">
       <div class="d-name">${d.name||d.truckId||'Truck'}</div>
       <div class="d-meta">TruckKey: ${d.truckKey||'—'} &middot; Type: ${d.vehicleType||'—'} &middot; ${(d.active+'').toUpperCase()==='Y'||d.active===true?'&#10003; Active':'Inactive'}</div>
-      <div class="d-truck">TruckID: ${d.truckId||'—'} &middot; Company: ${d.company||'—'} &middot; ${assignedRoute?'Assigned: '+assignedRoute.name:'Not assigned'}</div>
+      <div class="d-truck">TruckID: ${d.truckId||'—'} &middot; Company: ${d.company||'—'} &middot; ${assignedRoute?'Assigned: '+routeDisplayName(assignedRoute):'Not assigned'}</div>
     </div>`;
   }).join('');
 }
@@ -1578,7 +1585,7 @@ function renderMap(){
       ${`<b>Orders:</b> ${orderLabel(s)} &nbsp;|&nbsp; <b>Cases:</b> ${tCases(s)}<br/>
       <b>Weight:</b> ${tWeight(s).toFixed(0)} &nbsp;|&nbsp; <b>Cube:</b> ${tCube(s).toFixed(1)}<br/>
       <b>Window:</b> ${s.earliestTimeWindow||'—'} – ${s.latestTimeWindow||'—'}<br/>`}
-      ${r.name?`<b>Route:</b> ${r.name}`:'<b style="color:#f59e0b;">Unassigned</b>'}
+      ${r.name?`<b>Route:</b> ${escapeHtml(routeDisplayName(r))}`:'<b style="color:#f59e0b;">Unassigned</b>'}
       ${s.preferredResourceKey?`<br/><b>Pref Key:</b> ${s.preferredResourceKey}`:''}
       <br/><span style="font-size:10px;color:#999;">Right-click marker for actions</span>
     </div>`);
@@ -1650,7 +1657,7 @@ function renderMap(){
 
 function renderLegend(){
   document.getElementById('legend-items').innerHTML=
-    routes.map((r,ri)=>`<div class="legend-item"><div class="legend-dot" style="background:${COLORS[ri%COLORS.length]}"></div><div class="legend-label">${r.name}</div></div>`).join('')||
+    routes.map((r,ri)=>`<div class="legend-item"><div class="legend-dot" style="background:${COLORS[ri%COLORS.length]}"></div><div class="legend-label">${escapeHtml(routeDisplayName(r))}</div></div>`).join('')||
     '<div style="font-size:10px;color:var(--text3)">No routes</div>';
 }
 
@@ -1849,7 +1856,7 @@ function openStopDetail(stopId){
   const s=stops.find(x=>x.id===stopId);
   if(!s)return;
   activeDetailStopId=stopId;
-  const routeOptions=[{value:'',label:'— Unassigned —'},...routes.map(r=>({value:r.id,label:r.name||r.routeTemplateKey||'Route'}))];
+  const routeOptions=[{value:'',label:'— Unassigned —'},...routes.map(r=>({value:r.id,label:routeDisplayName(r)}))];
   document.getElementById('stop-detail-title').textContent=`Edit Stop Details: ${s.customerName||s.orderNumber||'Stop'}`;
   document.getElementById('stop-detail-body').innerHTML=`<div class="stop-detail-grid">
     ${detailInput('ed-s-customerName','Customer Name',s.customerName)}
@@ -2165,7 +2172,7 @@ function handleMarkerDropOnRouteLine(stopId,latlng){
   expanded.add(targetRouteId);
   render();
   const route=routes.find(r=>r.id===targetRouteId);
-  showToast(`Moved stop to ${route?route.name:'route'} after closest stop`);
+  showToast(`Moved stop to ${route?routeDisplayName(route):'route'} after closest stop`);
 }
 
 
@@ -2358,7 +2365,7 @@ function renderLassoPanel(){
     <div class="lasso-actions">
       <select id="lasso-route-select" class="lasso-route-select">
         <option value="">Assign to route...</option>
-        ${routes.map(r=>`<option value="${r.id}">${escapeHtml(r.name||r.routeTemplateKey||'Route')}</option>`).join('')}
+        ${routes.map(r=>`<option value="${r.id}">${escapeHtml(routeDisplayName(r))}</option>`).join('')}
       </select>
       <button class="btn primary" onclick="assignLassoStopsToSelectedRoute()">Assign to Route</button>
       <button class="btn warn" onclick="unassignLassoStops()">Unassign Stops</button>
@@ -2394,7 +2401,7 @@ function assignLassoStopsToRoute(routeId){
   render();
   clearLassoSelection(false);
   fitRouteToMap(routeId);
-  showToast(`${selected.length} stop(s) assigned to ${route.name||'route'}.`);
+  showToast(`${selected.length} stop(s) assigned to ${routeDisplayName(route)}.`);
 }
 
 function unassignLassoStops(){
@@ -2429,7 +2436,7 @@ function showLassoServiceDetails(){
       <div><strong>${escapeHtml(s.customerName||'Stop')}</strong><br/><span style="color:var(--text3);font-size:9px;">${escapeHtml(s.orderNumber||'')} · ${escapeHtml(s.city||'')} ${escapeHtml(s.state||'')}</span></div>
       <div>${tCases(s)}</div>
       <div>${fmtMinutes(stopServiceMinutes(s))}</div>
-      <div>${s.routeId?(routes.find(r=>r.id===s.routeId)?.name||'Route'):'Unassigned'}</div>
+      <div>${s.routeId?routeDisplayName(routes.find(r=>r.id===s.routeId)):'Unassigned'}</div>
     </div>`).join('');
 
   showJob('☐ Lasso Service Details',`
@@ -2477,13 +2484,13 @@ function openStopContextMenu(stopId,x,y){
   const routeOptions=routes.length
     ? routes.map((r,ri)=>`
       <button class="stop-context-item" onclick="contextAssignStop('${stopId}','${r.id}')">
-        <span><span class="stop-context-route-dot" style="background:${COLORS[ri%COLORS.length]}"></span>${r.name}</span>
+        <span><span class="stop-context-route-dot" style="background:${COLORS[ri%COLORS.length]}"></span>${escapeHtml(routeDisplayName(r))}</span>
         <span style="color:var(--text3);font-size:10px;">${r.routeTemplateKey||''}</span>
       </button>`).join('')
     : '<div style="font-size:11px;color:var(--text3);padding:7px 8px;">No routes available</div>';
 
   menu.innerHTML=`
-    <div class="stop-context-title">${stop.customerName||'Stop'} ${currentRoute?`&middot; ${currentRoute.name}`:'&middot; Unassigned'}</div>
+    <div class="stop-context-title">${stop.customerName||'Stop'} ${currentRoute?`&middot; ${escapeHtml(routeDisplayName(currentRoute))}`:'&middot; Unassigned'}</div>
     <button class="stop-context-item" onclick="contextStreetViewStop('${stopId}')">
       <span>Street View</span><span>🚶</span>
     </button>
@@ -2526,7 +2533,7 @@ function openRouteContextMenu(routeId,x,y){
   const route=routes.find(r=>r.id===routeId);
   if(!menu||!route)return;
   menu.innerHTML=`
-    <div class="stop-context-title">${route.name||'Route'}</div>
+    <div class="stop-context-title">${escapeHtml(routeDisplayName(route))}</div>
     <button class="stop-context-item" onclick="contextManualResequenceRoute('${routeId}')"><span>Manual Re-sequence</span><span>☰</span></button>
     <button class="stop-context-item" onclick="contextResequenceRoute('${routeId}')"><span>Auto Resequence by Distance</span><span>⌁</span></button>
     <button class="stop-context-item" onclick="contextShowAlongRoad('${routeId}')"><span>Show Along The Road</span><span>🛣</span></button>
@@ -2750,7 +2757,7 @@ function hideAlongRoad(routeId){
     delete roadPolylines[routeId];
   }
   if(polylines[routeId])polylines[routeId].setStyle({opacity:.72,dashArray:'5,4',weight:4});
-  showToast(`Along The Road line hidden for ${route?route.name:'route'}`);
+  showToast(`Along The Road line hidden for ${route?routeDisplayName(route):'route'}`);
 }
 function contextManualResequenceRoute(routeId){
   closeStopContextMenu();
@@ -2763,7 +2770,7 @@ function openManualSequence(routeId){
   if(routeStops.length<2){showToast('Manual Re-sequence needs at least 2 stops on the route');return;}
   manualSequenceRouteId=routeId;
   manualSequenceOrder=routeStops.map(s=>s.id);
-  document.getElementById('manual-sequence-title').textContent=`Manual Re-sequence: ${route.name||'Route'}`;
+  document.getElementById('manual-sequence-title').textContent=`Manual Re-sequence: ${routeDisplayName(route)}`;
   renderManualSequenceList();
   document.getElementById('manual-sequence-modal').style.display='flex';
 }
@@ -3003,7 +3010,7 @@ function renderRouteManifest(){
   const data=routeManifestStats(activeManifestRouteId);
   const route=data.route;
   if(!route)return;
-  document.getElementById('manifest-title').textContent=`Route Manifest: ${route.name||'Route'}`;
+  document.getElementById('manifest-title').textContent=`Route Manifest: ${routeDisplayName(route)}`;
   document.getElementById('manifest-stats').innerHTML=`
     <div class="manifest-stat"><div class="val">${data.stopCount}</div><div class="lbl">Stops</div></div>
     <div class="manifest-stat"><div class="val">${data.cases.toLocaleString()}</div><div class="lbl">Cases</div></div>
@@ -4602,7 +4609,7 @@ function showOrderStatusGlossary(){
 function openAddStop(){
   document.getElementById('add-stop-modal').style.display='flex';
   const sel=document.getElementById('s-route');
-  sel.innerHTML='<option value="">— Unassigned —</option>'+routes.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
+  sel.innerHTML='<option value="">— Unassigned —</option>'+routes.map(r=>`<option value="${r.id}">${escapeHtml(routeDisplayName(r))}</option>`).join('');
 }
 function openAddStopForRoute(rid){openAddStop();document.getElementById('s-route').value=rid;}
 function openAddRoute(){
