@@ -910,9 +910,9 @@ function routeCapacityLimits(route){
   const cap=route.dummyCapacity||{};
   return {
     dryCube:parseFloat(cap.dryCube)||parseFloat(drv.dryCubeCapacity)||0,
-    frozenCube:parseFloat(cap.frozenCube)||parseFloat(drv.frozenCubeCapacity)||0,
-    totalCube:parseFloat(cap.totalCube)||parseFloat(drv.totalCubeCapacity)||parseFloat(drv.measure3)||0,
-    weight:parseFloat(cap.weight)||parseFloat(drv.weightCapacity)||parseFloat(drv.measure2)||0
+    frozenCube:parseFloat(cap.frozenCube)||parseFloat(drv.frozenCubeCapacity)||parseFloat(route.frozenCube)||0,
+    totalCube:parseFloat(cap.totalCube)||parseFloat(drv.totalCubeCapacity)||parseFloat(drv.measure3)||parseFloat(route.cube)||0,
+    weight:parseFloat(cap.weight)||parseFloat(drv.weightCapacity)||parseFloat(drv.measure2)||parseFloat(route.weight)||0
   };
 }
 function routeCapacityWarnings(routeId){
@@ -1948,6 +1948,19 @@ function saveStopDetail(){
   showToast('Stop details updated');
 }
 
+
+function renderImportedRouteTemplateFields(route){
+  const fields=route?.routeTemplateFields||route?.raw||{};
+  const entries=Object.entries(fields).filter(([key,value])=>sval(key)&&sval(value)!=='');
+  if(!entries.length)return '';
+  return `<details class="order-expand" style="grid-column:1/-1;">
+    <summary>All Imported Route Template Fields <span class="order-badge">${entries.length}</span></summary>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:9px;">
+      ${entries.map(([key,value])=>`<div class="stop-detail-field"><div class="lbl">${escapeHtml(key)}</div><div class="val">${escapeHtml(value)}</div></div>`).join('')}
+    </div>
+  </details>`;
+}
+
 function openRouteDetail(routeId){
   const r=routes.find(x=>x.id===routeId);
   if(!r)return;
@@ -1978,6 +1991,7 @@ function openRouteDetail(routeId){
     ${detailInput('ed-r-work1Duration','Work1Duration',r.work1Duration)}
     <div class="stop-detail-field"><div class="lbl">Initial Depot Match</div><div class="val">${escapeHtml(init?depotLabel(init,'Depot'):'No matching depot found')}</div></div>
     <div class="stop-detail-field"><div class="lbl">Final Depot Match</div><div class="val">${escapeHtml(fin?depotLabel(fin,'Depot'):'No matching depot found')}</div></div>
+    ${renderImportedRouteTemplateFields(r)}
   </div>`;
   document.getElementById('route-detail-modal').style.display='flex';
 }
@@ -3947,11 +3961,11 @@ function makeOrderFromRow(row,requireGeo=true){
   return {
     standardRoute:sval(gc(row,['Standard Route','StandardRoute'])),
     standardSequence:sval(gc(row,['Standard Sequence','StandardSequence'])),
-    orderNumber:sval(gc(row,['ORDER_NUMBER','Order Number','OrderNumber'])),
+    orderNumber:firstNonEmpty([gc(row,['ORDER_NUMBER']),gc(row,['Order Number','OrderNumber'])]),
     shipToId:sval(gc(row,['SHIP_TO_ID','Ship To ID','ShipToId'])),
     customerNumber:sval(gc(row,['CUSTOMER_NUMBER','Customer Number','CustomerNumber'])),
     orderType:sval(gc(row,['ORDER_TYPE','Order Type'])),
-    orderStatus:sval(gc(row,['ORDER_STATUS','Order Status','Order Status '])),
+    orderStatus:firstNonEmpty([gc(row,['ORDER_STATUS']),gc(row,['Order Status','Order Status '])]),
     district:sval(gc(row,['DISTRICT','District'])),
     orderDate:sval(gc(row,['ORDER_DATE','Order Date'])),
     actualShipDate:sval(gc(row,['ACTUAL_SHIP_DATE','Actual Ship Date'])),
@@ -4205,6 +4219,42 @@ function importRoutes(data){
       requirements:(gc(row,['Requirements'])||'').toString(),
       work1Duration:(gc(row,['Work1Duration','Work1 Duration'])||'').toString(),
       routingParameterKey:(gc(row,['RoutingParameterKey','Routing Parameter Key'])||'').toString(),
+
+      // NEW Route Templates worksheet fields. These are retained by header name so
+      // future column shifts do not affect the importer and no imported values are lost.
+      earliestStartDay:sval(gc(row,['EarliestStartDay','Earliest Start Day'])),
+      earliestEndDay:sval(gc(row,['EarliestEndDay','Earliest End Day'])),
+      earliestServiceDay:sval(gc(row,['EarliestServiceDay','Earliest Service Day'])),
+      latestServiceDay:sval(gc(row,['LatestServiceDay','Latest Service Day'])),
+      latestStartDay:sval(gc(row,['LatestStartDay','Latest Start Day'])),
+      latestEndDay:sval(gc(row,['LatestEndDay','Latest End Day'])),
+      earliestServiceTime:excelTimeToHHMM(gc(row,['EarliestServiceTime','Earliest Service Time'])),
+      latestServiceTime:excelTimeToHHMM(gc(row,['LatestServiceTime','Latest Service Time'])),
+      earliestEndTime:excelTimeToHHMM(gc(row,['EarliestEndTime','Earliest End Time'])),
+      cases:nval(gc(row,['Cases'])),
+      cube:nval(gc(row,['Cube'])),
+      weight:nval(gc(row,['Weight'])),
+      frozenCube:nval(gc(row,['Frozen Cube','FrozenCube'])),
+      hazmat:nval(gc(row,['Hazmat'])),
+      frequency:nval(gc(row,['Frequency'])),
+      speedFactor:nval(gc(row,['SpeedFactor','Speed Factor'])),
+      maxDrivingTime:nval(gc(row,['MaxDrivingTime','Max Driving Time'])),
+      maxStops:nval(gc(row,['MaxStops','Max Stops'])),
+      maxDropoffStops:nval(gc(row,['MaxDropoffStops','Max Dropoff Stops'])),
+      maxPickupStops:nval(gc(row,['MaxPickupStops','Max Pickup Stops'])),
+      maxDistance:nval(gc(row,['MaxDistance','Max Distance'])),
+      maxDistanceFromDepot:nval(gc(row,['MaxDistanceFromDepot','Max Distance From Depot'])),
+      ignoreAssetLocations:sval(gc(row,['IgnoreAssetLocations','Ignore Asset Locations'])),
+      udfString1:sval(gc(row,['UDFString1','UDF String 1'])),
+      udfString3:sval(gc(row,['UDFString3','UDF String 3'])),
+      udfString4:sval(gc(row,['UDFString4','UDF String 4'])),
+      udfString5:sval(gc(row,['UDFString5','UDF String 5'])),
+      udfString6:sval(gc(row,['UDFString6','UDF String 6'])),
+      udfString7:sval(gc(row,['UDFString7','UDF String 7'])),
+      udfString8:sval(gc(row,['UDFString8','UDF String 8'])),
+      udfString9:sval(gc(row,['UDFString9','UDF String 9'])),
+      routeTemplateFields:{...row},
+      raw:{...row},
       selected:false,
     };
     if(existing)Object.assign(existing,obj); else routes.push(obj);
