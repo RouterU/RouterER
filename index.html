@@ -2158,9 +2158,7 @@ function removeRouteFromSession(){
 
   let removeAssignedOrders=false;
   if(assignedStops.length){
-    removeAssignedOrders=confirm('There are orders on the route, would you like those removed as well?
-
-Select OK for Yes or Cancel for No.');
+    removeAssignedOrders=confirm('There are orders on the route, would you like those removed as well?\n\nSelect OK for Yes or Cancel for No.');
   }
 
   if(removeAssignedOrders){
