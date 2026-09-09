@@ -5940,7 +5940,7 @@ function cleanSessionObjectForSave(value){
 function buildWorkSessionPayload(){
   return {
     app:'RouteDesk',
-    version:'2-session-save-v1',
+    version:'RouteER-simple-session-v2',
     savedAt:new Date().toISOString(),
     ui:{
       routeDate:document.getElementById('route-date')?.value||'',
@@ -5963,8 +5963,6 @@ function buildWorkSessionPayload(){
       depotLocations:cleanSessionObjectForSave(depotLocations),
       cancelledOrders:cleanSessionObjectForSave(cancelledOrders),
       sessionRegionCode,
-      scenarioBaseline:cleanSessionObjectForSave(scenarioBaseline),
-      scenarioLastRun:cleanSessionObjectForSave(scenarioLastRun),
       potColors:cleanSessionObjectForSave(potColors),
       potRouteSuggestions:cleanSessionObjectForSave(potRouteSuggestions)
     },
@@ -6024,6 +6022,9 @@ function handleSessionFileSelect(input){
   reader.readAsText(file);
 }
 function restoreWorkSessionPayload(payload){
+  // Simple RouteER no longer uses Scenario Levers. Legacy session files
+  // that contain scenarioBaseline/scenarioLastRun are still accepted;
+  // those obsolete fields are simply ignored during restore.
   if(!payload||payload.app!=='RouteDesk'||!payload.data){
     throw new Error('Invalid RouteDesk session file');
   }
@@ -6035,8 +6036,6 @@ function restoreWorkSessionPayload(payload){
   depotLocations=Array.isArray(payload.data.depotLocations)?payload.data.depotLocations:[];
   cancelledOrders=Array.isArray(payload.data.cancelledOrders)?payload.data.cancelledOrders:[];
   sessionRegionCode=payload.data.sessionRegionCode||'';
-  scenarioBaseline=payload.data.scenarioBaseline||null;
-  scenarioLastRun=payload.data.scenarioLastRun||null;
   potColors=payload.data.potColors||{};
   potRouteSuggestions=payload.data.potRouteSuggestions||{};
 
@@ -6112,8 +6111,6 @@ function clearSession(){
   depotLocations = [];
   cancelledOrders = [];
   sessionRegionCode = '';
-  scenarioBaseline = null;
-  scenarioLastRun = null;
 
   mapCleared = true;
 
