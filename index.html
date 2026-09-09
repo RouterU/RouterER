@@ -602,12 +602,12 @@ body{background:var(--bg0);color:var(--text1);}
         <option value="satellite">Satellite Map</option>
       </select>
       <button class="btn" onclick="clearMapView()" title="Remove all routes and stops from the map">Clear Map</button>
-      <button class="btn" id="display-all-routes-btn" onclick="displayAllRoutesOnMap()" title="Display or hide every assigned route on the map">Display All Routes</button>
-      <button class="btn" id="display-all-unassigned-btn" onclick="displayAllUnassignedStopsOnMap()" title="Display or hide every unassigned stop on the map">Display All Unassigned Stops</button>
+      <button class="btn" id="display-all-routes-btn" onclick="displayAllRoutesOnMap()" title="Display or hide every assigned route on the map">Show All Routes</button>
+      <button class="btn" id="display-all-unassigned-btn" onclick="displayAllUnassignedStopsOnMap()" title="Display or hide every unassigned stop on the map">Show Unassigned Stops</button>
       <button class="btn" id="depot-toggle-btn" onclick="toggleImportedDepotsOnMap()" title="Hide or show imported depot locations on the map">Hide Depots</button>
       <button class="btn" onclick="enableStreetViewPicker()" title="Click anywhere on the map to open Google Street View nearby">🚶 Street View</button>
       <button class="btn" id="lasso-stops-btn" onclick="toggleLassoMode()" title="Draw a box on the map to select multiple stops">☐ Lasso Stops</button>
-      <button class="btn" id="route-line-toggle-btn" onclick="toggleRouteLines()" title="Hide or show dotted route lines on the map">☑ Route Lines</button>
+      <button class="btn" id="route-line-toggle-btn" onclick="toggleRouteLines()" title="Hide or show dotted route lines on the map">Hide Route Lines</button>
       <select id="travel-model-select" class="map-layer-toggle" onchange="setTravelModel(this.value)" title="Adjust travel time estimates by vehicle type">
         <option value="standard">Standard</option>
         <option value="straight">Straight Truck</option>
@@ -2221,7 +2221,7 @@ function renderLegend(){
 function updateRouteLineToggleButton(){
   const btn=document.getElementById('route-line-toggle-btn');
   if(!btn)return;
-  btn.textContent=routeLinesVisible?'☑ Route Lines':'☐ Route Lines';
+  btn.textContent=routeLinesVisible?'Hide Route Lines':'Show Route Lines';
   btn.title=routeLinesVisible?'Hide dotted route lines on the map':'Show dotted route lines on the map';
 }
 function toggleRouteLines(){
@@ -3310,14 +3310,14 @@ function updateDisplayToggleButtons(){
   const routesBtn=document.getElementById('display-all-routes-btn');
   if(routesBtn){
     const routesShown=allRoutesCurrentlyDisplayed();
-    routesBtn.textContent=routesShown?'Hide All Routes':'Display All Routes';
-    routesBtn.title=routesShown?'Hide every assigned route from the map':'Display every assigned route on the map';
+    routesBtn.textContent=routesShown?'Hide All Routes':'Show All Routes';
+    routesBtn.title=routesShown?'Hide every assigned route from the map':'Show every assigned route on the map';
   }
   const unassignedBtn=document.getElementById('display-all-unassigned-btn');
   if(unassignedBtn){
     const unassignedShown=allUnassignedStopsCurrentlyDisplayed();
-    unassignedBtn.textContent=unassignedShown?'Hide Unassigned Stops':'Display All Unassigned Stops';
-    unassignedBtn.title=unassignedShown?'Hide every unassigned stop from the map':'Display every unassigned stop on the map';
+    unassignedBtn.textContent=unassignedShown?'Hide Unassigned Stops':'Show Unassigned Stops';
+    unassignedBtn.title=unassignedShown?'Hide every unassigned stop from the map':'Show every unassigned stop on the map';
   }
 }
 function displayAllRoutesOnMap(){
@@ -3339,24 +3339,31 @@ function displayAllRoutesOnMap(){
   showToast('Displayed all routes on the map.');
 }
 function displayAllUnassignedStopsOnMap(){
+  // This control is a visibility toggle only. Never change the user's current
+  // center/zoom when showing or hiding unassigned stops.
+  const keepCenter=map&&map.getCenter?map.getCenter():null;
+  const keepZoom=map&&map.getZoom?map.getZoom():null;
+  const restoreViewport=()=>{
+    if(map&&keepCenter&&Number.isFinite(keepZoom)){
+      map.setView(keepCenter,keepZoom,{animate:false});
+    }
+  };
+
   if(allUnassignedStopsCurrentlyDisplayed()){
     ensureCustomMapView();
     stops.filter(s=>!s.routeId).forEach(s=>visibleStopIds.delete(s.id));
     renderMap();
+    restoreViewport();
     updateDisplayToggleButtons();
-    showToast('Hidden all unassigned stops from the map.');
+    showToast('Hidden all unassigned stops without changing the map view.');
     return;
   }
   mapCleared=true;
   stops.filter(s=>!s.routeId).forEach(s=>visibleStopIds.add(s.id));
   renderMap();
-  // If a route/depot filter is active, preserve its exact zoom/center and only
-  // layer the unassigned markers into the existing view.
-  if(!mapRouteFilterActiveId&&!mapDepotFilterKey)fitMapToVisible();
+  restoreViewport();
   updateDisplayToggleButtons();
-  showToast(mapRouteFilterActiveId||mapDepotFilterKey
-    ? 'Displayed unassigned stops without changing the filtered map view.'
-    : 'Displayed all unassigned stops on the map.');
+  showToast('Shown all unassigned stops without changing the map view.');
 }
 function fitMapToVisible(){
   const pts=[];
