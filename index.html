@@ -6789,6 +6789,24 @@ function scenarioResolveTruckCapacity(resourceKey,routeRows,refs){
   const def=suffix?refs.defaultsBySuffix.get(suffix):null;
   return {truckKey,suffix,matchMode,capacity:def?{totalCube:def.cube,weight:def.weight}:null,defaultTruckKey:def?.truckKey||'',defaultName:def?.name||'',vehicleType:def?.vehicleType||''};
 }
+// V56 compatibility helpers retained for Import Route Data and export.
+// Scenario Levers are not being restored; these only identify imported
+// depot/layover anchor rows so the existing export calculations work.
+function scenarioLocationKey(stop){
+  return sval(stop?.locationKey||stop?.shipToId||stop?.customerNumber||gcLoose(stop?.raw||{},['LocationKey'])).trim().toUpperCase();
+}
+function scenarioIsDepotStop(stop){
+  const key=scenarioLocationKey(stop);
+  return stop?.scenarioDepotAnchor===true || key.startsWith('D');
+}
+function scenarioIsLayoverStop(stop){
+  const key=scenarioLocationKey(stop);
+  return stop?.scenarioLayoverAnchor===true || key.startsWith('L');
+}
+function scenarioIsFixedRouteAnchor(stop){
+  return scenarioIsDepotStop(stop)||scenarioIsLayoverStop(stop);
+}
+
 function scenarioRouteLoadProfile(routeId,customerStops=null){
   const list=(customerStops||stops.filter(s=>s.routeId===routeId&&!scenarioIsFixedRouteAnchor(s))).filter(Boolean);
   let deliveryCube=0,deliveryWeight=0,backhaulCube=0,backhaulWeight=0;
