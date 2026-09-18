@@ -6905,9 +6905,9 @@ function exportExcel(options={}){
   const selectedOnly=options.selectedOnly===true;
 
   const requestedRouteIds=routeIdSet?new Set(Array.from(routeIdSet).map(String)):null;
-  const exportStops=requestedRouteIds
-    ? stops.filter(s=>s.routeId&&requestedRouteIds.has(String(s.routeId)))
-    : stops.slice();
+  const exportStops=routeIdSet
+    ? stops.filter(s=>!s.routeId || routeIdSet.has(String(s.routeId)))
+    : stops;
   const assignedExportRouteIds=new Set(exportStops.filter(s=>s.routeId).map(s=>String(s.routeId)));
   const exportRoutes=routes.filter(r=>
     requestedRouteIds ? requestedRouteIds.has(String(r.id)) : assignedExportRouteIds.has(String(r.id)) || !stops.some(s=>s.routeId===r.id)
