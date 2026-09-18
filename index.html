@@ -2298,7 +2298,13 @@ function toggleExpand(id,e){
   renderRoutes();
 }
 
-function routeCheck(id,val){const r=routes.find(x=>x.id===id);if(r){r.selected=val;}updateApplyBar();updateExportSelectedButton();}
+function routeCheck(id,val){
+  const routeId=String(id);
+  const r=routes.find(x=>String(x.id)===routeId);
+  if(r){r.selected=val;}
+  updateApplyBar();
+  updateExportSelectedButton();
+}
 function toggleAllRouteChecks(val){routes.forEach(r=>r.selected=val);renderRoutes();updateApplyBar();updateExportSelectedButton();}
 function setCheck(id,val){const s=stops.find(x=>x.id===id);if(s)s.uiChecked=val;}
 function checkAllUA(val){stops.filter(s=>!s.routeId).forEach(s=>s.uiChecked=val);renderUA();}
@@ -6526,10 +6532,19 @@ function downloadOutputTextFile(outputHeaders,outputRows){
 
 
 function selectedRouteIdSet(){
-  const ids=routes.filter(r=>r.selected).map(r=>r.id);
-  return new Set(ids);
+  // Sync the visible route checkboxes back to the route model before export.
+  // Route IDs can be numeric or string depending on the import path, so all
+  // comparisons are normalized to strings.
+  document.querySelectorAll('.r-chk[id^="rchk-"]').forEach(chk=>{
+    const routeId=String(chk.id).replace(/^rchk-/,'');
+    const route=routes.find(r=>String(r.id)===routeId);
+    if(route)route.selected=!!chk.checked;
+  });
+  return new Set(routes.filter(r=>r.selected).map(r=>String(r.id)));
 }
-function selectedRouteCount(){return routes.filter(r=>r.selected).length;}
+function selectedRouteCount(){
+  return selectedRouteIdSet().size;
+}
 function updateExportSelectedButton(){
   let btn=document.getElementById('export-selected-btn');
   const exportBtn=Array.from(document.querySelectorAll('button')).find(b=>b.getAttribute('onclick')==='exportExcel()');
@@ -6547,7 +6562,12 @@ function updateExportSelectedButton(){
 function exportSelectedRoutes(){
   const ids=selectedRouteIdSet();
   if(!ids.size){showToast('Select one or more route checkboxes first');return;}
-  exportExcel({routeIdSet:ids, selectedOnly:true, markPublished:true});
+  try{
+    exportExcel({routeIdSet:ids, selectedOnly:true, markPublished:true});
+  }catch(err){
+    console.error('Export Selected failed:',err);
+    showToast('Export Selected failed: '+(err?.message||err));
+  }
 }
 function applyRowHighlight(ws,rows,predicate,fillRgb='FFF2CC'){
   if(!ws||!Array.isArray(rows)||typeof predicate!=='function')return;
