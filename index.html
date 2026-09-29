@@ -4418,6 +4418,20 @@ function preferredResourceMatchesRoute(stop,route){
   if(!pref4)return true;
   return first4Digits(route?.udfNumber1||'')===pref4;
 }
+// Optimizer placement rules: Add/Recovery routes are overflow only; Pronto is CUTID 9 only.
+function optimizerRouteName(route){return (route?.name||route?.routeTemplateKey||'').toString().trim();}
+function optimizerIsOverflowRoute(route){const name=optimizerRouteName(route);return /\badd\b/i.test(name)||/recovery/i.test(name);}
+function optimizerIsProntoRoute(route){return /pronto/i.test(optimizerRouteName(route));}
+function optimizerStopIsCut9Only(stop){
+  const orders=Array.isArray(stop?.orders)&&stop.orders.length?stop.orders:[stop];
+  return !!orders.length&&orders.every(o=>normalizeCutId(o?.cutId||stop?.cutId)==='CUTID_9');
+}
+function optimizerRouteEligibleForStop(stop,route){
+  if(!stop||!route)return false;
+  if(optimizerIsProntoRoute(route)&&!optimizerStopIsCut9Only(stop))return false;
+  return true;
+}
+function optimizerRouteTier(route){return optimizerIsOverflowRoute(route)?1:0;}
 function preferredPosition(stop){
   const raw=stop?.preferredRouteSequence||stop?.routeSequence||'';
   const n=parseInt(raw,10);
@@ -4500,7 +4514,7 @@ function optimizeRouteSequence(routeId,opts={}){
   }
   movable.forEach(s=>ordered.push(s));
   orderWithStartFinalLocks(routeId, ordered).forEach((stop,index)=>{stop.seq=index+1;});
-  expanded.add(routeId);
+  if(!opts.keepRoutesCollapsed)expanded.add(routeId);
   return {ok:true,count:ordered.length,locked:lockedCount};
 }
 function estimateArrivalForCandidate(routeId, orderedStops, current, candidate){
@@ -4530,6 +4544,7 @@ function routeWithinBasicLimits(routeId){
 }
 function maximizeRoutes(opts={}){
   if(!routes.length){showToast('No routes available to maximize');return;}
+  opts={...opts,keepRoutesCollapsed:true};
   const targetRoutes=Math.max(0,parseInt(opts.targetRoutes,10)||0);
   const activeRouteCount=()=>routes.filter(r=>stops.some(s=>s.routeId===r.id&&!scenarioIsDepotStop(s))).length;
 
@@ -4551,6 +4566,7 @@ function maximizeRoutes(opts={}){
   const canTryMove=(stop,fromRouteId,targetRoute)=>{
     if(!stop||!targetRoute)return false;
     if(stop.routeId===targetRoute.id)return false;
+    if(!optimizerRouteEligibleForStop(stop,targetRoute))return false;
     if(opts.respectResource&&!preferredResourceMatchesRoute(stop,targetRoute))return false;
     // A preferred route position locks an assigned stop in place. Unassigned stops may still be placed,
     // and optimizeRouteSequence will attempt to keep their preferred sequence after placement.
@@ -4569,7 +4585,6 @@ function maximizeRoutes(opts={}){
     const sourceOk=oldSnap.routeId?validAfterPlacement(oldSnap.routeId):true;
 
     if(targetOk&&sourceOk){
-      expanded.add(targetRoute.id);
       return true;
     }
 
@@ -4587,7 +4602,7 @@ function maximizeRoutes(opts={}){
 
   unassigned.forEach(stop=>{
     let placed=false;
-    const receivers=routes.slice().sort((a,b)=>routeLoad(b)-routeLoad(a));
+    const receivers=routes.slice().sort((a,b)=>(optimizerRouteTier(a)-optimizerRouteTier(b))||(routeLoad(b)-routeLoad(a)));
     for(const target of receivers){
       if(!canTryMove(stop,null,target))continue;
       if(tryPlaceStop(stop,target)){assignedFromUnassigned++;placed=true;break;}
@@ -4613,7 +4628,7 @@ function maximizeRoutes(opts={}){
         const receivers=routes
           .filter(r=>r.id!==donor.id)
           .slice()
-          .sort((a,b)=>routeLoad(b)-routeLoad(a));
+          .sort((a,b)=>(optimizerRouteTier(a)-optimizerRouteTier(b))||(routeLoad(b)-routeLoad(a)));
         let placed=false;
         for(const target of receivers){
           if(!canTryMove(stop,donor.id,target))continue;
@@ -4646,6 +4661,8 @@ function maximizeRoutes(opts={}){
     <strong>${skipped}</strong> candidate move(s) skipped because they did not fit selected rules, time windows, capacity, or route end time<br/><br/>
     <strong>Rules Used:</strong><br/>
     &bull; Candidate Pool: Assigned + Unassigned Stops<br/>
+    &bull; Add / Recovery Routes: Overflow only (used after standard eligible routes)<br/>
+    &bull; Pronto Routes: CUTID 9 orders only<br/>
     &bull; Respect Preferred Resources: ${opts.respectResource?'Yes':'No'}<br/>
     &bull; Respect Preferred Route Position: ${opts.respectPosition?'Yes':'No'}
   `);
@@ -4678,7 +4695,8 @@ function updateSolutionOptionsUI(){
 function solutionOptsFromModal(){
   return {
     respectResource:document.getElementById('solution-remove-route-locks')?.checked!==true,
-    respectPosition:document.getElementById('solution-remove-sequence-locks')?.checked!==true
+    respectPosition:document.getElementById('solution-remove-sequence-locks')?.checked!==true,
+    keepRoutesCollapsed:true
   };
 }
 function solutionSnapshot(stop){return {routeId:stop.routeId||null,seq:stop.seq||0};}
@@ -4691,6 +4709,7 @@ function solutionOptimizeRoute(routeId,opts){
 }
 function solutionCanMove(stop,fromRouteId,targetRoute,opts){
   if(!stop||!targetRoute||stop.routeId===targetRoute.id)return false;
+  if(!optimizerRouteEligibleForStop(stop,targetRoute))return false;
   if(opts.respectResource&&!preferredResourceMatchesRoute(stop,targetRoute))return false;
   if(opts.respectPosition&&fromRouteId&&preferredPosition(stop))return false;
   return true;
@@ -4702,7 +4721,7 @@ function solutionTryPlace(stop,targetRoute,opts){
   solutionOptimizeRoute(targetRoute.id,opts);
   const targetOk=routeWithinBasicLimits(targetRoute.id);
   const sourceOk=snap.routeId?(solutionOptimizeRoute(snap.routeId,opts)&&routeWithinBasicLimits(snap.routeId)):true;
-  if(targetOk&&sourceOk){expanded.add(targetRoute.id);return true;}
+  if(targetOk&&sourceOk){return true;}
   solutionRestore(stop,snap);affected.forEach(rid=>solutionOptimizeRoute(rid,opts));return false;
 }
 function solutionIncrementalMiles(stop,route){
@@ -4715,7 +4734,7 @@ function solutionPlaceUnassigned(list,opts,objective='miles'){
   list.forEach(stop=>{
     if(stop.routeId)return;
     const candidates=routes.filter(r=>solutionCanMove(stop,null,r,opts)).map(r=>({route:r,delta:solutionIncrementalMiles(stop,r),load:stops.filter(s=>s.routeId===r.id&&!scenarioIsDepotStop(s)).length}));
-    candidates.sort((a,b)=>objective==='consolidate'?(b.load-a.load)||(a.delta-b.delta):(a.delta-b.delta)||(b.load-a.load));
+    candidates.sort((a,b)=>(optimizerRouteTier(a.route)-optimizerRouteTier(b.route))||(objective==='consolidate'?(b.load-a.load)||(a.delta-b.delta):(a.delta-b.delta)||(b.load-a.load)));
     let ok=false;for(const c of candidates){if(solutionTryPlace(stop,c.route,opts)){placed++;ok=true;break;}}
     if(!ok)failed.push(stop);
   });
