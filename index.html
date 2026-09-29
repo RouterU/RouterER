@@ -488,6 +488,9 @@ body{background:var(--bg0);color:var(--text1);}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       Preferred Job
     </button>
+    <button class="btn" onclick="openSolutionOptions()" style="background:#0f766e;border-color:#14b8a6;color:#fff;" title="Build a guided routing solution by miles, route count, or customer priority">
+      &#9889; Solution Options
+    </button>
     <div class="topbar-group" title="Miles used by the Potential Routes job">
       <span class="topbar-label">Radius</span>
       <input type="number" class="radius-input" id="routing-radius" value="15" min="0.1" step="0.1"/>
@@ -932,7 +935,29 @@ body{background:var(--bg0);color:var(--text1);}
   </div>
 </div>
 
-
+<!-- Solution Options Modal -->
+<div id="solution-options-modal" style="display:none" class="modal-overlay">
+  <div class="modal" style="max-width:620px;">
+    <h2>Solution Options</h2>
+    <div class="job-result" style="margin-bottom:12px;">Build an operational routing solution for the imported market. Choose the objective RouteER should emphasize.</div>
+    <div id="solution-priority-summary" style="font-size:10px;color:var(--text2);margin-bottom:10px;"></div>
+    <div style="display:grid;gap:8px;">
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="balanced" checked onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span><strong>Balanced Solution</strong><br><span style="font-size:10px;color:var(--text2);">Balance fleet miles, route consolidation and delivery-window performance.</span></span></label>
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="miles" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span><strong>Lowest Miles</strong><br><span style="font-size:10px;color:var(--text2);">Emphasize the lowest practical total fleet mileage while keeping routes feasible.</span></span></label>
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="routes" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span style="flex:1;"><strong>Route Count</strong><br><span style="font-size:10px;color:var(--text2);">Consolidate work onto fewer routes. Optionally enter the number of routes you are hoping to use.</span><div id="solution-target-wrap" style="display:none;margin-top:7px;"><label style="font-size:10px;color:var(--text2);">Target Routes&nbsp; <input id="solution-target-routes" type="number" min="1" step="1" placeholder="Optional" style="width:90px;"></label></div></span></label>
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="priority" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span><strong>Priority Routing</strong><br><span style="font-size:10px;color:var(--text2);">Route UDFString5 Priority 1 first, then Priority 2, then Priority 3. Lower priorities never displace Priority 1.</span></span></label>
+    </div>
+    <div class="shdr" style="margin-top:14px;">Routing Restrictions</div>
+    <div style="display:grid;gap:9px;margin-top:8px;">
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input id="solution-remove-route-locks" type="checkbox" style="margin-top:2px;accent-color:var(--accent);"><span><strong>Remove Route Locks</strong><br><span style="font-size:10px;color:var(--text2);">Allow this optimization run to disregard imported Preferred Resource / route locks. Imported values are not deleted.</span></span></label>
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input id="solution-remove-sequence-locks" type="checkbox" style="margin-top:2px;accent-color:var(--accent);"><span><strong>Remove Sequence Lock</strong><br><span style="font-size:10px;color:var(--text2);">Allow this optimization run to disregard imported preferred route positions. Imported values are not deleted.</span></span></label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('solution-options-modal')">Cancel</button>
+      <button class="btn primary" onclick="runSolutionOptions()">Build Solution</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // V56 Simple Routing — Scenario Levers feature removed; standard routing workflow retained.
@@ -4494,6 +4519,8 @@ function routeWithinBasicLimits(routeId){
 }
 function maximizeRoutes(opts={}){
   if(!routes.length){showToast('No routes available to maximize');return;}
+  const targetRoutes=Math.max(0,parseInt(opts.targetRoutes,10)||0);
+  const activeRouteCount=()=>routes.filter(r=>stops.some(s=>s.routeId===r.id&&!scenarioIsDepotStop(s))).length;
 
   const snapshotStop=(stop)=>({routeId:stop.routeId||null,seq:stop.seq||0});
   const restoreStop=(stop,snap)=>{stop.routeId=snap.routeId;stop.seq=snap.seq;};
@@ -4561,14 +4588,17 @@ function maximizeRoutes(opts={}){
   // This is repeated a few passes because each successful move changes route fullness and feasibility.
   const maxPasses=Math.min(6,Math.max(2,routes.length));
   for(let pass=0;pass<maxPasses;pass++){
+    if(targetRoutes&&activeRouteCount()<=targetRoutes)break;
     let passMoved=0;
     const donors=routes.slice().sort((a,b)=>routeLoad(a)-routeLoad(b));
     donors.forEach(donor=>{
+      if(targetRoutes&&activeRouteCount()<=targetRoutes)return;
       const donorStops=routeCustomerStops(donor.id)
         .slice()
         .sort((a,b)=>(tCube(b)-tCube(a))||(b.seq-a.seq));
 
       donorStops.forEach(stop=>{
+        if(targetRoutes&&activeRouteCount()<=targetRoutes)return;
         const receivers=routes
           .filter(r=>r.id!==donor.id)
           .slice()
@@ -4600,6 +4630,7 @@ function maximizeRoutes(opts={}){
     <strong>${movedAssigned}</strong> already-assigned stop(s) moved into fuller valid routes<br/>
     <strong>${optimizedRoutes}</strong> route(s) resequenced after optimization<br/>
     <strong>${empty}</strong> route(s) now have no customer stops<br/>
+    ${targetRoutes?`<strong>Target Routes:</strong> ${targetRoutes}<br/><strong>Resulting Active Routes:</strong> ${activeRouteCount()}${activeRouteCount()>targetRoutes?' (target not feasible with selected constraints)':''}<br/>`:''}
     <strong>${remainingUnassigned}</strong> stop(s) remain unassigned because no valid route fit was found<br/>
     <strong>${skipped}</strong> candidate move(s) skipped because they did not fit selected rules, time windows, capacity, or route end time<br/><br/>
     <strong>Rules Used:</strong><br/>
@@ -4607,6 +4638,124 @@ function maximizeRoutes(opts={}){
     &bull; Respect Preferred Resources: ${opts.respectResource?'Yes':'No'}<br/>
     &bull; Respect Preferred Route Position: ${opts.respectPosition?'Yes':'No'}
   `);
+}
+
+function solutionPriority(stop){
+  const values=[];
+  const direct=parseInt(stop?.udfString5,10); if([1,2,3].includes(direct))values.push(direct);
+  (Array.isArray(stop?.orders)?stop.orders:[]).forEach(o=>{const p=parseInt(o?.udfString5,10);if([1,2,3].includes(p))values.push(p);});
+  return values.length?Math.min(...values):0;
+}
+function solutionCustomerStops(){return stops.filter(s=>!scenarioIsDepotStop(s));}
+function solutionPriorityCounts(){
+  const c={1:0,2:0,3:0,none:0};
+  solutionCustomerStops().forEach(s=>{const p=solutionPriority(s);if(p)c[p]++;else c.none++;});
+  return c;
+}
+function openSolutionOptions(){
+  if(!routes.length){showToast('Import route templates before building a solution');return;}
+  const c=solutionPriorityCounts();
+  const el=document.getElementById('solution-priority-summary');
+  if(el)el.innerHTML=`Imported population: <strong>P1 ${c[1]}</strong> &middot; <strong>P2 ${c[2]}</strong> &middot; <strong>P3 ${c[3]}</strong> &middot; No Priority ${c.none}`;
+  updateSolutionOptionsUI();
+  document.getElementById('solution-options-modal').style.display='flex';
+}
+function updateSolutionOptionsUI(){
+  const mode=document.querySelector('input[name="solution-mode"]:checked')?.value||'balanced';
+  const wrap=document.getElementById('solution-target-wrap');if(wrap)wrap.style.display=mode==='routes'?'block':'none';
+}
+function solutionOptsFromModal(){
+  return {
+    respectResource:document.getElementById('solution-remove-route-locks')?.checked!==true,
+    respectPosition:document.getElementById('solution-remove-sequence-locks')?.checked!==true
+  };
+}
+function solutionSnapshot(stop){return {routeId:stop.routeId||null,seq:stop.seq||0};}
+function solutionRestore(stop,snap){stop.routeId=snap.routeId;stop.seq=snap.seq;}
+function solutionOptimizeRoute(routeId,opts){
+  const geo=stops.filter(s=>s.routeId===routeId&&s.lat&&s.lng).length;
+  if(geo>=2)return optimizeRouteSequence(routeId,opts).ok;
+  if(geo===1){const one=stops.find(s=>s.routeId===routeId&&s.lat&&s.lng);if(one)one.seq=1;}
+  return true;
+}
+function solutionCanMove(stop,fromRouteId,targetRoute,opts){
+  if(!stop||!targetRoute||stop.routeId===targetRoute.id)return false;
+  if(opts.respectResource&&!preferredResourceMatchesRoute(stop,targetRoute))return false;
+  if(opts.respectPosition&&fromRouteId&&preferredPosition(stop))return false;
+  return true;
+}
+function solutionTryPlace(stop,targetRoute,opts){
+  const snap=solutionSnapshot(stop);const affected=new Set([targetRoute.id]);if(snap.routeId)affected.add(snap.routeId);
+  stop.routeId=targetRoute.id;
+  stop.seq=Math.max(0,...stops.filter(s=>s.routeId===targetRoute.id&&s.id!==stop.id).map(s=>s.seq||0))+1;
+  solutionOptimizeRoute(targetRoute.id,opts);
+  const targetOk=routeWithinBasicLimits(targetRoute.id);
+  const sourceOk=snap.routeId?(solutionOptimizeRoute(snap.routeId,opts)&&routeWithinBasicLimits(snap.routeId)):true;
+  if(targetOk&&sourceOk){expanded.add(targetRoute.id);return true;}
+  solutionRestore(stop,snap);affected.forEach(rid=>solutionOptimizeRoute(rid,opts));return false;
+}
+function solutionIncrementalMiles(stop,route){
+  const before=routeDistanceMiles(route.id);const snap=solutionSnapshot(stop);
+  stop.routeId=route.id;stop.seq=Math.max(0,...stops.filter(s=>s.routeId===route.id&&s.id!==stop.id).map(s=>s.seq||0))+1;
+  const after=routeDistanceMiles(route.id);solutionRestore(stop,snap);return after-before;
+}
+function solutionPlaceUnassigned(list,opts,objective='miles'){
+  let placed=0;const failed=[];
+  list.forEach(stop=>{
+    if(stop.routeId)return;
+    const candidates=routes.filter(r=>solutionCanMove(stop,null,r,opts)).map(r=>({route:r,delta:solutionIncrementalMiles(stop,r),load:stops.filter(s=>s.routeId===r.id&&!scenarioIsDepotStop(s)).length}));
+    candidates.sort((a,b)=>objective==='consolidate'?(b.load-a.load)||(a.delta-b.delta):(a.delta-b.delta)||(b.load-a.load));
+    let ok=false;for(const c of candidates){if(solutionTryPlace(stop,c.route,opts)){placed++;ok=true;break;}}
+    if(!ok)failed.push(stop);
+  });
+  return {placed,failed};
+}
+function solutionOptimizeAll(opts){let n=0;routes.forEach(r=>{if(stops.some(s=>s.routeId===r.id&&!scenarioIsDepotStop(s))&&solutionOptimizeRoute(r.id,opts))n++;});return n;}
+function runPrioritySolution(opts){
+  const result={placed:0,failedP1:[],failedP2:[],failedP3:[],noPriority:0};
+  [1,2,3].forEach(p=>{
+    const pool=solutionCustomerStops().filter(s=>!s.routeId&&solutionPriority(s)===p).sort((a,b)=>(tCube(b)-tCube(a))||(tCases(b)-tCases(a)));
+    const r=solutionPlaceUnassigned(pool,opts,'miles');result.placed+=r.placed;result['failedP'+p]=r.failed;
+  });
+  result.noPriority=solutionCustomerStops().filter(s=>!s.routeId&&solutionPriority(s)===0).length;
+  solutionOptimizeAll(opts);reseq();render();
+  const c=solutionPriorityCounts();
+  const routed=p=>solutionCustomerStops().filter(s=>s.routeId&&solutionPriority(s)===p).length;
+  const failureNames=result.failedP1.slice(0,8).map(s=>escapeHtml(s.customerName||s.locationKey||s.orderNumber||'Stop')).join(', ');
+  showJob('&#9889; Priority Routing Solution',`
+    <strong>Priority 1:</strong> ${routed(1)}/${c[1]} routed${routed(1)===c[1]?' (100%)':' — ATTENTION REQUIRED'}<br/>
+    <strong>Priority 2:</strong> ${routed(2)}/${c[2]} routed<br/>
+    <strong>Priority 3:</strong> ${routed(3)}/${c[3]} routed<br/>
+    <strong>No Priority:</strong> ${result.noPriority} remain unassigned by this priority job<br/>
+    ${result.failedP1.length?`<br/><strong>Priority 1 exceptions:</strong> ${result.failedP1.length} could not be placed without violating active route/time-window/capacity constraints${failureNames?`<br/>${failureNames}${result.failedP1.length>8?'...':''}`:''}<br/>`:''}
+    <br/><strong>Route Locks:</strong> ${opts.respectResource?'ON':'REMOVED FOR THIS RUN'}<br/>
+    <strong>Sequence Locks:</strong> ${opts.respectPosition?'ON':'REMOVED FOR THIS RUN'}
+  `);
+}
+function runMilesSolution(opts,title='Lowest Miles Solution'){
+  const ua=solutionCustomerStops().filter(s=>!s.routeId).sort((a,b)=>(tCube(b)-tCube(a))||(tCases(b)-tCases(a)));
+  const r=solutionPlaceUnassigned(ua,opts,'miles');const optimized=solutionOptimizeAll(opts);reseq();render();
+  const used=routes.filter(route=>solutionCustomerStops().some(s=>s.routeId===route.id));
+  const miles=used.reduce((a,route)=>a+routeDistanceMiles(route.id),0);
+  showJob('&#9889; '+title,`<strong>${r.placed}</strong> unassigned stop(s) placed<br/><strong>${optimized}</strong> active route(s) resequenced<br/><strong>${used.length}</strong> active route(s)<br/><strong>${miles.toFixed(1)}</strong> estimated total fleet miles<br/><strong>${r.failed.length}</strong> stop(s) remain unassigned because no feasible placement was found<br/><br/><strong>Route Locks:</strong> ${opts.respectResource?'ON':'REMOVED FOR THIS RUN'}<br/><strong>Sequence Locks:</strong> ${opts.respectPosition?'ON':'REMOVED FOR THIS RUN'}`);
+}
+function runBalancedSolution(opts){
+  // First place work by lowest incremental miles, then use the existing consolidation engine
+  // to look across routes for feasible truck/driver savings.
+  const ua=solutionCustomerStops().filter(s=>!s.routeId).sort((a,b)=>(tCube(b)-tCube(a))||(tCases(b)-tCases(a)));
+  solutionPlaceUnassigned(ua,opts,'miles');
+  maximizeRoutes(opts);
+}
+function runSolutionOptions(){
+  const mode=document.querySelector('input[name="solution-mode"]:checked')?.value||'balanced';
+  const opts=solutionOptsFromModal();
+  const target=Math.max(0,parseInt(document.getElementById('solution-target-routes')?.value,10)||0);
+  if(mode==='routes'&&target>routes.length){showToast(`Target cannot exceed the ${routes.length} imported route templates`);return;}
+  closeModal('solution-options-modal');
+  if(mode==='priority'){runPrioritySolution(opts);return;}
+  if(mode==='routes'){maximizeRoutes({...opts,targetRoutes:target});return;}
+  if(mode==='miles'){runMilesSolution(opts);return;}
+  runBalancedSolution(opts);
 }
 
 function showJob(title,html){
@@ -5166,6 +5315,7 @@ function makeOrderFromRow(row,requireGeo=true){
     cutId:sval(gc(row,['CUTID','Cut ID'])),
     alternativeCustomerNumber:sval(gc(row,['Alternative customer number','Alternative Customer Number'])),
     orderCodes:sval(gc(row,['Order Codes','OrderCodes'])),
+    udfString5:sval(gc(row,['UDFString5','UDF String 5','UDF String5','UDFString 5'])),
     activeTier:sval(gc(row,['Active Tier','ActiveTier'])),
     pickMethod:sval(gc(row,['Pick Method','PickMethod'])),
     daysToDeliver:nval(gc(row,['Days to Deliver','DaysToDeliver'])),
@@ -5273,6 +5423,9 @@ function buildConsolidatedStopFromOrders(orders, existing){
     restrictRoutePosition:orders.some(o=>isYesFlag(o.restrictRoutePosition))?'Y':firstNonEmpty(orders.map(o=>o.restrictRoutePosition)),
     standardRoute:stdRoute,
     standardSequence:stdSeq,
+    // Emergency / Solution Options priority. If multiple orders consolidate to one stop,
+    // the highest priority wins (1 before 2 before 3).
+    udfString5:(()=>{const p=orders.map(o=>parseInt(o.udfString5,10)).filter(n=>[1,2,3].includes(n));return p.length?String(Math.min(...p)):firstNonEmpty(orders.map(o=>o.udfString5));})(),
     profit:orders.reduce((a,o)=>a+nval(o.profit),0),
     parentCustomer:firstNonEmpty(orders.map(o=>o.parentCustomer)),
     locationKey:firstNonEmpty(orders.map(o=>o.locationKey)),
