@@ -945,7 +945,7 @@ body{background:var(--bg0);color:var(--text1);}
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="balanced" checked onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span><strong>Balanced Solution</strong><br><span style="font-size:10px;color:var(--text2);">Balance fleet miles, route consolidation and delivery-window performance.</span></span></label>
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="miles" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span><strong>Lowest Miles</strong><br><span style="font-size:10px;color:var(--text2);">Emphasize the lowest practical total fleet mileage while keeping routes feasible.</span></span></label>
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="routes" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span style="flex:1;"><strong>Route Count</strong><br><span style="font-size:10px;color:var(--text2);">Consolidate work onto fewer routes. Optionally enter the number of routes you are hoping to use.</span><div id="solution-target-wrap" style="display:none;margin-top:7px;"><label style="font-size:10px;color:var(--text2);">Target Routes&nbsp; <input id="solution-target-routes" type="number" min="1" step="1" placeholder="Optional" style="width:90px;"></label></div></span></label>
-      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="priority" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span><strong>Priority Routing</strong><br><span style="font-size:10px;color:var(--text2);">Route UDFString5 Priority 1 first, then Priority 2, then Priority 3. Lower priorities never displace Priority 1.</span></span></label>
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="priority" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span><strong>Priority Routing</strong><br><span style="font-size:10px;color:var(--text2);">Route Orders Priority 1 first, then Priority 2, then Priority 3, followed by blank wildcard stops. Lower priorities never displace Priority 1.</span></span></label>
     </div>
     <div class="shdr" style="margin-top:14px;">Routing Restrictions</div>
     <div style="display:grid;gap:9px;margin-top:8px;">
@@ -4642,8 +4642,8 @@ function maximizeRoutes(opts={}){
 
 function solutionPriority(stop){
   const values=[];
-  const direct=parseInt(stop?.udfString5,10); if([1,2,3].includes(direct))values.push(direct);
-  (Array.isArray(stop?.orders)?stop.orders:[]).forEach(o=>{const p=parseInt(o?.udfString5,10);if([1,2,3].includes(p))values.push(p);});
+  const direct=parseInt(stop?.priority,10); if([1,2,3].includes(direct))values.push(direct);
+  (Array.isArray(stop?.orders)?stop.orders:[]).forEach(o=>{const p=parseInt(o?.priority,10);if([1,2,3].includes(p))values.push(p);});
   return values.length?Math.min(...values):0;
 }
 function solutionCustomerStops(){return stops.filter(s=>!scenarioIsDepotStop(s));}
@@ -4712,12 +4712,13 @@ function solutionPlaceUnassigned(list,opts,objective='miles'){
 }
 function solutionOptimizeAll(opts){let n=0;routes.forEach(r=>{if(stops.some(s=>s.routeId===r.id&&!scenarioIsDepotStop(s))&&solutionOptimizeRoute(r.id,opts))n++;});return n;}
 function runPrioritySolution(opts){
-  const result={placed:0,failedP1:[],failedP2:[],failedP3:[],noPriority:0};
+  const result={placed:0,failedP1:[],failedP2:[],failedP3:[],wildcardPlaced:0,wildcardFailed:[]};
   [1,2,3].forEach(p=>{
     const pool=solutionCustomerStops().filter(s=>!s.routeId&&solutionPriority(s)===p).sort((a,b)=>(tCube(b)-tCube(a))||(tCases(b)-tCases(a)));
     const r=solutionPlaceUnassigned(pool,opts,'miles');result.placed+=r.placed;result['failedP'+p]=r.failed;
   });
-  result.noPriority=solutionCustomerStops().filter(s=>!s.routeId&&solutionPriority(s)===0).length;
+  const wildcardPool=solutionCustomerStops().filter(s=>!s.routeId&&solutionPriority(s)===0).sort((a,b)=>(tCube(b)-tCube(a))||(tCases(b)-tCases(a)));
+  const wildcard=solutionPlaceUnassigned(wildcardPool,opts,'miles');result.placed+=wildcard.placed;result.wildcardPlaced=wildcard.placed;result.wildcardFailed=wildcard.failed;
   solutionOptimizeAll(opts);reseq();render();
   const c=solutionPriorityCounts();
   const routed=p=>solutionCustomerStops().filter(s=>s.routeId&&solutionPriority(s)===p).length;
@@ -4726,7 +4727,7 @@ function runPrioritySolution(opts){
     <strong>Priority 1:</strong> ${routed(1)}/${c[1]} routed${routed(1)===c[1]?' (100%)':' — ATTENTION REQUIRED'}<br/>
     <strong>Priority 2:</strong> ${routed(2)}/${c[2]} routed<br/>
     <strong>Priority 3:</strong> ${routed(3)}/${c[3]} routed<br/>
-    <strong>No Priority:</strong> ${result.noPriority} remain unassigned by this priority job<br/>
+    <strong>Wildcard (blank Priority):</strong> ${solutionCustomerStops().filter(s=>s.routeId&&solutionPriority(s)===0).length}/${c.none} routed; ${result.wildcardFailed.length} remain unassigned<br/>
     ${result.failedP1.length?`<br/><strong>Priority 1 exceptions:</strong> ${result.failedP1.length} could not be placed without violating active route/time-window/capacity constraints${failureNames?`<br/>${failureNames}${result.failedP1.length>8?'...':''}`:''}<br/>`:''}
     <br/><strong>Route Locks:</strong> ${opts.respectResource?'ON':'REMOVED FOR THIS RUN'}<br/>
     <strong>Sequence Locks:</strong> ${opts.respectPosition?'ON':'REMOVED FOR THIS RUN'}
@@ -5315,7 +5316,7 @@ function makeOrderFromRow(row,requireGeo=true){
     cutId:sval(gc(row,['CUTID','Cut ID'])),
     alternativeCustomerNumber:sval(gc(row,['Alternative customer number','Alternative Customer Number'])),
     orderCodes:sval(gc(row,['Order Codes','OrderCodes'])),
-    udfString5:sval(gc(row,['UDFString5','UDF String 5','UDF String5','UDFString 5'])),
+    priority:sval(gc(row,['Priority'])),
     activeTier:sval(gc(row,['Active Tier','ActiveTier'])),
     pickMethod:sval(gc(row,['Pick Method','PickMethod'])),
     daysToDeliver:nval(gc(row,['Days to Deliver','DaysToDeliver'])),
@@ -5423,9 +5424,10 @@ function buildConsolidatedStopFromOrders(orders, existing){
     restrictRoutePosition:orders.some(o=>isYesFlag(o.restrictRoutePosition))?'Y':firstNonEmpty(orders.map(o=>o.restrictRoutePosition)),
     standardRoute:stdRoute,
     standardSequence:stdSeq,
-    // Emergency / Solution Options priority. If multiple orders consolidate to one stop,
-    // the highest priority wins (1 before 2 before 3).
-    udfString5:(()=>{const p=orders.map(o=>parseInt(o.udfString5,10)).filter(n=>[1,2,3].includes(n));return p.length?String(Math.min(...p)):firstNonEmpty(orders.map(o=>o.udfString5));})(),
+    // Emergency / Solution Options priority comes from the Orders tab Priority column (BS).
+    // If multiple orders consolidate to one stop, the highest priority wins (1 before 2 before 3).
+    // Blank remains blank and acts as a wildcard/unranked stop.
+    priority:(()=>{const p=orders.map(o=>parseInt(o.priority,10)).filter(n=>[1,2,3].includes(n));return p.length?String(Math.min(...p)):'';})(),
     profit:orders.reduce((a,o)=>a+nval(o.profit),0),
     parentCustomer:firstNonEmpty(orders.map(o=>o.parentCustomer)),
     locationKey:firstNonEmpty(orders.map(o=>o.locationKey)),
