@@ -546,6 +546,7 @@ body{background:var(--bg0);color:var(--text1);}
             <option value="">Sort By...</option>
             <option value="name">Name</option>
             <option value="routeNumber">Route Number</option>
+            <option value="depot">By Depot</option>
             <option value="stops">Stops Per Route</option>
             <option value="time">Total Time</option>
             <option value="miles">Miles</option>
@@ -1927,6 +1928,14 @@ function sortedRoutesForDisplay(){
     else if(routeSort==='time')comparison=routeTotalMinutes(a.id)-routeTotalMinutes(b.id);
     else if(routeSort==='miles')comparison=routeDistanceMiles(a.id)-routeDistanceMiles(b.id);
     else if(routeSort==='routeNumber')comparison=(a.udfNumber1||'').toString().localeCompare((b.udfNumber1||'').toString(),undefined,{numeric:true,sensitivity:'base'});
+    else if(routeSort==='depot'){
+      const depotA=routeInitialDepot(a);
+      const depotB=routeInitialDepot(b);
+      const labelA=depotLabel(depotA,a.initialLocationKey||'').toString();
+      const labelB=depotLabel(depotB,b.initialLocationKey||'').toString();
+      comparison=labelA.localeCompare(labelB,undefined,{numeric:true,sensitivity:'base'});
+      if(comparison===0)comparison=(a.udfNumber1||a.name||'').toString().localeCompare((b.udfNumber1||b.name||'').toString(),undefined,{numeric:true,sensitivity:'base'});
+    }
     else if(routeSort==='name')comparison=(a.name||'').localeCompare(b.name||'');
     if(comparison===0)return (a.name||'').localeCompare(b.name||'');
     return comparison*direction;
@@ -1936,7 +1945,7 @@ function sortedRoutesForDisplay(){
 function updateRouteSortDirectionLabels(){
   const directionSelect=document.getElementById('route-sort-direction');
   if(!directionSelect)return;
-  const isName=routeSort==='name'||routeSort==='routeNumber';
+  const isName=routeSort==='name'||routeSort==='routeNumber'||routeSort==='depot';
   const desc=directionSelect.querySelector('option[value="desc"]');
   const asc=directionSelect.querySelector('option[value="asc"]');
   if(desc)desc.textContent=isName?'Z → A':'High → Low';
@@ -2216,10 +2225,12 @@ function renderMap(){
 
     const rs=stops.filter(s=>s.routeId===r.id&&s.lat&&s.lng).sort((a,b)=>a.seq-b.seq);
     const points=[];
-    if(init&&init.lat&&init.lng)points.push([init.lat,init.lng]);
+    // Route lines always retain the stop-to-stop path. The toggle controls only
+    // the home/depot legs from the start depot to stop 1 and last stop to final depot.
+    if(routeLinesVisible&&init&&init.lat&&init.lng)points.push([init.lat,init.lng]);
     rs.forEach(s=>points.push([s.lat,s.lng]));
-    if(fin&&fin.lat&&fin.lng)points.push([fin.lat,fin.lng]);
-    if(points.length<2 || !routeLinesVisible) return;
+    if(routeLinesVisible&&fin&&fin.lat&&fin.lng)points.push([fin.lat,fin.lng]);
+    if(points.length<2) return;
     polylines[r.id]=L.polyline(points,{color,weight:4,opacity:.72,dashArray:'5,4'}).addTo(map);
     polylines[r.id].on('click',ev=>handleMapRouteLineClick(ev,r.id));
     polylines[r.id].on('mouseover',()=>{highlightRoute(r.id); if(polylines[r.id]) polylines[r.id].setStyle({weight:8,opacity:.95});});
@@ -2246,14 +2257,14 @@ function renderLegend(){
 function updateRouteLineToggleButton(){
   const btn=document.getElementById('route-line-toggle-btn');
   if(!btn)return;
-  btn.textContent=routeLinesVisible?'Hide Route Lines':'Show Route Lines';
-  btn.title=routeLinesVisible?'Hide dotted route lines on the map':'Show dotted route lines on the map';
+  btn.textContent=routeLinesVisible?'Hide Home Legs':'Show Home Legs';
+  btn.title=routeLinesVisible?'Hide only the depot/home legs; stop-to-stop route lines remain visible':'Show the depot/home legs on the route lines';
 }
 function toggleRouteLines(){
   routeLinesVisible=!routeLinesVisible;
   updateRouteLineToggleButton();
   renderMap();
-  showToast(routeLinesVisible?'Route lines shown':'Route lines hidden');
+  showToast(routeLinesVisible?'Home legs shown':'Home legs hidden; stop-to-stop route lines remain visible');
 }
 
 function updateImportedDepotToggleButton(){
