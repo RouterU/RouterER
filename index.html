@@ -946,7 +946,7 @@ body{background:var(--bg0);color:var(--text1);}
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="balanced" checked onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span><strong>Balanced Solution</strong><br><span style="font-size:10px;color:var(--text2);">Balance fleet miles, route consolidation and delivery-window performance.</span></span></label>
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="miles" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span><strong>Lowest Miles</strong><br><span style="font-size:10px;color:var(--text2);">Emphasize the lowest practical total fleet mileage while keeping routes feasible.</span></span></label>
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="routes" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span style="flex:1;"><strong>Route Count</strong><br><span style="font-size:10px;color:var(--text2);">Consolidate work onto fewer routes. Optionally enter the number of routes you are hoping to use.</span><div id="solution-target-wrap" style="display:none;margin-top:7px;"><label style="font-size:10px;color:var(--text2);">Target Routes&nbsp; <input id="solution-target-routes" type="number" min="1" step="1" placeholder="Optional" style="width:90px;"></label></div></span></label>
-      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="priority" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span style="flex:1;"><strong>Priority Routing</strong><br><span style="font-size:10px;color:var(--text2);">Build and clean Priority 1 routes first. Review that network before allowing Priority 2, Priority 3, or blank wildcard stops onto it.</span><div id="solution-driver-wrap" style="display:none;margin-top:7px;"><label style="font-size:10px;color:var(--text2);">How Many Drivers?&nbsp; <input id="solution-driver-cap" type="number" min="1" step="1" placeholder="Optional" style="width:90px;"></label><div style="font-size:9px;color:var(--text2);margin-top:3px;">Optional maximum number of routes available for the entire staged Priority session.</div></div></span></label>
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="priority" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span style="flex:1;"><strong>Priority Routing</strong><br><span style="font-size:10px;color:var(--text2);">Build and clean Priority 1 routes first. Review that network before allowing Priority 2, Priority 3, or blank wildcard stops onto it.</span><div id="solution-driver-wrap" style="display:none;margin-top:7px;"><label style="font-size:10px;color:var(--text2);">How Many Drivers?&nbsp; <input id="solution-driver-cap" type="number" min="1" step="1" placeholder="Optional" style="width:90px;"></label><div style="font-size:9px;color:var(--text2);margin-top:3px;">Optional maximum number of routes available for the entire staged Priority session.</div><div style="margin-top:8px;"><label style="font-size:10px;color:var(--text2);">Depot&nbsp; <select id="solution-priority-depot" style="min-width:230px;"><option value="">All Depots</option></select></label><div style="font-size:9px;color:var(--text2);margin-top:3px;">Optional. When selected, Priority Routing will only use route templates whose starting/home depot matches this depot.</div></div></div></span></label>
     </div>
     <div class="shdr" style="margin-top:14px;">Routing Restrictions</div>
     <div style="display:grid;gap:9px;margin-top:8px;">
@@ -4685,8 +4685,26 @@ function openSolutionOptions(){
   const c=solutionPriorityCounts();
   const el=document.getElementById('solution-priority-summary');
   if(el)el.innerHTML=`Imported population: <strong>P1 ${c[1]}</strong> &middot; <strong>P2 ${c[2]}</strong> &middot; <strong>P3 ${c[3]}</strong> &middot; No Priority ${c.none}`;
+  populateSolutionPriorityDepots();
   updateSolutionOptionsUI();
   document.getElementById('solution-options-modal').style.display='flex';
+}
+
+function populateSolutionPriorityDepots(){
+  const sel=document.getElementById('solution-priority-depot');if(!sel)return;
+  const previous=normalizeKey(sel.value);
+  const depots=new Map();
+  routes.forEach(r=>{
+    const key=normalizeKey(r.initialLocationKey);if(!key)return;
+    const d=routeInitialDepot(r)||findDepotByKey(key);
+    if(!depots.has(key))depots.set(key,{key,name:depotLabel(d,key)});
+  });
+  const list=[...depots.values()].sort((a,b)=>(a.name||a.key).localeCompare(b.name||b.key,undefined,{numeric:true,sensitivity:'base'}));
+  sel.innerHTML='<option value="">All Depots</option>'+list.map(d=>`<option value="${escapeHtml(d.key)}">${escapeHtml(d.name)} (${escapeHtml(d.key)})</option>`).join('');
+  if(previous&&depots.has(previous))sel.value=previous;
+}
+function priorityRouteMatchesDepot(route,depotKey){
+  return !depotKey||normalizeKey(route?.initialLocationKey)===normalizeKey(depotKey);
 }
 function updateSolutionOptionsUI(){
   const mode=document.querySelector('input[name="solution-mode"]:checked')?.value||'balanced';
@@ -4751,9 +4769,10 @@ function priorityRouteSummary(){
   const active=routes.filter(r=>solutionCustomerStops().some(s=>s.routeId===r.id));
   return {active,miles:active.reduce((n,r)=>n+routeDistanceMiles(r.id),0)};
 }
-function priorityCandidateRoutes(stop,opts,driverCap,protectedRoutes){
+function priorityCandidateRoutes(stop,opts,driverCap,protectedRoutes,depotKey=''){
   const active=priorityActiveRouteIds();
   return routes.filter(r=>{
+    if(!priorityRouteMatchesDepot(r,depotKey))return false;
     if(!solutionCanMove(stop,null,r,opts))return false;
     if(active.has(r.id))return true;
     return !driverCap||active.size<driverCap;
@@ -4765,7 +4784,7 @@ function priorityPlaceStage(level,session){
   let placed=0;const failed=[];
   for(const stop of pool){
     let ok=false;
-    const candidates=priorityCandidateRoutes(stop,session.opts,session.driverCap,session.protectedRoutes);
+    const candidates=priorityCandidateRoutes(stop,session.opts,session.driverCap,session.protectedRoutes,session.depotKey);
     for(const c of candidates){
       if(solutionTryPlace(stop,c.route,session.opts)){placed++;ok=true;break;}
     }
@@ -4808,6 +4827,7 @@ function showPriorityCheckpoint(level,failed=[]){
     <strong>${label}:</strong> ${m.routed}/${m.total} routed${complete?' (100%)':' — ATTENTION REQUIRED'}<br/>
     <strong>Drivers / Active Routes:</strong> ${cap}<br/>
     <strong>Estimated Fleet Miles:</strong> ${m.miles.toFixed(1)}<br/>
+    <strong>Depot:</strong> ${session.depotKey?escapeHtml(depotLabel(findDepotByKey(session.depotKey),session.depotKey))+' ('+escapeHtml(session.depotKey)+')':'All Depots'}<br/>
     <strong>Route Locks:</strong> ${session.opts.respectResource?'ON':'REMOVED FOR THIS RUN'}<br/>
     <strong>Sequence Locks:</strong> ${session.opts.respectPosition?'ON':'REMOVED FOR THIS RUN'}
     ${failed.length?`<br/><br/><strong>${failed.length} ${label} stop(s) could not be placed within the current driver/route and operating constraints.</strong>${failures?`<br/>${failures}${failed.length>8?'...':''}`:''}`:''}
@@ -4815,9 +4835,16 @@ function showPriorityCheckpoint(level,failed=[]){
   </div>`;
   document.getElementById('job-modal').style.display='flex';
 }
-function runPrioritySolution(opts,driverCap=0){
+function runPrioritySolution(opts,driverCap=0,depotKey=''){
   priorityUnassignLowerThan(1);
-  priorityRoutingSession={opts,driverCap,protectedRouteByStop:new Map(),protectedRoutes:new Set(),currentLevel:1};
+  if(depotKey){
+    priorityStageStops(1).forEach(s=>{
+      if(!s.routeId)return;
+      const r=routes.find(x=>x.id===s.routeId);
+      if(!r||!priorityRouteMatchesDepot(r,depotKey)){s.routeId=null;s.seq=0;}
+    });
+  }
+  priorityRoutingSession={opts,driverCap,depotKey:normalizeKey(depotKey),protectedRouteByStop:new Map(),protectedRoutes:new Set(),currentLevel:1};
   const alreadyP1Routes=new Set(priorityStageStops(1).filter(s=>s.routeId).map(s=>s.routeId));
   if(driverCap&&alreadyP1Routes.size>driverCap){
     showJob('&#9889; Priority 1 Routing Review',`<strong>Driver cap:</strong> ${driverCap}<br/><strong>Routes already containing Priority 1:</strong> ${alreadyP1Routes.size}<br/><br/>The current Priority 1 assignments already exceed the driver cap. Increase the driver count or adjust the existing Priority 1 assignments before running this job.`);return;
@@ -4858,7 +4885,14 @@ function runSolutionOptions(){
   const target=Math.max(0,parseInt(document.getElementById('solution-target-routes')?.value,10)||0);
   if(mode==='routes'&&target>routes.length){showToast(`Target cannot exceed the ${routes.length} imported route templates`);return;}
   closeModal('solution-options-modal');
-  if(mode==='priority'){const driverCap=Math.max(0,parseInt(document.getElementById('solution-driver-cap')?.value,10)||0);if(driverCap>routes.length){showToast(`Driver cap cannot exceed the ${routes.length} imported route templates`);return;}runPrioritySolution(opts,driverCap);return;}
+  if(mode==='priority'){
+    const driverCap=Math.max(0,parseInt(document.getElementById('solution-driver-cap')?.value,10)||0);
+    const depotKey=normalizeKey(document.getElementById('solution-priority-depot')?.value||'');
+    const eligibleRoutes=depotKey?routes.filter(r=>priorityRouteMatchesDepot(r,depotKey)):routes;
+    if(driverCap>eligibleRoutes.length){showToast(`Driver cap cannot exceed the ${eligibleRoutes.length} route template(s) available for the selected depot`);return;}
+    if(depotKey&&!eligibleRoutes.length){showToast('No imported route templates start from the selected depot');return;}
+    runPrioritySolution(opts,driverCap,depotKey);return;
+  }
   if(mode==='routes'){maximizeRoutes({...opts,targetRoutes:target});return;}
   if(mode==='miles'){runMilesSolution(opts);return;}
   runBalancedSolution(opts);
