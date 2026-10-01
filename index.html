@@ -3367,8 +3367,14 @@ function allRoutesCurrentlyDisplayed(){
   if(!mapCleared)return true;
   return assignedRouteIds.every(routeId=>visibleRouteIds.has(routeId));
 }
+function getMapVisibleUnassignedStops(){
+  const baseUA=stops.filter(s=>!s.routeId);
+  return solutionUnassignedViewFilter&&solutionUnassignedViewFilter.ids instanceof Set
+    ? baseUA.filter(s=>solutionUnassignedViewFilter.ids.has(s.id))
+    : baseUA;
+}
 function allUnassignedStopsCurrentlyDisplayed(){
-  const unassignedStopIds=stops.filter(s=>!s.routeId&&s.lat&&s.lng).map(s=>s.id);
+  const unassignedStopIds=getMapVisibleUnassignedStops().filter(s=>s.lat&&s.lng).map(s=>s.id);
   if(!unassignedStopIds.length)return false;
   if(!mapCleared)return true;
   return unassignedStopIds.every(stopId=>visibleStopIds.has(stopId));
@@ -3416,9 +3422,10 @@ function displayAllUnassignedStopsOnMap(){
     }
   };
 
+  const mapUA=getMapVisibleUnassignedStops();
   if(allUnassignedStopsCurrentlyDisplayed()){
     ensureCustomMapView();
-    stops.filter(s=>!s.routeId).forEach(s=>visibleStopIds.delete(s.id));
+    mapUA.forEach(s=>visibleStopIds.delete(s.id));
     renderMap();
     restoreViewport();
     updateDisplayToggleButtons();
@@ -3426,7 +3433,11 @@ function displayAllUnassignedStopsOnMap(){
     return;
   }
   mapCleared=true;
-  stops.filter(s=>!s.routeId).forEach(s=>visibleStopIds.add(s.id));
+  // Keep non-action unassigned stops out of the map while a solution action filter is active.
+  if(solutionUnassignedViewFilter){
+    stops.filter(s=>!s.routeId).forEach(s=>visibleStopIds.delete(s.id));
+  }
+  mapUA.forEach(s=>visibleStopIds.add(s.id));
   renderMap();
   restoreViewport();
   updateDisplayToggleButtons();
