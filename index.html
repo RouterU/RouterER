@@ -682,6 +682,7 @@ body{background:var(--bg0);color:var(--text1);}
       <div id="cutid-filter-help" style="font-size:9px;color:var(--text3);margin-top:6px;">Select the new cut(s) being added. The full file is still used to remove missing orders and refresh ORDER_STATUS values for orders already in the session.</div>
       <div id="non-delivery-route-filter-wrap" style="display:none;margin-top:9px;padding-top:8px;border-top:1px solid var(--border);">
         <label style="display:flex;align-items:flex-start;gap:6px;cursor:pointer;font-size:10px;color:var(--text2);"><input id="exclude-non-delivery-routes" type="checkbox" style="margin-top:2px;accent-color:var(--accent);"><span><strong>Do not import non-delivery route templates</strong><br><span style="font-size:9px;color:var(--text3);">Excludes route templates whose route name contains BH, BHL, Shuttle, Add, Logistics, Backhaul, or Transfer.</span></span></label>
+        <label style="display:flex;align-items:flex-start;gap:6px;cursor:pointer;font-size:10px;color:var(--text2);margin-top:8px;"><input id="pronto-only-routes" type="checkbox" style="margin-top:2px;accent-color:var(--accent);"><span><strong>Pronto Only Templates</strong><br><span style="font-size:9px;color:var(--text3);">Imports only selected-day route templates whose route name contains PNTO or Pronto, or whose route number begins with 8.</span></span></label>
       </div>
     </div>
     <div id="route-day-filter" style="margin:10px 0 8px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);">
@@ -5070,14 +5071,25 @@ function v56FilterAllTemplateOrdersByCut(data){
 function shouldExcludeNonDeliveryRouteTemplates(){
   return importMode==='all'&&document.getElementById('exclude-non-delivery-routes')?.checked===true;
 }
+function shouldImportProntoOnlyRouteTemplates(){
+  return importMode==='all'&&document.getElementById('pronto-only-routes')?.checked===true;
+}
+function isProntoRouteTemplateRow(row){
+  const name=sval(gc(row,['Name','name','RouteName','Route Name'])).trim().toLowerCase();
+  const routeNumber=sval(gc(row,['UDFNumber1','UDF Number 1','UDF Number1','UDFNumber 1','RouteNumber','Route Number'])).trim();
+  return name.includes('pnto')||name.includes('pronto')||/^8/.test(routeNumber);
+}
 function isNonDeliveryRouteTemplateRow(row){
   const name=sval(gc(row,['Name','name','RouteName','Route Name'])).trim();
   if(!name)return false;
   return ['bh','bhl','shuttle','add','logistics','backhaul','transfer'].some(term=>name.toLowerCase().includes(term));
 }
 function filterAllTemplateRouteRows(data){
-  if(!shouldExcludeNonDeliveryRouteTemplates())return data||[];
-  return (data||[]).filter(row=>!isNonDeliveryRouteTemplateRow(row));
+  let rows=data||[];
+  // Pronto Only is a positive selector and takes precedence over the general non-delivery exclusion.
+  if(shouldImportProntoOnlyRouteTemplates())return rows.filter(isProntoRouteTemplateRow);
+  if(shouldExcludeNonDeliveryRouteTemplates())rows=rows.filter(row=>!isNonDeliveryRouteTemplateRow(row));
+  return rows;
 }
 
 function getSelectedRouteDayCodes(){
