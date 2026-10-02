@@ -956,6 +956,7 @@ body{background:var(--bg0);color:var(--text1);}
     <div class="shdr" style="margin-top:14px;">Routing Restrictions</div>
     <div style="display:grid;gap:9px;margin-top:8px;">
       <label style="display:flex;gap:8px;align-items:flex-start;"><span style="flex:1;"><strong>Depot</strong><br><select id="solution-depot" style="min-width:230px;margin-top:4px;"><option value="">All Depots</option></select><div style="font-size:10px;color:var(--text2);margin-top:3px;">Optional. When selected, every Solution Option will only use route templates whose starting/home depot matches this depot.</div></span></label>
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input id="solution-use-location-window" type="checkbox" style="margin-top:2px;accent-color:var(--accent);"><span><strong>Use Location Open/Close Window</strong><br><span style="font-size:10px;color:var(--text2);">For this Solution Options run, use the imported LocationWindowEarliestTime / LocationWindowLatestTime instead of the normal Activity delivery window when evaluating and sequencing stops. Imported windows are not changed.</span></span></label>
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input id="solution-remove-route-locks" type="checkbox" style="margin-top:2px;accent-color:var(--accent);"><span><strong>Remove Route Locks</strong><br><span style="font-size:10px;color:var(--text2);">Allow this optimization run to disregard imported Preferred Resource / route locks. Imported values are not deleted.</span></span></label>
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input id="solution-remove-sequence-locks" type="checkbox" style="margin-top:2px;accent-color:var(--accent);"><span><strong>Remove Sequence Lock</strong><br><span style="font-size:10px;color:var(--text2);">Allow this optimization run to disregard imported preferred route positions. Imported values are not deleted.</span></span></label>
     </div>
@@ -1401,9 +1402,17 @@ function durationToMinutes(value){
   // Smaller hand-entered values are treated as minutes.
   return n>300?n/60:n;
 }
+let solutionLocationWindowOverrideDepth=0;
+function withSolutionLocationWindows(opts,fn){
+  if(!opts?.useLocationWindows)return fn();
+  solutionLocationWindowOverrideDepth++;
+  try{return fn();}finally{solutionLocationWindowOverrideDepth=Math.max(0,solutionLocationWindowOverrideDepth-1);}
+}
 function windowStatusForStop(stop, arrive){
   if(!stop)return {status:'',label:'',waitMins:0,adjustedArrive:arrive};
-  const early=timeToMinutes(stop.earliestTimeWindow), late=timeToMinutes(stop.latestTimeWindow);
+  const useLocation=solutionLocationWindowOverrideDepth>0;
+  const early=timeToMinutes(useLocation?(stop.locationWindowEarliestTime||stop.earliestTimeWindow):stop.earliestTimeWindow);
+  const late=timeToMinutes(useLocation?(stop.locationWindowLatestTime||stop.latestTimeWindow):stop.latestTimeWindow);
   let adjusted=arrive, wait=0, status='OK', label='On Time';
   if(early===null&&late===null)return {status:'',label:'No Window',waitMins:0,adjustedArrive:arrive};
   // Overnight windows such as 21:00–10:00 span midnight. Early-morning
@@ -4595,13 +4604,13 @@ function maximizeRoutes(opts={}){
   const routeStopCount=r=>routeCustomerStops(r.id).length;
   const optimizeIfUseful=(routeId)=>{
     const geoCount=stops.filter(s=>s.routeId===routeId&&s.lat&&s.lng).length;
-    if(geoCount>=2)return optimizeRouteSequence(routeId,opts).ok;
+    if(geoCount>=2)return withSolutionLocationWindows(opts,()=>optimizeRouteSequence(routeId,opts).ok);
     if(geoCount===1){const one=stops.find(s=>s.routeId===routeId&&s.lat&&s.lng); if(one)one.seq=1;}
     return true;
   };
   const validAfterPlacement=(routeId)=>{
     optimizeIfUseful(routeId);
-    return routeWithinBasicLimits(routeId,opts.maxRunHours);
+    return withSolutionLocationWindows(opts,()=>routeWithinBasicLimits(routeId,opts.maxRunHours));
   };
   const canTryMove=(stop,fromRouteId,targetRoute)=>{
     if(!stop||!targetRoute)return false;
@@ -4758,6 +4767,7 @@ function solutionOptsFromModal(){
     respectResource:document.getElementById('solution-remove-route-locks')?.checked!==true,
     respectPosition:document.getElementById('solution-remove-sequence-locks')?.checked!==true,
     depotKey:normalizeKey(document.getElementById('solution-depot')?.value||''),
+    useLocationWindows:document.getElementById('solution-use-location-window')?.checked===true,
     keepRoutesCollapsed:true
   };
 }
@@ -4765,7 +4775,7 @@ function solutionSnapshot(stop){return {routeId:stop.routeId||null,seq:stop.seq|
 function solutionRestore(stop,snap){stop.routeId=snap.routeId;stop.seq=snap.seq;}
 function solutionOptimizeRoute(routeId,opts){
   const geo=stops.filter(s=>s.routeId===routeId&&s.lat&&s.lng).length;
-  if(geo>=2)return optimizeRouteSequence(routeId,opts).ok;
+  if(geo>=2)return withSolutionLocationWindows(opts,()=>optimizeRouteSequence(routeId,opts).ok);
   if(geo===1){const one=stops.find(s=>s.routeId===routeId&&s.lat&&s.lng);if(one)one.seq=1;}
   return true;
 }
@@ -4782,8 +4792,8 @@ function solutionTryPlace(stop,targetRoute,opts){
   stop.routeId=targetRoute.id;
   stop.seq=Math.max(0,...stops.filter(s=>s.routeId===targetRoute.id&&s.id!==stop.id).map(s=>s.seq||0))+1;
   solutionOptimizeRoute(targetRoute.id,opts);
-  const targetOk=routeWithinBasicLimits(targetRoute.id,opts.maxRunHours);
-  const sourceOk=snap.routeId?(solutionOptimizeRoute(snap.routeId,opts)&&routeWithinBasicLimits(snap.routeId,opts.maxRunHours)):true;
+  const targetOk=withSolutionLocationWindows(opts,()=>routeWithinBasicLimits(targetRoute.id,opts.maxRunHours));
+  const sourceOk=snap.routeId?(solutionOptimizeRoute(snap.routeId,opts)&&withSolutionLocationWindows(opts,()=>routeWithinBasicLimits(snap.routeId,opts.maxRunHours))):true;
   if(targetOk&&sourceOk){return true;}
   solutionRestore(stop,snap);affected.forEach(rid=>solutionOptimizeRoute(rid,opts));return false;
 }
@@ -4951,7 +4961,7 @@ function runMilesSolution(opts,title='Lowest Miles Solution'){
   const r=solutionPlaceUnassigned(ua,opts,'miles');const optimized=solutionOptimizeAll(opts);reseq();render();
   const used=routes.filter(route=>(!opts.depotKey||solutionRouteMatchesDepot(route,opts.depotKey))&&solutionCustomerStops().some(s=>s.routeId===route.id));
   const miles=used.reduce((a,route)=>a+routeDistanceMiles(route.id),0);
-  showJob('&#9889; '+title,`<strong>${r.placed}</strong> unassigned stop(s) placed<br/><strong>${optimized}</strong> active route(s) resequenced<br/><strong>${used.length}</strong> active route(s)<br/><strong>${miles.toFixed(1)}</strong> estimated total fleet miles<br/><strong>${r.failed.length}</strong> stop(s) remain unassigned because no feasible placement was found<br/><br/><strong>Route Locks:</strong> ${opts.respectResource?'ON':'REMOVED FOR THIS RUN'}<br/><strong>Sequence Locks:</strong> ${opts.respectPosition?'ON':'REMOVED FOR THIS RUN'}<br/><strong>Depot:</strong> ${opts.depotKey?escapeHtml(depotLabel(routeInitialDepot(routes.find(r=>solutionRouteMatchesDepot(r,opts.depotKey))),opts.depotKey))+' ('+escapeHtml(opts.depotKey)+')':'All Depots'}`);
+  showJob('&#9889; '+title,`<strong>${r.placed}</strong> unassigned stop(s) placed<br/><strong>${optimized}</strong> active route(s) resequenced<br/><strong>${used.length}</strong> active route(s)<br/><strong>${miles.toFixed(1)}</strong> estimated total fleet miles<br/><strong>${r.failed.length}</strong> stop(s) remain unassigned because no feasible placement was found<br/><br/><strong>Route Locks:</strong> ${opts.respectResource?'ON':'REMOVED FOR THIS RUN'}<br/><strong>Sequence Locks:</strong> ${opts.respectPosition?'ON':'REMOVED FOR THIS RUN'}<br/><strong>Depot:</strong> ${opts.depotKey?escapeHtml(depotLabel(routeInitialDepot(routes.find(r=>solutionRouteMatchesDepot(r,opts.depotKey))),opts.depotKey))+' ('+escapeHtml(opts.depotKey)+')':'All Depots'}<br/><strong>Time Windows:</strong> ${opts.useLocationWindows?'Location Open/Close':'Activity Delivery'}`);
 }
 function runBalancedSolution(opts){
   // First place work by lowest incremental miles, then use the existing consolidation engine
