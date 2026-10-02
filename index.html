@@ -950,8 +950,8 @@ body{background:var(--bg0);color:var(--text1);}
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="balanced" checked onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span><strong>Balanced Solution</strong><br><span style="font-size:10px;color:var(--text2);">Balance fleet miles, route consolidation and delivery-window performance.</span></span></label>
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="miles" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span><strong>Lowest Miles</strong><br><span style="font-size:10px;color:var(--text2);">Emphasize the lowest practical total fleet mileage while keeping routes feasible.</span></span></label>
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="routes" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span style="flex:1;"><strong>Route Count</strong><br><span style="font-size:10px;color:var(--text2);">Consolidate work onto fewer routes. Optionally enter the number of routes you are hoping to use.</span><div id="solution-target-wrap" style="display:none;margin-top:7px;"><label style="font-size:10px;color:var(--text2);">Target Routes&nbsp; <input id="solution-target-routes" type="number" min="1" step="1" placeholder="Optional" style="width:90px;"></label><div style="margin-top:6px;"><label style="font-size:10px;color:var(--text2);">Max Run Time (Hours)&nbsp; <input id="solution-route-max-hours" type="number" min="0.25" step="0.25" placeholder="Optional" style="width:90px;"></label></div></div></span></label>
-      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="load" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span style="flex:1;"><strong>Load Priority</strong><br><span style="font-size:10px;color:var(--text2);">Prioritize larger customer loads by consolidated case count, routing customers at or above the selected minimum first.</span><div id="solution-load-wrap" style="display:none;margin-top:7px;"><label style="font-size:10px;color:var(--text2);">Minimum Cases&nbsp; <input id="solution-load-min-cases" type="number" min="1" step="1" placeholder="Required" style="width:90px;"></label><div style="margin-top:7px;"><label style="font-size:10px;color:var(--text2);">How Many Drivers?&nbsp; <input id="solution-load-driver-cap" type="number" min="1" step="1" placeholder="Optional" style="width:90px;"></label></div><div style="margin-top:7px;"><label style="font-size:10px;color:var(--text2);">Max Run Time (Hours)&nbsp; <input id="solution-load-max-hours" type="number" min="0.25" step="0.25" placeholder="Optional" style="width:90px;"></label></div><div style="font-size:9px;color:var(--text2);margin-top:4px;">Qualifying customers are attempted from highest to lowest case count. Driver count caps the active routes used by this job.</div></div></span></label>
-      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="priority" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span style="flex:1;"><strong>Priority Routing</strong><br><span style="font-size:10px;color:var(--text2);">Build and clean Priority 1 routes first. Review that network before allowing Priority 2, Priority 3, or blank wildcard stops onto it.</span><div id="solution-driver-wrap" style="display:none;margin-top:7px;"><label style="font-size:10px;color:var(--text2);">How Many Drivers?&nbsp; <input id="solution-driver-cap" type="number" min="1" step="1" placeholder="Optional" style="width:90px;"></label><div style="font-size:9px;color:var(--text2);margin-top:3px;">Optional maximum number of routes available for the entire staged Priority session.</div><div style="margin-top:8px;"><label style="font-size:10px;color:var(--text2);">Max Run Time (Hours)&nbsp; <input id="solution-priority-max-hours" type="number" min="0.25" step="0.25" placeholder="Optional" style="width:90px;"></label><div style="font-size:9px;color:var(--text2);margin-top:3px;">Optional hard maximum run time for routes built during this staged Priority session.</div></div></div></span></label>
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="load" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span style="flex:1;"><strong>Load Priority</strong><br><span style="font-size:10px;color:var(--text2);">Prioritize larger customer loads by consolidated case count, routing customers at or above the selected minimum first.</span><div id="solution-load-wrap" style="display:none;margin-top:7px;"><label style="font-size:10px;color:var(--text2);">Minimum Cases&nbsp; <input id="solution-load-min-cases" type="number" min="1" step="1" placeholder="Required" style="width:90px;"></label><div style="margin-top:7px;"><label style="font-size:10px;color:var(--text2);">Priority&nbsp; <input id="solution-load-priority" type="number" min="1" max="3" step="1" placeholder="Optional" oninput="syncLoadSolutionFilter('priority')" style="width:90px;"></label></div><div style="margin-top:7px;"><label style="font-size:10px;color:var(--text2);">Active Tier&nbsp; <select id="solution-load-tier" onchange="syncLoadSolutionFilter('tier')" style="min-width:145px;"><option value="">All Tiers</option></select></label><div style="font-size:9px;color:var(--text2);margin-top:3px;">Optional. Use either Priority or Active Tier to narrow this Load Priority run. Selecting one clears the other.</div></div><div style="margin-top:7px;"><label style="font-size:10px;color:var(--text2);">How Many Drivers?&nbsp; <input id="solution-load-driver-cap" type="number" min="1" step="1" placeholder="Optional" style="width:90px;"></label></div><div style="margin-top:7px;"><label style="font-size:10px;color:var(--text2);">Max Run Time (Hours)&nbsp; <input id="solution-load-max-hours" type="number" min="0.25" step="0.25" placeholder="Optional" style="width:90px;"></label></div><div style="font-size:9px;color:var(--text2);margin-top:4px;">Qualifying customers are attempted from highest to lowest case count. Driver count caps the active routes used by this job.</div></div></span></label>
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input type="radio" name="solution-mode" value="priority" onchange="updateSolutionOptionsUI()" style="margin-top:3px;accent-color:var(--accent);"><span style="flex:1;"><strong>Priority Routing</strong><br><span style="font-size:10px;color:var(--text2);">Build and clean Priority 1 routes first. Review that network before allowing Priority 2, Priority 3, or blank wildcard stops onto it.</span><div id="solution-driver-wrap" style="display:none;margin-top:7px;"><label style="font-size:10px;color:var(--text2);">Active Tier&nbsp; <select id="solution-priority-tier" style="min-width:145px;"><option value="">All Tiers</option></select></label><div style="font-size:9px;color:var(--text2);margin-top:3px;">Optional. Limit the staged Priority 1 → 2 → 3 routing population to customers in the selected Active Tier.</div><div style="margin-top:8px;"><label style="font-size:10px;color:var(--text2);">How Many Drivers?&nbsp; <input id="solution-driver-cap" type="number" min="1" step="1" placeholder="Optional" style="width:90px;"></label><div style="font-size:9px;color:var(--text2);margin-top:3px;">Optional maximum number of routes available for the entire staged Priority session.</div></div><div style="margin-top:8px;"><label style="font-size:10px;color:var(--text2);">Max Run Time (Hours)&nbsp; <input id="solution-priority-max-hours" type="number" min="0.25" step="0.25" placeholder="Optional" style="width:90px;"></label><div style="font-size:9px;color:var(--text2);margin-top:3px;">Optional hard maximum run time for routes built during this staged Priority session.</div></div></div></span></label>
     </div>
     <div class="shdr" style="margin-top:14px;">Routing Restrictions</div>
     <div style="display:grid;gap:9px;margin-top:8px;">
@@ -4724,6 +4724,35 @@ function solutionPriority(stop){
   (Array.isArray(stop?.orders)?stop.orders:[]).forEach(o=>{const p=parseInt(o?.priority,10);if([1,2,3].includes(p))values.push(p);});
   return values.length?Math.min(...values):0;
 }
+function solutionTierValues(stop){
+  const values=[];
+  const add=v=>{const t=String(v??'').trim();if(t&&!values.some(x=>x.toLowerCase()===t.toLowerCase()))values.push(t);};
+  add(stop?.activeTier);
+  (Array.isArray(stop?.orders)?stop.orders:[]).forEach(o=>add(o?.activeTier));
+  return values;
+}
+function solutionTierMatches(stop,tier){
+  const wanted=String(tier??'').trim().toLowerCase();
+  if(!wanted)return true;
+  return solutionTierValues(stop).some(v=>v.toLowerCase()===wanted);
+}
+function populateSolutionTiers(){
+  const values=[];
+  solutionCustomerStops().forEach(s=>solutionTierValues(s).forEach(v=>{if(!values.some(x=>x.toLowerCase()===v.toLowerCase()))values.push(v);}));
+  values.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'}));
+  ['solution-load-tier','solution-priority-tier'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const previous=sel.value;
+    sel.innerHTML='<option value="">All Tiers</option>'+values.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    if(values.some(v=>v===previous))sel.value=previous;
+  });
+}
+function syncLoadSolutionFilter(source){
+  const p=document.getElementById('solution-load-priority');
+  const t=document.getElementById('solution-load-tier');
+  if(source==='priority'&&p&&String(p.value||'').trim()&&t)t.value='';
+  if(source==='tier'&&t&&String(t.value||'').trim()&&p)p.value='';
+}
 function solutionCustomerStops(){return stops.filter(s=>!scenarioIsDepotStop(s));}
 function solutionPriorityCounts(){
   const c={1:0,2:0,3:0,none:0};
@@ -4736,6 +4765,7 @@ function openSolutionOptions(){
   const el=document.getElementById('solution-priority-summary');
   if(el)el.innerHTML=`Imported population: <strong>P1 ${c[1]}</strong> &middot; <strong>P2 ${c[2]}</strong> &middot; <strong>P3 ${c[3]}</strong> &middot; No Priority ${c.none}`;
   populateSolutionDepots();
+  populateSolutionTiers();
   updateSolutionOptionsUI();
   document.getElementById('solution-options-modal').style.display='flex';
 }
@@ -4818,7 +4848,7 @@ let priorityRoutingSession=null;
 function priorityActiveRouteIds(){
   return new Set(routes.filter(r=>solutionCustomerStops().some(s=>s.routeId===r.id)).map(r=>r.id));
 }
-function priorityStageStops(level){return solutionCustomerStops().filter(s=>solutionPriority(s)===level);}
+function priorityStageStops(level,tierFilter=''){return solutionCustomerStops().filter(s=>solutionPriority(s)===level&&solutionTierMatches(s,tierFilter));}
 function priorityRouteSummary(){
   const active=routes.filter(r=>solutionCustomerStops().some(s=>s.routeId===r.id));
   return {active,miles:active.reduce((n,r)=>n+routeDistanceMiles(r.id),0)};
@@ -4834,7 +4864,7 @@ function priorityCandidateRoutes(stop,opts,driverCap,protectedRoutes,depotKey=''
     .sort((a,b)=>(optimizerRouteTier(a.route)-optimizerRouteTier(b.route))||(b.active-a.active)||(a.delta-b.delta)||(b.load-a.load));
 }
 function priorityPlaceStage(level,session){
-  const pool=priorityStageStops(level).filter(s=>!s.routeId).sort((a,b)=>(tCube(b)-tCube(a))||(tCases(b)-tCases(a)));
+  const pool=priorityStageStops(level,session.tierFilter).filter(s=>!s.routeId).sort((a,b)=>(tCube(b)-tCube(a))||(tCases(b)-tCases(a)));
   let placed=0;const failed=[];
   for(const stop of pool){
     let ok=false;
@@ -4849,6 +4879,7 @@ function priorityPlaceStage(level,session){
 }
 function priorityProtectThrough(level,session){
   for(const s of solutionCustomerStops()){
+    if(!solutionTierMatches(s,session.tierFilter))continue;
     const p=solutionPriority(s);
     if(p&&p<=level&&s.routeId)session.protectedRouteByStop.set(s.id,s.routeId);
   }
@@ -4859,12 +4890,14 @@ function priorityProtectionIntact(session){
   }
   return true;
 }
-function priorityUnassignLowerThan(level){
-  solutionCustomerStops().forEach(s=>{const p=solutionPriority(s);if(p===0||p>level){s.routeId=null;s.seq=0;}});
+function priorityUnassignLowerThan(level,tierFilter=''){
+  solutionCustomerStops().forEach(s=>{if(!solutionTierMatches(s,tierFilter))return;const p=solutionPriority(s);if(p===0||p>level){s.routeId=null;s.seq=0;}});
 }
 function priorityStageMetrics(level,failed=[]){
-  const c=solutionPriorityCounts();const total=level===0?c.none:c[level];
-  const routed=solutionCustomerStops().filter(s=>s.routeId&&solutionPriority(s)===level).length;
+  const session=priorityRoutingSession;
+  const stage=priorityStageStops(level,session?.tierFilter||'');
+  const total=stage.length;
+  const routed=stage.filter(s=>s.routeId).length;
   const rs=priorityRouteSummary();
   return {total,routed,failed,active:rs.active.length,miles:rs.miles};
 }
@@ -4877,14 +4910,16 @@ function showPriorityCheckpoint(level,failed=[]){
   const failures=failed.slice(0,8).map(s=>escapeHtml(s.customerName||s.locationKey||s.orderNumber||'Stop')).join(', ');
   const complete=m.routed===m.total;
   // Display-only cleanup: after each Priority stage, show only that stage's qualifying stops that remain unassigned.
-  const actionStops=priorityStageStops(level).filter(s=>!s.routeId);
-  setSolutionUnassignedViewFilter(label,actionStops);
+  const actionStops=priorityStageStops(level,session.tierFilter).filter(s=>!s.routeId);
+  setSolutionUnassignedViewFilter(`${label}${session.tierFilter?` | Tier ${session.tierFilter}`:''}`,actionStops);
   document.getElementById('job-title').innerHTML=`&#9889; ${label} Routing ${complete?'Complete':'Review Required'}`;
   document.getElementById('job-body').innerHTML=`<div class="job-result">
     <strong>${label}:</strong> ${m.routed}/${m.total} routed${complete?' (100%)':' — ATTENTION REQUIRED'}<br/>
     <strong>Drivers / Active Routes:</strong> ${cap}<br/>
     <strong>Estimated Fleet Miles:</strong> ${m.miles.toFixed(1)}<br/>
-    <strong>Depot:</strong> ${session.depotKey?escapeHtml(depotLabel(findDepotByKey(session.depotKey),session.depotKey))+' ('+escapeHtml(session.depotKey)+')':'All Depots'}<br/>    <strong>Max Run Time:</strong> ${session.opts.maxRunHours?session.opts.maxRunHours+' hrs':'Existing route limits'}<br/>
+    <strong>Depot:</strong> ${session.depotKey?escapeHtml(depotLabel(findDepotByKey(session.depotKey),session.depotKey))+' ('+escapeHtml(session.depotKey)+')':'All Depots'}<br/>
+    <strong>Active Tier:</strong> ${session.tierFilter?escapeHtml(session.tierFilter):'All Tiers'}<br/>
+    <strong>Max Run Time:</strong> ${session.opts.maxRunHours?session.opts.maxRunHours+' hrs':'Existing route limits'}<br/>
 
     <strong>Route Locks:</strong> ${session.opts.respectResource?'ON':'REMOVED FOR THIS RUN'}<br/>
     <strong>Sequence Locks:</strong> ${session.opts.respectPosition?'ON':'REMOVED FOR THIS RUN'}
@@ -4893,17 +4928,17 @@ function showPriorityCheckpoint(level,failed=[]){
   </div>`;
   document.getElementById('job-modal').style.display='flex';
 }
-function runPrioritySolution(opts,driverCap=0,depotKey=''){
-  priorityUnassignLowerThan(1);
+function runPrioritySolution(opts,driverCap=0,depotKey='',tierFilter=''){
+  priorityUnassignLowerThan(1,tierFilter);
   if(depotKey){
-    priorityStageStops(1).forEach(s=>{
+    priorityStageStops(1,tierFilter).forEach(s=>{
       if(!s.routeId)return;
       const r=routes.find(x=>x.id===s.routeId);
       if(!r||!solutionRouteMatchesDepot(r,depotKey)){s.routeId=null;s.seq=0;}
     });
   }
-  priorityRoutingSession={opts,driverCap,depotKey:normalizeKey(depotKey),protectedRouteByStop:new Map(),protectedRoutes:new Set(),currentLevel:1};
-  const alreadyP1Routes=new Set(priorityStageStops(1).filter(s=>s.routeId).map(s=>s.routeId));
+  priorityRoutingSession={opts,driverCap,depotKey:normalizeKey(depotKey),tierFilter:String(tierFilter||'').trim(),protectedRouteByStop:new Map(),protectedRoutes:new Set(),currentLevel:1};
+  const alreadyP1Routes=new Set(priorityStageStops(1,tierFilter).filter(s=>s.routeId).map(s=>s.routeId));
   if(driverCap&&alreadyP1Routes.size>driverCap){
     showJob('&#9889; Priority 1 Routing Review',`<strong>Driver cap:</strong> ${driverCap}<br/><strong>Routes already containing Priority 1:</strong> ${alreadyP1Routes.size}<br/><br/>The current Priority 1 assignments already exceed the driver cap. Increase the driver count or adjust the existing Priority 1 assignments before running this job.`);return;
   }
@@ -4923,8 +4958,8 @@ function continuePriorityRouting(level){
 function finishPriorityRouting(){
   priorityRoutingSession=null;closeModal('job-modal');showToast('Priority routing solution kept');
 }
-function runLoadPrioritySolution(opts,minCases,driverCap=0){
-  const qualifying=solutionCustomerStops().filter(s=>tCases(s)>=minCases).sort((a,b)=>(tCases(b)-tCases(a))||(tCube(b)-tCube(a)));
+function runLoadPrioritySolution(opts,minCases,driverCap=0,priorityFilter=0,tierFilter=''){
+  const qualifying=solutionCustomerStops().filter(s=>tCases(s)>=minCases&&(!priorityFilter||solutionPriority(s)===priorityFilter)&&solutionTierMatches(s,tierFilter)).sort((a,b)=>(tCases(b)-tCases(a))||(tCube(b)-tCube(a)));
   const qualifyingIds=new Set(qualifying.map(s=>s.id));
   // Load Priority owns the qualifying population first. Non-qualifying unassigned work is not pulled in by this job.
   const active=()=>new Set(routes.filter(r=>(!opts.depotKey||solutionRouteMatchesDepot(r,opts.depotKey))&&solutionCustomerStops().some(s=>s.routeId===r.id)).map(r=>r.id));
@@ -4948,12 +4983,12 @@ function runLoadPrioritySolution(opts,minCases,driverCap=0){
   }
   solutionOptimizeAll(opts);reseq();render();
   // Display-only cleanup: show only qualifying Load Priority customers that remain unassigned.
-  setSolutionUnassignedViewFilter(`Load Priority ≥ ${minCases} cases`,qualifying.filter(s=>!s.routeId));
+  setSolutionUnassignedViewFilter(`Load Priority ≥ ${minCases} cases${priorityFilter?` | Priority ${priorityFilter}`:''}${tierFilter?` | Tier ${tierFilter}`:''}`,qualifying.filter(s=>!s.routeId));
   const routed=qualifying.filter(s=>s.routeId).length;
   const activeRoutes=routes.filter(r=>(!opts.depotKey||solutionRouteMatchesDepot(r,opts.depotKey))&&solutionCustomerStops().some(s=>s.routeId===r.id));
   const miles=activeRoutes.reduce((n,r)=>n+routeDistanceMiles(r.id),0);
   const failureNames=failed.slice(0,8).map(s=>`${escapeHtml(s.customerName||s.locationKey||s.orderNumber||'Stop')} (${Math.round(tCases(s))} cs)`).join(', ');
-  showJob('&#9889; Load Priority Solution',`<strong>Minimum Cases:</strong> ${minCases}<br/><strong>Qualifying Customers:</strong> ${qualifying.length}<br/><strong>Qualifying Routed:</strong> ${routed}/${qualifying.length}<br/><strong>Drivers / Active Routes:</strong> ${driverCap?activeRoutes.length+'/'+driverCap:activeRoutes.length}<br/><strong>Max Run Time:</strong> ${opts.maxRunHours?opts.maxRunHours+' hrs':'Existing route limits'}<br/><strong>Estimated Fleet Miles:</strong> ${miles.toFixed(1)}<br/><strong>Route Locks:</strong> ${opts.respectResource?'ON':'REMOVED FOR THIS RUN'}<br/><strong>Sequence Locks:</strong> ${opts.respectPosition?'ON':'REMOVED FOR THIS RUN'}${failed.length?`<br/><br/><strong>${failed.length} qualifying customer(s) could not be placed within the active constraints.</strong>${failureNames?'<br/>'+failureNames+(failed.length>8?'...':''):''}`:''}`);
+  showJob('&#9889; Load Priority Solution',`<strong>Minimum Cases:</strong> ${minCases}<br/><strong>Priority Filter:</strong> ${priorityFilter?priorityFilter:'All Eligible Priorities'}<br/><strong>Active Tier:</strong> ${tierFilter?escapeHtml(tierFilter):'All Tiers'}<br/><strong>Qualifying Customers:</strong> ${qualifying.length}<br/><strong>Qualifying Routed:</strong> ${routed}/${qualifying.length}<br/><strong>Drivers / Active Routes:</strong> ${driverCap?activeRoutes.length+'/'+driverCap:activeRoutes.length}<br/><strong>Max Run Time:</strong> ${opts.maxRunHours?opts.maxRunHours+' hrs':'Existing route limits'}<br/><strong>Estimated Fleet Miles:</strong> ${miles.toFixed(1)}<br/><strong>Route Locks:</strong> ${opts.respectResource?'ON':'REMOVED FOR THIS RUN'}<br/><strong>Sequence Locks:</strong> ${opts.respectPosition?'ON':'REMOVED FOR THIS RUN'}${failed.length?`<br/><br/><strong>${failed.length} qualifying customer(s) could not be placed within the active constraints.</strong>${failureNames?'<br/>'+failureNames+(failed.length>8?'...':''):''}`:''}`);
 }
 
 function runMilesSolution(opts,title='Lowest Miles Solution'){
@@ -4977,6 +5012,10 @@ function runSolutionOptions(){
   const routeMaxHours=Math.max(0,parseFloat(document.getElementById('solution-route-max-hours')?.value)||0);
   const priorityMaxHours=Math.max(0,parseFloat(document.getElementById('solution-priority-max-hours')?.value)||0);
   const loadMinCases=Math.max(0,parseFloat(document.getElementById('solution-load-min-cases')?.value)||0);
+  const loadPriorityRaw=(document.getElementById('solution-load-priority')?.value||'').trim();
+  const loadPriorityFilter=loadPriorityRaw===''?0:parseInt(loadPriorityRaw,10);
+  const loadTierFilter=(document.getElementById('solution-load-tier')?.value||'').trim();
+  const priorityTierFilter=(document.getElementById('solution-priority-tier')?.value||'').trim();
   const loadDriverCap=Math.max(0,parseInt(document.getElementById('solution-load-driver-cap')?.value,10)||0);
   const loadMaxHours=Math.max(0,parseFloat(document.getElementById('solution-load-max-hours')?.value)||0);
   const depotKey=opts.depotKey||'';
@@ -4984,14 +5023,15 @@ function runSolutionOptions(){
   if(depotKey&&!eligibleRoutes.length){showToast('No imported route templates start from the selected depot');return;}
   if(mode==='routes'&&target>eligibleRoutes.length){showToast(`Target cannot exceed the ${eligibleRoutes.length} route template(s) available for the selected depot`);return;}
   if(mode==='load'&&!loadMinCases){showToast('Enter the minimum case count for Load Priority');return;}
+  if(mode==='load'&&loadPriorityRaw!==''&&![1,2,3].includes(loadPriorityFilter)){showToast('Load Priority customer priority must be 1, 2, 3, or blank');return;}
   if(mode==='load'&&loadDriverCap>eligibleRoutes.length){showToast(`Driver cap cannot exceed the ${eligibleRoutes.length} route template(s) available for the selected depot`);return;}
   closeModal('solution-options-modal');
   if(mode!=='load'&&mode!=='priority')solutionUnassignedViewFilter=null;
-  if(mode==='load'){runLoadPrioritySolution({...opts,maxRunHours:loadMaxHours},loadMinCases,loadDriverCap);return;}
+  if(mode==='load'){runLoadPrioritySolution({...opts,maxRunHours:loadMaxHours},loadMinCases,loadDriverCap,loadPriorityFilter,loadTierFilter);return;}
   if(mode==='priority'){
     const driverCap=Math.max(0,parseInt(document.getElementById('solution-driver-cap')?.value,10)||0);
     if(driverCap>eligibleRoutes.length){showToast(`Driver cap cannot exceed the ${eligibleRoutes.length} route template(s) available for the selected depot`);return;}
-    runPrioritySolution({...opts,maxRunHours:priorityMaxHours},driverCap,depotKey);return;
+    runPrioritySolution({...opts,maxRunHours:priorityMaxHours},driverCap,depotKey,priorityTierFilter);return;
   }
   if(mode==='routes'){maximizeRoutes({...opts,targetRoutes:target,maxRunHours:routeMaxHours});return;}
   if(mode==='miles'){runMilesSolution(opts);return;}
