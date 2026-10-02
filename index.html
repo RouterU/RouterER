@@ -957,6 +957,7 @@ body{background:var(--bg0);color:var(--text1);}
     <div style="display:grid;gap:9px;margin-top:8px;">
       <label style="display:flex;gap:8px;align-items:flex-start;"><span style="flex:1;"><strong>Depot</strong><br><select id="solution-depot" style="min-width:230px;margin-top:4px;"><option value="">All Depots</option></select><div style="font-size:10px;color:var(--text2);margin-top:3px;">Optional. When selected, every Solution Option will only use route templates whose starting/home depot matches this depot.</div></span></label>
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input id="solution-use-location-window" type="checkbox" style="margin-top:2px;accent-color:var(--accent);"><span><strong>Use Location Open/Close Window</strong><br><span style="font-size:10px;color:var(--text2);">For this Solution Options run, use the imported LocationWindowEarliestTime / LocationWindowLatestTime instead of the normal Activity delivery window when evaluating and sequencing stops. Imported windows are not changed.</span></span></label>
+      <label style="display:flex;gap:8px;align-items:flex-start;"><span style="flex:1;"><strong>Max Wait Time (Minutes)</strong><br><input id="solution-max-wait-minutes" type="number" min="0" step="1" placeholder="Optional" style="width:100px;margin-top:4px;"><div style="font-size:10px;color:var(--text2);margin-top:3px;">Optional. Reject a proposed stop placement when the route would require the driver to wait longer than this limit at any customer. Leave blank for no additional wait-time limit.</div></span></label>
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input id="solution-remove-route-locks" type="checkbox" style="margin-top:2px;accent-color:var(--accent);"><span><strong>Remove Route Locks</strong><br><span style="font-size:10px;color:var(--text2);">Allow this optimization run to disregard imported Preferred Resource / route locks. Imported values are not deleted.</span></span></label>
       <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;"><input id="solution-remove-sequence-locks" type="checkbox" style="margin-top:2px;accent-color:var(--accent);"><span><strong>Remove Sequence Lock</strong><br><span style="font-size:10px;color:var(--text2);">Allow this optimization run to disregard imported preferred route positions. Imported values are not deleted.</span></span></label>
     </div>
@@ -4590,6 +4591,17 @@ function routeWithinBasicLimits(routeId,maxRunHours=0){
   const lateStops=routeTimelineRows(routeId).filter(r=>r.twStatus==='LATE').length;
   return lateStops===0;
 }
+function solutionRouteWithinLimits(routeId,opts={}){
+  return withSolutionLocationWindows(opts,()=>{
+    if(!routeWithinBasicLimits(routeId,opts.maxRunHours))return false;
+    const maxWait=Math.max(0,parseFloat(opts.maxWaitMinutes)||0);
+    if(maxWait>0){
+      const excessiveWait=routeTimelineRows(routeId).some(row=>row.type==='stop'&&((parseFloat(row.waitMins)||0)>maxWait+0.001));
+      if(excessiveWait)return false;
+    }
+    return true;
+  });
+}
 function maximizeRoutes(opts={}){
   if(!routes.length){showToast('No routes available to maximize');return;}
   opts={...opts,keepRoutesCollapsed:true};
@@ -4610,7 +4622,7 @@ function maximizeRoutes(opts={}){
   };
   const validAfterPlacement=(routeId)=>{
     optimizeIfUseful(routeId);
-    return withSolutionLocationWindows(opts,()=>routeWithinBasicLimits(routeId,opts.maxRunHours));
+    return opts.solutionOptionsRun?solutionRouteWithinLimits(routeId,opts):withSolutionLocationWindows(opts,()=>routeWithinBasicLimits(routeId,opts.maxRunHours));
   };
   const canTryMove=(stop,fromRouteId,targetRoute)=>{
     if(!stop||!targetRoute)return false;
@@ -4798,6 +4810,8 @@ function solutionOptsFromModal(){
     respectPosition:document.getElementById('solution-remove-sequence-locks')?.checked!==true,
     depotKey:normalizeKey(document.getElementById('solution-depot')?.value||''),
     useLocationWindows:document.getElementById('solution-use-location-window')?.checked===true,
+    maxWaitMinutes:Math.max(0,parseFloat(document.getElementById('solution-max-wait-minutes')?.value)||0),
+    solutionOptionsRun:true,
     keepRoutesCollapsed:true
   };
 }
@@ -4822,8 +4836,8 @@ function solutionTryPlace(stop,targetRoute,opts){
   stop.routeId=targetRoute.id;
   stop.seq=Math.max(0,...stops.filter(s=>s.routeId===targetRoute.id&&s.id!==stop.id).map(s=>s.seq||0))+1;
   solutionOptimizeRoute(targetRoute.id,opts);
-  const targetOk=withSolutionLocationWindows(opts,()=>routeWithinBasicLimits(targetRoute.id,opts.maxRunHours));
-  const sourceOk=snap.routeId?(solutionOptimizeRoute(snap.routeId,opts)&&withSolutionLocationWindows(opts,()=>routeWithinBasicLimits(snap.routeId,opts.maxRunHours))):true;
+  const targetOk=solutionRouteWithinLimits(targetRoute.id,opts);
+  const sourceOk=snap.routeId?(solutionOptimizeRoute(snap.routeId,opts)&&solutionRouteWithinLimits(snap.routeId,opts)):true;
   if(targetOk&&sourceOk){return true;}
   solutionRestore(stop,snap);affected.forEach(rid=>solutionOptimizeRoute(rid,opts));return false;
 }
@@ -4967,7 +4981,7 @@ function runLoadPrioritySolution(opts,minCases,driverCap=0,priorityFilter=0,tier
   for(const stop of qualifying){
     if(stop.routeId){
       const rid=stop.routeId;
-      if(routeWithinBasicLimits(rid,opts.maxRunHours))continue;
+      if(solutionRouteWithinLimits(rid,opts))continue;
       stop.routeId=null;stop.seq=0;
     }
     const activeIds=active();
