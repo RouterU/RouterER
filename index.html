@@ -4551,7 +4551,12 @@ function optimizeRouteSequence(routeId,opts={}){
       const early=timeToMinutes(stop.earliestTimeWindow);
       let score=miles;
       if(latest!==null&&arriveEstimate>latest)score+=10000+(arriveEstimate-latest)*10;
-      if(early!==null&&arriveEstimate<early)score+=(early-arriveEstimate)/60;
+      if(early!==null&&arriveEstimate<early){
+        const idleWait=early-arriveEstimate;
+        const hasWaitLimit=opts.maxWaitMinutes!==null&&opts.maxWaitMinutes!==undefined&&opts.maxWaitMinutes!==''&&Number.isFinite(Number(opts.maxWaitMinutes));
+        if(hasWaitLimit&&idleWait>Math.max(0,Number(opts.maxWaitMinutes))+0.001)score+=1000000+idleWait*100;
+        else score+=idleWait/60;
+      }
       if(opts.respectResource&&!preferredResourceMatchesRoute(stop,route))score+=5000;
       if(score<bestScore){bestScore=score;bestIndex=index;}
     });
@@ -4591,12 +4596,21 @@ function routeWithinBasicLimits(routeId,maxRunHours=0){
   const lateStops=routeTimelineRows(routeId).filter(r=>r.twStatus==='LATE').length;
   return lateStops===0;
 }
+function solutionStopIdleWaitMinutes(row){
+  if(!row||row.type!=='stop')return 0;
+  const raw=Number(row.rawArrive), serviceStart=Number(row.arrive);
+  if(!Number.isFinite(raw)||!Number.isFinite(serviceStart))return 0;
+  // Idle wait only: time between physical arrival and when service can begin.
+  // Service duration is deliberately NOT part of this calculation.
+  return Math.max(0,serviceStart-raw);
+}
 function solutionRouteWithinLimits(routeId,opts={}){
   return withSolutionLocationWindows(opts,()=>{
     if(!routeWithinBasicLimits(routeId,opts.maxRunHours))return false;
-    const maxWait=Math.max(0,parseFloat(opts.maxWaitMinutes)||0);
-    if(maxWait>0){
-      const excessiveWait=routeTimelineRows(routeId).some(row=>row.type==='stop'&&((parseFloat(row.waitMins)||0)>maxWait+0.001));
+    const hasWaitLimit=opts.maxWaitMinutes!==null&&opts.maxWaitMinutes!==undefined&&opts.maxWaitMinutes!==''&&Number.isFinite(Number(opts.maxWaitMinutes));
+    if(hasWaitLimit){
+      const maxWait=Math.max(0,Number(opts.maxWaitMinutes));
+      const excessiveWait=routeTimelineRows(routeId).some(row=>row.type==='stop'&&solutionStopIdleWaitMinutes(row)>maxWait+0.001);
       if(excessiveWait)return false;
     }
     return true;
@@ -4810,7 +4824,7 @@ function solutionOptsFromModal(){
     respectPosition:document.getElementById('solution-remove-sequence-locks')?.checked!==true,
     depotKey:normalizeKey(document.getElementById('solution-depot')?.value||''),
     useLocationWindows:document.getElementById('solution-use-location-window')?.checked===true,
-    maxWaitMinutes:Math.max(0,parseFloat(document.getElementById('solution-max-wait-minutes')?.value)||0),
+    maxWaitMinutes:(()=>{const raw=(document.getElementById('solution-max-wait-minutes')?.value||'').trim();return raw===''?null:Math.max(0,parseFloat(raw)||0);})(),
     solutionOptionsRun:true,
     keepRoutesCollapsed:true
   };
@@ -4857,7 +4871,20 @@ function solutionPlaceUnassigned(list,opts,objective='miles'){
   });
   return {placed,failed};
 }
-function solutionOptimizeAll(opts){let n=0;routes.forEach(r=>{if(opts.depotKey&&!solutionRouteMatchesDepot(r,opts.depotKey))return;if(stops.some(s=>s.routeId===r.id&&!scenarioIsDepotStop(s))&&solutionOptimizeRoute(r.id,opts))n++;});return n;}
+function solutionOptimizeAll(opts){
+  let n=0;
+  routes.forEach(r=>{
+    if(opts.depotKey&&!solutionRouteMatchesDepot(r,opts.depotKey))return;
+    const routeStops=stops.filter(s=>s.routeId===r.id&&!scenarioIsDepotStop(s));
+    if(!routeStops.length)return;
+    const seqSnapshot=routeStops.map(s=>({id:s.id,seq:s.seq}));
+    const optimized=solutionOptimizeRoute(r.id,opts);
+    if(optimized&&solutionRouteWithinLimits(r.id,opts)){n++;return;}
+    // Never let a cleanup/resequence pass reintroduce a Solution Options violation.
+    seqSnapshot.forEach(x=>{const stop=stops.find(s=>s.id===x.id);if(stop)stop.seq=x.seq;});
+  });
+  return n;
+}
 let priorityRoutingSession=null;
 function priorityActiveRouteIds(){
   return new Set(routes.filter(r=>solutionCustomerStops().some(s=>s.routeId===r.id)).map(r=>r.id));
