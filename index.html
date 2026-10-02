@@ -4975,8 +4975,14 @@ function priorityProtectionIntact(session){
   }
   return true;
 }
-function priorityUnassignLowerThan(level,tierFilter=''){
-  solutionCustomerStops().forEach(s=>{if(!solutionTierMatches(s,tierFilter))return;const p=solutionPriority(s);if(p===0||p>level){s.routeId=null;s.seq=0;}});
+function priorityUnassignLowerThan(level,tierFilter='',opts={}){
+  solutionCustomerStops().forEach(s=>{
+    if(!solutionTierMatches(s,tierFilter))return;
+    // Scenario 2 protects every stop that was assigned at the instant Build Solution was clicked.
+    // Those baseline assignments are never cleared by Priority Routing cleanup logic.
+    if(!solutionScenarioStopMovable(s,opts))return;
+    const p=solutionPriority(s);if(p===0||p>level){s.routeId=null;s.seq=0;}
+  });
 }
 function priorityStageMetrics(level,failed=[]){
   const session=priorityRoutingSession;
@@ -5015,7 +5021,7 @@ function showPriorityCheckpoint(level,failed=[]){
 }
 function runPrioritySolution(opts,driverCap=0,depotKey='',tierFilter=''){
   const startLevel=[1,2,3].includes(parseInt(opts.priorityStartLevel,10))?parseInt(opts.priorityStartLevel,10):1;
-  priorityUnassignLowerThan(startLevel,tierFilter);
+  priorityUnassignLowerThan(startLevel,tierFilter,opts);
   if(depotKey){
     priorityStageStops(startLevel,tierFilter).forEach(s=>{
       if(!s.routeId)return;
@@ -5055,7 +5061,12 @@ function solutionRemovePopulationFromInvalidRoutes(population,opts){
     // A Solution Options result must never leave targeted customers on a route
     // that violates Max Run Time or Max Wait Time. Remove the targeted stops
     // from that invalid final route so they remain visible for manual action.
-    popOnRoute.forEach(stop=>{stop.routeId=null;stop.seq=0;removed.push(stop);});
+    popOnRoute.forEach(stop=>{
+      // Never remove a Scenario 2 baseline stop. It was part of the user's live solution
+      // immediately before this run and must remain on its recorded route.
+      if(!solutionScenarioStopMovable(stop,opts))return;
+      stop.routeId=null;stop.seq=0;removed.push(stop);
+    });
     touched.add(route.id);
   });
   touched.forEach(rid=>solutionOptimizeRoute(rid,opts));
@@ -5070,6 +5081,10 @@ function runLoadPrioritySolution(opts,minCases,driverCap=0,priorityFilter=0,tier
   for(const stop of qualifying){
     if(stop.routeId){
       const rid=stop.routeId;
+      // A stop already assigned when Scenario 2 begins is part of the live baseline.
+      // Keep it on that route even when this pass is evaluating hard limits; Scenario 2
+      // may work around it, but may not remove it.
+      if(!solutionScenarioStopMovable(stop,opts))continue;
       if(solutionRouteWithinLimits(rid,opts))continue;
       stop.routeId=null;stop.seq=0;
     }
@@ -5129,8 +5144,11 @@ function runSolutionOptions(){
   const scenario=document.querySelector('input[name="solution-scenario"]:checked')?.value||'1';
   const scenario2=scenario==='2';
   const scenario1Locked=scenario2&&((document.getElementById('solution-scenario1-locked')?.value||'yes')==='yes');
-  if(scenario2&&!solutionScenario1Baseline){showToast('Run Scenario 1 first so RouteER has results to protect for Scenario 2');return;}
   opts.scenario2=scenario2;opts.scenario1Locked=scenario1Locked;
+  // IMPORTANT: Scenario 2's protected baseline is captured just-in-time when the user
+  // clicks Build Solution. This intentionally includes Scenario 1 results PLUS every
+  // manual assignment/reassignment made before the second pass begins.
+  if(scenario2)solutionCaptureScenario1();
   const loadDriverCap=Math.max(0,parseInt(document.getElementById('solution-load-driver-cap')?.value,10)||0);
   const loadMaxHours=Math.max(0,parseFloat(document.getElementById('solution-load-max-hours')?.value)||0);
   const depotKeys=opts.depotKeys||[];
