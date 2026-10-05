@@ -576,6 +576,10 @@ body{background:var(--bg0);color:var(--text1);}
           <span class="q-title">Unassigned Stops</span>
           <button class="btn workspace-expand-btn" id="ua-expand-btn" onclick="toggleWorkspacePanelExpand('ua')" title="Expand the route and unassigned workspace into the map">→ Expand Window</button>
           <div style="display:flex;gap:5px;align-items:center;">
+            <button class="btn" id="assign-by-guide-btn" style="padding:2px 7px;font-size:9px;border-color:rgba(167,139,250,.65);color:#d8ccff;" onclick="runAssignByGuide()" title="Tag checked unassigned stops, or all unassigned stops when none are checked, using the imported Guide/Trace Route Data">Assign By Guide</button>
+            <label style="display:flex;align-items:center;gap:3px;font-size:9px;color:var(--text3);white-space:nowrap;" title="Maximum proximity to a historical routed stop for Guide recommendations">Guide Radius <input id="guide-assign-radius" type="number" min="0.1" step="0.5" value="5" style="width:42px;height:22px;padding:2px 4px;"/> mi</label>
+            <button class="btn success" id="assign-guided-btn" style="display:none;padding:2px 7px;font-size:9px;" onclick="assignGuidedStops()">Assign Guided</button>
+            <button class="btn" id="clear-guide-assign-btn" style="display:none;padding:2px 7px;font-size:9px;" onclick="clearGuideAssignments()">Clear Guide Tags</button>
             <button class="btn success" id="assign-potential-btn" style="display:none;padding:2px 7px;font-size:9px;" onclick="assignToPotentialRoutes()">Assign to Potential Routes</button>
             <input id="order-route-filter" class="order-route-filter" type="search" list="order-route-options" placeholder="Standard Route" title="Select or enter an order Standard Route" oninput="setOrderRouteFilter(this.value)"/>
             <datalist id="order-route-options"></datalist>
@@ -1020,6 +1024,9 @@ let darkTileLayer=null, satelliteTileLayer=null, currentMapLayer='dark';
 let contextStopId=null;
 let potColors={}; // stopId -> color
 let potRouteSuggestions={}; // stopId -> suggested routeId from Potential Routes job
+// Assign By Guide is a separate recommendation layer; it never changes Potential Routes suggestions.
+let guideAssignSuggestions={}; // stopId -> {routeId,routeNumber,matchType,distanceMiles,historicalLocationKey}
+
 let routeSort=""; // optional route sort; blank keeps import/original order
 let routeNumberFilter=""; // optional UDFNumber1 route filter
 let orderRouteFilter=""; // optional Orders Standard Route filter
@@ -2145,6 +2152,7 @@ function clearSolutionUnassignedViewFilter(){
 }
 
 function renderUA(){
+  updateAssignGuidedButton();
   const el=document.getElementById('ua-list');
   const orderRouteFilterEl=document.getElementById('order-route-filter');
   if(orderRouteFilterEl&&orderRouteFilterEl.value!==orderRouteFilter)orderRouteFilterEl.value=orderRouteFilter;
@@ -2170,6 +2178,7 @@ function renderUA(){
   }
   el.innerHTML=ua.map(s=>{
     const pc=potColors[s.id];
+    const gs=guideAssignSuggestions[s.id];
     const hasPref=!!(s.preferredResourceKey&&s.preferredResourceKey.toString().trim());
     const isWC=s.willCallIndicator==='Y'||s.willCallIndicator==='1'||s.willCallIndicator===1||s.willCallIndicator===true;
     return`<div class="ua-row" draggable="true" id="urow-${s.id}" onclick="openStopDetail('${s.id}')" onmouseenter="highlightStop('${s.id}')" onmouseleave="clearMapHighlight()"
@@ -2179,7 +2188,7 @@ function renderUA(){
       <span class="ua-dot" style="background:${pc||'var(--text3)'}"></span>
       <div class="ua-info">
         <div class="ua-name">${customerNameWithCutIdBadges(s,s.customerName)}${s.lockStart?'<span class="tag tag-pref">START LOCK</span>':''}${s.lockFinal?'<span class="tag tag-pref">FINAL LOCK</span>':''}${hasPref?'<span class="tag tag-pref">&#11088; Pref</span>':''}${isWC?'<span class="tag tag-wc">Will Call</span>':''}</div>
-        <div class="ua-detail">${orderLabel(s)} &middot; ${tCases(s)}cs &middot; ${s.city||''} ${s.state||''}${pc?`<span class="tag-pot" style="background:${pc};margin-left:4px;">&#128204; Suggested - ${escapeHtml((routes.find(r=>r.id===potRouteSuggestions[s.id])?.udfNumber1||routes.find(r=>r.id===potRouteSuggestions[s.id])?.name||'Route').toString())}</span>`:''}</div>
+        <div class="ua-detail">${orderLabel(s)} &middot; ${tCases(s)}cs &middot; ${s.city||''} ${s.state||''}${pc?`<span class="tag-pot" style="background:${pc};margin-left:4px;">&#128204; Suggested - ${escapeHtml((routes.find(r=>r.id===potRouteSuggestions[s.id])?.udfNumber1||routes.find(r=>r.id===potRouteSuggestions[s.id])?.name||'Route').toString())}</span>`:''}${gs?`<span class="tag-pot" style="background:rgba(124,58,237,.92);margin-left:4px;border:1px solid rgba(221,214,254,.75);">&#128205; Guide - ${escapeHtml(gs.routeNumber)} - ${gs.matchType==='prior'?'Prior':escapeHtml((Number(gs.distanceMiles)||0).toFixed(1)+' mi')}</span>`:''}</div>
       </div>
       <select class="ua-assign" onclick="event.stopPropagation()" onchange="assignStop('${s.id}',this.value);this.value=''">
         <option value="">Assign&hellip;</option>
@@ -2471,6 +2480,14 @@ function updateAssignPotentialButton(){
   const count=stops.filter(s=>!s.routeId&&potRouteSuggestions[s.id]).length;
   btn.style.display=count>0?'inline-flex':'none';
   btn.textContent=count>0?`Assign Potential (${count})`:'Assign Potential';
+}
+
+function updateAssignGuidedButton(){
+  const count=stops.filter(s=>!s.routeId&&guideAssignSuggestions[s.id]).length;
+  const assignBtn=document.getElementById('assign-guided-btn');
+  const clearBtn=document.getElementById('clear-guide-assign-btn');
+  if(assignBtn){assignBtn.style.display=count>0?'inline-flex':'none';assignBtn.textContent=count>0?`Assign Guided (${count})`:'Assign Guided';}
+  if(clearBtn)clearBtn.style.display=count>0?'inline-flex':'none';
 }
 
 // ============================================================
@@ -2921,6 +2938,7 @@ function removeStopFromSession(){
   visibleStopIds.delete(stop.id);
   delete potColors[stop.id];
   delete potRouteSuggestions[stop.id];
+  delete guideAssignSuggestions[stop.id];
   if(markers[stop.id]){
     try{map.removeLayer(markers[stop.id]);}catch(e){}
     delete markers[stop.id];
@@ -2956,6 +2974,7 @@ Select Cancel to keep the stops and move them to Unassigned.`);
       visibleStopIds.delete(stopId);
       delete potColors[stopId];
       delete potRouteSuggestions[stopId];
+      delete guideAssignSuggestions[stopId];
       if(markers[stopId]){try{map.removeLayer(markers[stopId]);}catch(e){} delete markers[stopId];}
     });
     stops=stops.filter(s=>!stopIds.has(s.id));
@@ -2996,6 +3015,7 @@ function removeRouteFromSession(){
       visibleStopIds.delete(stopId);
       delete potColors[stopId];
       delete potRouteSuggestions[stopId];
+      delete guideAssignSuggestions[stopId];
       if(markers[stopId]){
         try{map.removeLayer(markers[stopId]);}catch(e){}
         delete markers[stopId];
@@ -4476,6 +4496,90 @@ function resequenceRoutesDistanceThenPreferredPositions(routeIds){
 // Backward-compatible function name used by older buttons/jobs.
 function resequenceRoutesRespectingPreferredLocks(routeIds){
   return resequenceRoutesDistanceThenPreferredPositions(routeIds);
+}
+
+// ============================================================
+// ASSIGN BY GUIDE — RECOMMENDATION/TAGGING ONLY
+// ============================================================
+function normalizeGuideLocationKey(value){return sval(value).trim().toUpperCase();}
+function currentRouteForGuideNumber(routeNumber){
+  const key=sval(routeNumber).trim().toUpperCase();
+  return routes.find(r=>r.sourceType!=='route-data'&&guideTraceRouteNumber(r)===key)||null;
+}
+function clearGuideAssignments(showMessage=true){
+  const cleared=Object.keys(guideAssignSuggestions||{}).length;
+  guideAssignSuggestions={};
+  renderUA(); renderMap();
+  if(showMessage)showToast(`Cleared ${cleared} Guide recommendation${cleared===1?'':'s'}.`);
+}
+function runAssignByGuide(){
+  if(!guideTraceHistory.routes.size){showToast('Import Route Data as a Guide/Trace Reference first.');return;}
+  const radius=Math.max(0.1,parseFloat(document.getElementById('guide-assign-radius')?.value)||5);
+  const ua=stops.filter(s=>!s.routeId).filter(stopMatchesFilter);
+  const checked=ua.filter(s=>s.uiChecked);
+  const targets=checked.length?checked:ua;
+  if(!targets.length){showToast('No unassigned stops to analyze.');return;}
+
+  // Only recommend historical route numbers that have a current, non-Route-Data template to receive the stop.
+  const eligible=[];
+  guideTraceHistory.routes.forEach((hist,routeNumber)=>{
+    const live=currentRouteForGuideNumber(routeNumber);
+    if(live)eligible.push({hist,routeNumber,routeId:live.id});
+  });
+  if(!eligible.length){showToast('No current route templates match the imported Guide/Trace route numbers.');return;}
+
+  guideAssignSuggestions={};
+  let priorCount=0, proximityCount=0, unmatched=0;
+  targets.forEach(stop=>{
+    const stopKey=normalizeGuideLocationKey(stop.locationKey||stop.customerKey||stop.customerNumber||'');
+    let exact=null;
+    if(stopKey){
+      for(const e of eligible){
+        const hs=(e.hist.stops||[]).find(h=>normalizeGuideLocationKey(h.locationKey)===stopKey);
+        if(hs){exact={...e,hs};break;}
+      }
+    }
+    if(exact){
+      guideAssignSuggestions[stop.id]={routeId:exact.routeId,routeNumber:exact.routeNumber,matchType:'prior',distanceMiles:0,historicalLocationKey:exact.hs.locationKey};
+      priorCount++; return;
+    }
+    if(!Number.isFinite(Number(stop.lat))||!Number.isFinite(Number(stop.lng))){unmatched++;return;}
+    let best=null,bestDist=Infinity,bestHs=null;
+    eligible.forEach(e=>(e.hist.stops||[]).forEach(h=>{
+      if(!Number.isFinite(Number(h.lat))||!Number.isFinite(Number(h.lng)))return;
+      const d=haversine(Number(stop.lat),Number(stop.lng),Number(h.lat),Number(h.lng));
+      if(d<bestDist){bestDist=d;best=e;bestHs=h;}
+    }));
+    if(best&&bestDist<=radius){
+      guideAssignSuggestions[stop.id]={routeId:best.routeId,routeNumber:best.routeNumber,matchType:'proximity',distanceMiles:bestDist,historicalLocationKey:bestHs?.locationKey||''};
+      proximityCount++;
+    }else unmatched++;
+  });
+  renderUA(); renderMap();
+  showJob('&#128205; Assign By Guide',`
+    <strong>${targets.length}</strong> ${checked.length?'checked':'unassigned'} stop(s) analyzed against the original Guide/Trace reference<br/>
+    <strong>${priorCount}</strong> exact historical route match${priorCount===1?'':'es'}<br/>
+    <strong>${proximityCount}</strong> proximity recommendation${proximityCount===1?'':'s'} within ${radius.toFixed(1)} miles<br/>
+    <strong>${unmatched}</strong> stop(s) left untagged<br/><br/>
+    Guide tags are recommendations only. Review them first, then use <strong>Assign Guided</strong> to confirm the assignments.
+  `);
+}
+function assignGuidedStops(){
+  const suggested=stops.filter(s=>!s.routeId&&guideAssignSuggestions[s.id]);
+  if(!suggested.length){showToast('No Guide recommendations to assign.');updateAssignGuidedButton();return;}
+  const affected=new Set(); let assigned=0,skipped=0;
+  suggested.forEach(s=>{
+    const g=guideAssignSuggestions[s.id];
+    const route=routes.find(r=>r.id===g.routeId&&r.sourceType!=='route-data');
+    if(!route){skipped++;return;}
+    s.routeId=route.id;
+    s.seq=Math.max(0,...stops.filter(x=>x.routeId===route.id&&x.id!==s.id).map(x=>x.seq||0))+1;
+    s.uiChecked=false; affected.add(route.id); assigned++;
+    delete guideAssignSuggestions[s.id];
+  });
+  affected.forEach(routeId=>{expanded.add(routeId);resequenceRouteAfterDrop(routeId);});
+  reseq(); render();
+  showJob('&#128204; Assign Guided',`<strong>${assigned}</strong> Guide-tagged stop(s) assigned to their recommended current route.<br/><strong>${affected.size}</strong> route(s) resequenced.${skipped?`<br/><strong>${skipped}</strong> skipped because the matching current route was unavailable.`:''}`);
 }
 
 function cancelPotentialJob(){
@@ -6425,6 +6529,7 @@ function importStopsIncremental(data,selectedCutIds){
         visibleStopIds.delete(stop.id);
         delete potColors[stop.id];
         delete potRouteSuggestions[stop.id];
+  delete guideAssignSuggestions[stop.id];
         stops=stops.filter(s=>s.id!==stop.id);
       }
     }
@@ -6880,6 +6985,7 @@ function clearSession(){
 
   potColors = {};
   potRouteSuggestions = {};
+  guideAssignSuggestions = {};
   // Clear Session reset potential cancel button
   const topCancelBtn=document.getElementById('top-cancel-potential-btn'); if(topCancelBtn)topCancelBtn.style.display='none';
 
