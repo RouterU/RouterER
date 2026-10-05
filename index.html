@@ -1812,6 +1812,14 @@ function clearAllFilters(){
   activeStopFilterId=null;
   routeNumberFilter='';
   orderRouteFilter='';
+  // Guide/Trace is a visual reference layer. Clear Filters should return the map
+  // to the normal live-routing view without changing any imported Route Data.
+  guideRouteIds.clear();
+  traceModeEnabled=false;
+  const traceBtn=document.getElementById('trace-mode-btn');
+  if(traceBtn)traceBtn.classList.remove('trace-active');
+  const traceLegend=document.getElementById('trace-map-legend');
+  if(traceLegend)traceLegend.remove();
   if(mapRouteFilterActiveId){
     restoreMapRouteFilter();
   }else if(mapDepotFilterKey){
@@ -2181,8 +2189,8 @@ function renderUA(){
     const gs=guideAssignSuggestions[s.id];
     const hasPref=!!(s.preferredResourceKey&&s.preferredResourceKey.toString().trim());
     const isWC=s.willCallIndicator==='Y'||s.willCallIndicator==='1'||s.willCallIndicator===1||s.willCallIndicator===true;
-    return`<div class="ua-row" draggable="true" id="urow-${s.id}" onclick="openStopDetail('${s.id}')" onmouseenter="highlightStop('${s.id}')" onmouseleave="clearMapHighlight()"
-      ondragstart="onDragStart(event,'${s.id}',null)" ondragend="onDragEnd()">
+    return`<div class="ua-row" draggable="true" id="urow-${s.id}" onclick="focusUnassignedStopOnMap('${s.id}')" onmouseenter="highlightStop('${s.id}')" onmouseleave="clearMapHighlight()"
+      ondragstart="onDragStart(event,'${s.id}',null)" ondragend="onDragEnd()" title="Click to isolate this stop on the map">
       <input type="checkbox" class="ua-chk" ${s.uiChecked?'checked':''}
         onclick="setCheck('${s.id}',this.checked);event.stopPropagation()"/>
       <span class="ua-dot" style="background:${pc||'var(--text3)'}"></span>
@@ -2190,12 +2198,30 @@ function renderUA(){
         <div class="ua-name">${customerNameWithCutIdBadges(s,s.customerName)}${s.lockStart?'<span class="tag tag-pref">START LOCK</span>':''}${s.lockFinal?'<span class="tag tag-pref">FINAL LOCK</span>':''}${hasPref?'<span class="tag tag-pref">&#11088; Pref</span>':''}${isWC?'<span class="tag tag-wc">Will Call</span>':''}</div>
         <div class="ua-detail">${orderLabel(s)} &middot; ${tCases(s)}cs &middot; ${s.city||''} ${s.state||''}${pc?`<span class="tag-pot" style="background:${pc};margin-left:4px;">&#128204; Suggested - ${escapeHtml((routes.find(r=>r.id===potRouteSuggestions[s.id])?.udfNumber1||routes.find(r=>r.id===potRouteSuggestions[s.id])?.name||'Route').toString())}</span>`:''}${gs?`<span class="tag-pot" style="background:rgba(124,58,237,.92);margin-left:4px;border:1px solid rgba(221,214,254,.75);">&#128205; Guide - ${escapeHtml(gs.routeNumber)} - ${gs.matchType==='prior'?'Prior':escapeHtml((Number(gs.distanceMiles)||0).toFixed(1)+' mi')}</span>`:''}</div>
       </div>
+      <button class="icon-btn" title="Stop Details" aria-label="Stop Details" onclick="event.stopPropagation();openStopDetail('${s.id}')" style="flex:0 0 auto;font-weight:900;">ⓘ</button>
       <select class="ua-assign" onclick="event.stopPropagation()" onchange="assignStop('${s.id}',this.value);this.value=''">
         <option value="">Assign&hellip;</option>
         ${routes.map(r=>`<option value="${r.id}">${escapeHtml(routeDisplayName(r))}</option>`).join('')}
       </select>
     </div>`;
   }).join('');
+}
+
+function focusUnassignedStopOnMap(stopId){
+  const stop=stops.find(s=>s.id===stopId&&!s.routeId);
+  if(!stop)return;
+  // Map-only focus: do not open Stop Details and do not alter the Unassigned list filter.
+  mapCleared=true;
+  visibleRouteIds.clear();
+  visibleStopIds.clear();
+  visibleDepotIds.clear();
+  visibleStopIds.add(stopId);
+  renderMap();
+  if(Number.isFinite(Number(stop.lat))&&Number.isFinite(Number(stop.lng))){
+    map.flyTo([Number(stop.lat),Number(stop.lng)],14);
+  }
+  updateDisplayToggleButtons();
+  showToast('Map filtered to selected unassigned stop. Use ⓘ for details or Clear Filters to restore the view.');
 }
 
 function renderTrucks(){
@@ -3291,6 +3317,30 @@ function lassoClusterStats(){
   return {count:selected.length,cases,serviceMins,miles,travelMins,cpm};
 }
 
+function lassoRouteNumber(route){
+  return (route?.udfNumber1??'').toString().trim();
+}
+function lassoRouteName(route){
+  const raw=(route?.name||route?.routeTemplateKey||'Route').toString().trim();
+  const num=lassoRouteNumber(route);
+  if(!num)return raw;
+  // Remove a duplicated route number from either end for the Lasso display only.
+  return raw.replace(new RegExp('^'+num.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*[-–—:]?\\s*','i'),'')
+            .replace(new RegExp('\\s*[-–—:]?\\s*'+num.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$','i'),'')||raw;
+}
+function lassoRouteLabel(route){
+  const num=lassoRouteNumber(route);
+  const name=lassoRouteName(route);
+  return num?`${num} - ${name}`:name;
+}
+function lassoSortedRoutes(){
+  return [...routes].sort((a,b)=>{
+    const an=lassoRouteNumber(a), bn=lassoRouteNumber(b);
+    const c=an.localeCompare(bn,undefined,{numeric:true,sensitivity:'base'});
+    return c||lassoRouteName(a).localeCompare(lassoRouteName(b),undefined,{numeric:true,sensitivity:'base'});
+  });
+}
+
 function renderLassoPanel(){
   const panel=document.getElementById('lasso-panel');
   if(!panel)return;
@@ -3317,7 +3367,7 @@ function renderLassoPanel(){
     <div class="lasso-actions">
       <select id="lasso-route-select" class="lasso-route-select">
         <option value="">Assign to route...</option>
-        ${routes.map(r=>`<option value="${r.id}">${escapeHtml(routeDisplayName(r))}</option>`).join('')}
+        ${lassoSortedRoutes().map(r=>`<option value="${r.id}">${escapeHtml(lassoRouteLabel(r))}</option>`).join('')}
       </select>
       <button class="btn primary" onclick="assignLassoStopsToSelectedRoute()">Assign to Route</button>
       <button class="btn warn" onclick="unassignLassoStops()">Unassign Stops</button>
@@ -3409,7 +3459,13 @@ function showLassoServiceDetails(){
 
 function startDragLassoToRoute(){
   if(!lassoSelectedStopIds.size){showToast('No lasso stops selected.');return;}
-  showToast('Right-click a route line and choose “Assign Lasso Selection Here”, or use the route dropdown.');
+  // Keep the selection active and make the route selector the immediate completion path.
+  const select=document.getElementById('lasso-route-select');
+  if(select){
+    select.focus();
+    select.scrollIntoView({block:'nearest',behavior:'smooth'});
+  }
+  showToast('Choose a route from the sequential Route Number - Route Name list, or right-click a route line and select “Assign Lasso Selection Here”.');
 }
 
 function clearLassoSelection(hidePanel=true){
@@ -3490,6 +3546,7 @@ function openRouteContextMenu(routeId,x,y){
   if(!menu||!route)return;
   menu.innerHTML=`
     <div class="stop-context-title">${escapeHtml(routeDisplayName(route))}</div>
+    ${lassoSelectedStopIds.size?`<button class="stop-context-item" onclick="assignLassoStopsToRoute('${routeId}');document.getElementById('stop-context-menu').style.display='none';"><span>Assign Lasso Selection Here</span><span>➜</span></button>`:''}
     <button class="stop-context-item" onclick="contextManualResequenceRoute('${routeId}')"><span>Manual Re-sequence</span><span>☰</span></button>
     <button class="stop-context-item" onclick="v56ResequenceRouteByTW('${routeId}')"><span>Re-sequence by TW</span><span>⏱</span></button>
     <button class="stop-context-item" onclick="contextResequenceRoute('${routeId}')"><span>Auto Resequence by Distance</span><span>⌁</span></button>
