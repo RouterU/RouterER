@@ -434,6 +434,12 @@ body{background:var(--bg0);color:var(--text1);}
 .manifest-selection-bar .count{font-size:10px;font-weight:800;color:var(--accent);margin-right:auto;}
 .manifest-selection-bar select{background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text1);font-size:10px;font-family:'Sora',sans-serif;padding:4px 6px;min-width:180px;}
 @media (max-width:900px){.left-panel.expanded-workspace{width:min(86vw,760px);}}
+
+/* Guide Me / Trace Mode — historical Route Data reference layer only */
+.trace-active{background:rgba(167,139,250,.16)!important;border-color:#a78bfa!important;color:#d8ccff!important;}
+.guide-btn{padding:2px 7px!important;font-size:9px!important;border-color:rgba(167,139,250,.55)!important;color:#c4b5fd!important;}
+.guide-btn.active{background:rgba(167,139,250,.20)!important;border-color:#a78bfa!important;color:#ede9fe!important;}
+.trace-legend{position:absolute;right:12px;bottom:12px;z-index:550;background:rgba(17,20,27,.92);border:1px solid rgba(167,139,250,.55);border-radius:8px;padding:6px 9px;color:#ddd6fe;font:700 10px Sora,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;}
 </style>
 </head>
 <body>
@@ -537,6 +543,7 @@ body{background:var(--bg0);color:var(--text1);}
       <div class="quadrant" id="q-routes" style="flex:1;min-height:120px;">
         <div class="q-header">
           <span class="q-title">Routes</span>
+          <button class="btn" id="trace-mode-btn" style="padding:2px 7px;font-size:9px;" onclick="toggleTraceMode()" title="Overlay matching historical Route Data as a read-only ghost layer">Trace Mode</button>
           <button class="btn workspace-expand-btn" id="routes-expand-btn" onclick="toggleWorkspacePanelExpand('routes')" title="Expand the route and unassigned workspace into the map">→ Expand Window</button>
           <button class="btn warn" style="padding:2px 7px;font-size:9px;" onclick="unassignAllCustomerStopsFromRoutes()" title="Move every currently assigned non-depot stop from all routes to Unassigned">Unassign All Stops</button>
           <button class="btn" style="padding:2px 7px;font-size:9px;" onclick="showSelectedRoutesOnMap()">Show Selected</button>
@@ -720,6 +727,12 @@ body{background:var(--bg0);color:var(--text1);}
         <button type="button" class="btn" style="padding:2px 6px;font-size:9px;" onclick="toggleAllRouteDataDepots(false)">Clear</button>
       </div>
       <div style="font-size:9px;color:var(--text3);margin-top:6px;">Select one or multiple starting depots. Leave all depots unchecked to import routes from every depot in the selected date range.</div>
+    </div>
+    <div id="route-data-guide-only-panel" style="display:none;margin:10px 0 8px;padding:10px;border:1px solid rgba(167,139,250,.55);border-radius:8px;background:rgba(167,139,250,.08);">
+      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;color:var(--text1);font-size:10px;font-weight:700;">
+        <input type="checkbox" id="route-data-guide-only" style="accent-color:#a78bfa;margin-top:2px;">
+        <span>Guide/Trace Reference Only — keep current routing session<br><span style="font-weight:400;color:var(--text3);">Captures the selected historical Route Data as a read-only ghost reference. Existing routes, orders, assignments, trucks and depots are not replaced or changed.</span></span>
+      </label>
     </div>
     <input type="file" id="file-in" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFileSelect(this)"/>
     <div id="imp-preview"></div>
@@ -983,6 +996,10 @@ body{background:var(--bg0);color:var(--text1);}
 // ============================================================
 const COLORS=['#4f8cff','#3ecf8e','#f59e0b','#ef4444','#a78bfa','#fb923c','#38bdf8','#f472b6','#34d399','#fbbf24','#60a5fa','#86efac'];
 let routes=[], stops=[], trucks=[], depotLocations=[], cancelledOrders=[];
+// Historical Route Data reference snapshot. This is deliberately separate from live routing objects.
+let guideTraceHistory={routes:new Map(), importedAt:null};
+let traceModeEnabled=false;
+let guideRouteIds=new Set();
 let sessionRegionCode='';
 let mapCleared=false;
 const visibleStopIds=new Set();
@@ -2040,6 +2057,7 @@ function renderRoutes(){
           <div class="r-timing">${fmtTiming(r)}${r.udfNumber1?' · UDF#1:'+r.udfNumber1:''}${r.initialLocationKey||r.finalLocationKey?' · Depot '+(r.initialLocationKey||'—')+' → '+(r.finalLocationKey||'—'):''}</div>
         </div>
         <div class="r-ctrl">
+          ${guideTraceHasMatch(r)?`<button class="btn guide-btn ${guideRouteIds.has(r.id)?'active':''}" title="Show/hide the matching historical Route Data as a read-only ghost overlay" onclick="event.stopPropagation();toggleGuideMe('${r.id}')">Guide Me</button>`:''}
           <button class="icon-btn" title="Open Manifest" onclick="event.stopPropagation();openRouteManifest('${r.id}')">▤</button>
           <input type="checkbox" class="r-chk" id="rchk-${r.id}" ${r.selected?'checked':''} onclick="event.stopPropagation();routeCheck('${r.id}',this.checked)"/>
           <span class="chev ${isOpen?'open':''}" title="Expand route" onclick="event.stopPropagation();toggleExpand('${r.id}',event)">&#9660;</span>
@@ -2187,7 +2205,117 @@ function renderTrucks(){
   }).join('');
 }
 
+// ============================================================
+// GUIDE ME / TRACE MODE — READ-ONLY HISTORICAL REFERENCE LAYER
+// ============================================================
+function guideTraceRouteNumber(route){
+  return sval(route?.udfNumber1||first4Digits(route?.routeTemplateKey||route?.name||'')).trim().toUpperCase();
+}
+function guideTraceHasMatch(route){
+  const key=guideTraceRouteNumber(route);
+  return !!key && guideTraceHistory.routes.has(key);
+}
+function toggleGuideMe(routeId){
+  const route=routes.find(r=>r.id===routeId);
+  if(!route||!guideTraceHasMatch(route)){showToast('No matching historical Route Data was found for this route number.');return;}
+  if(guideRouteIds.has(routeId)) guideRouteIds.delete(routeId); else guideRouteIds.add(routeId);
+  renderRoutes(); renderMap();
+}
+function toggleTraceMode(){
+  if(!guideTraceHistory.routes.size){showToast('Import Route Data as a Guide/Trace Reference first.');return;}
+  traceModeEnabled=!traceModeEnabled;
+  const btn=document.getElementById('trace-mode-btn');
+  if(btn)btn.classList.toggle('trace-active',traceModeEnabled);
+  renderMap();
+  showToast(traceModeEnabled?'Trace Mode on — historical routes are reference overlays only.':'Trace Mode off');
+}
+function captureGuideTraceReference(routeRows){
+  const index=new Map();
+  const groupedRoutes=new Map();
+  (routeRows||[]).forEach(row=>{
+    const resourceKey=routeDataResourceKey(row);
+    if(!resourceKey)return;
+    if(!groupedRoutes.has(resourceKey))groupedRoutes.set(resourceKey,[]);
+    groupedRoutes.get(resourceKey).push(row);
+  });
+  groupedRoutes.forEach((rows,resourceKey)=>{
+    const routeNumber=first4Digits(resourceKey).trim().toUpperCase();
+    if(!routeNumber)return;
+    const customerRows=rows.filter(scenarioCustomerRow);
+    const groupedStops=new Map();
+    customerRows.forEach(row=>{
+      const loc=sval(gcLoose(row,['LocationKey']))||sval(gcLoose(row,['Customer']));
+      const key=loc.trim().toUpperCase();
+      if(!key)return;
+      if(!groupedStops.has(key))groupedStops.set(key,[]);
+      groupedStops.get(key).push(row);
+    });
+    const histStops=[];
+    groupedStops.forEach((group,locationKey)=>{
+      group.sort((a,b)=>scenarioCleanFormula(gcLoose(a,['GeoStopNumber']))-scenarioCleanFormula(gcLoose(b,['GeoStopNumber'])));
+      const base=group[0];
+      const coord=scenarioCoordinatesFromGroup(group);
+      if(!Number.isFinite(coord.lat)||!Number.isFinite(coord.lng))return;
+      const seqs=group.map(r=>scenarioCleanFormula(gcLoose(r,['GeoStopNumber']))).filter(n=>Number.isFinite(n)&&n>0);
+      histStops.push({
+        seq:seqs.length?Math.min(...seqs):9999,
+        locationKey,
+        customerName:sval(gcLoose(base,['Customer']))||locationKey,
+        lat:coord.lat,lng:coord.lng,
+        city:sval(gcLoose(base,['City'])),state:sval(gcLoose(base,['State']))
+      });
+    });
+    histStops.sort((a,b)=>a.seq-b.seq);
+    const initial=scenarioRouteDataDepot(rows[0]||{},'Initial');
+    const final=scenarioRouteDataDepot(rows[0]||{},'Final');
+    // Keep only plain data so later edits to live imported historical routes cannot mutate this reference.
+    index.set(routeNumber,JSON.parse(JSON.stringify({routeNumber,resourceKey,stops:histStops,initial,final})));
+  });
+  guideTraceHistory={routes:index,importedAt:new Date().toISOString()};
+  guideRouteIds.clear();
+  traceModeEnabled=false;
+  const btn=document.getElementById('trace-mode-btn'); if(btn)btn.classList.remove('trace-active');
+  renderRoutes(); renderMap();
+  return index.size;
+}
+function guideTraceVisibleCurrentRoutes(){
+  return routes.filter(r=>r.sourceType!=='route-data'&&routeMatchesFilter(r)&&guideTraceHasMatch(r));
+}
+function renderGuideTraceOverlays(){
+  if(!guideTraceHistory.routes.size)return;
+  const targetIds=new Set(guideRouteIds);
+  if(traceModeEnabled)guideTraceVisibleCurrentRoutes().forEach(r=>targetIds.add(r.id));
+  if(!targetIds.size)return;
+  let shown=0;
+  targetIds.forEach(routeId=>{
+    const live=routes.find(r=>r.id===routeId); if(!live)return;
+    const hist=guideTraceHistory.routes.get(guideTraceRouteNumber(live)); if(!hist)return;
+    const pts=[];
+    const init=hist.initial;
+    if(init&&Number.isFinite(Number(init.lat))&&Number.isFinite(Number(init.lng)))pts.push([Number(init.lat),Number(init.lng)]);
+    (hist.stops||[]).forEach((hs,i)=>{
+      pts.push([hs.lat,hs.lng]);
+      const icon=L.divIcon({className:'',html:`<div style="width:22px;height:22px;border-radius:50%;background:rgba(167,139,250,.34);border:2px dashed rgba(237,233,254,.82);display:flex;align-items:center;justify-content:center;color:#fff;font:900 9px 'DM Mono',monospace;box-shadow:0 0 0 2px rgba(88,28,135,.15);opacity:.82;">${escapeHtml(String(hs.seq||i+1))}</div>`,iconSize:[22,22],iconAnchor:[11,11]});
+      const marker=L.marker([hs.lat,hs.lng],{icon,interactive:false,keyboard:false,opacity:.72}).addTo(map);
+      markers[`guide-${routeId}-${i}`]=marker;
+    });
+    const fin=hist.final;
+    if(fin&&Number.isFinite(Number(fin.lat))&&Number.isFinite(Number(fin.lng)))pts.push([Number(fin.lat),Number(fin.lng)]);
+    if(pts.length>=2){
+      const line=L.polyline(pts,{color:'#a78bfa',weight:6,opacity:.34,dashArray:'12,10',interactive:false,lineCap:'round'}).addTo(map);
+      polylines[`guide-${routeId}`]=line;
+    }
+    shown++;
+  });
+  if(shown){
+    let legend=document.getElementById('trace-map-legend');
+    if(!legend){legend=document.createElement('div');legend.id='trace-map-legend';legend.className='trace-legend';document.querySelector('.map-wrap')?.appendChild(legend);}
+    if(legend)legend.textContent=`TRACE REFERENCE • ${shown} historical route${shown===1?'':'s'} • visual only`;
+  }
+}
+
 function renderMap(){
+  const traceLegend=document.getElementById('trace-map-legend'); if(traceLegend)traceLegend.remove();
   Object.values(markers).forEach(m=>map.removeLayer(m));
   Object.values(polylines).forEach(p=>map.removeLayer(p));
   markers={}; polylines={};
@@ -2289,6 +2417,7 @@ function renderMap(){
       openRouteContextMenu(r.id, original.clientX||0, original.clientY||0);
     });
   });
+  renderGuideTraceOverlays();
   applyLassoMarkerHighlights();
 }
 
@@ -5227,6 +5356,8 @@ function setImportMode(m){
   if(routeDataDatePanel)routeDataDatePanel.style.display=importMode==='routedata'?'block':'none';
   const routeDataDepotPanel=document.getElementById('route-data-depot-filter');
   if(routeDataDepotPanel)routeDataDepotPanel.style.display=importMode==='routedata'?'block':'none';
+  const routeDataGuideOnlyPanel=document.getElementById('route-data-guide-only-panel');
+  if(routeDataGuideOnlyPanel)routeDataGuideOnlyPanel.style.display=importMode==='routedata'?'block':'none';
   if(importMode==='routedata'&&pendingWB){
     populateRouteDataDateFilter(pendingWB);
     populateRouteDataDepotFilter(pendingWB);
@@ -5558,9 +5689,19 @@ function confirmImport(){
       }
       const routeSummaryRows=[]; sheets.filter(x=>x.type==='route summary').forEach(x=>routeSummaryRows.push(...x.data));
       const truckDefaultRows=[]; sheets.filter(x=>x.type==='truck defaults').forEach(x=>truckDefaultRows.push(...x.data));
-      const summary=importScenarioRouteData(filteredRouteRows,routeSummaryRows,truckDefaultRows);
-      routeDataImportSummary=summary;
-      rc=summary.routes; sc=summary.stops; lc=summary.depots;
+      const guideOnly=!!document.getElementById('route-data-guide-only')?.checked;
+      if(guideOnly){
+        const guideRoutes=captureGuideTraceReference(filteredRouteRows);
+        routeDataImportSummary={routes:0,stops:0,depots:0,guideRoutes};
+        rc=0; sc=0; lc=0;
+        showToast(`Guide/Trace reference captured: ${guideRoutes} historical route${guideRoutes===1?'':'s'}. Current routing session was not changed.`);
+      }else{
+        const summary=importScenarioRouteData(filteredRouteRows,routeSummaryRows,truckDefaultRows);
+        // Also preserve an immutable reference snapshot as a second use of the same imported data.
+        captureGuideTraceReference(filteredRouteRows);
+        routeDataImportSummary=summary;
+        rc=summary.routes; sc=summary.stops; lc=summary.depots;
+      }
 }else if(importMode==='stops'){
       const selectedCutIds=getSelectedCutIds();
       if(!selectedCutIds.length){
@@ -6717,6 +6858,11 @@ function clearSession(){
   depotLocations = [];
   cancelledOrders = [];
   sessionRegionCode = '';
+  guideTraceHistory={routes:new Map(),importedAt:null};
+  traceModeEnabled=false;
+  guideRouteIds.clear();
+  const traceBtn=document.getElementById('trace-mode-btn'); if(traceBtn)traceBtn.classList.remove('trace-active');
+  const traceLegend=document.getElementById('trace-map-legend'); if(traceLegend)traceLegend.remove();
 
   mapCleared = true;
 
