@@ -8160,7 +8160,7 @@ function exportExcel(options={}){
   XLSX.utils.book_append_sheet(wb,outputWs,'Output File');
 
   // Additional Door Sheet only. This does not alter any existing worksheet or TXT/import-export schema.
-  const doorSheetHeaders=['Door','Route #','Start Time','Driver','Route Name','Trailer Size','Comments','Order Types'];
+  const doorSheetHeaders=['Door','Route #','Start Time','Driver','Route Name','Trailer Size','Initial Depot','Comments','Order Types'];
   const doorSheetRows=exportRoutes.map(r=>{
     const rs=exportStops.filter(s=>String(s.routeId||'')===String(r.id) && !scenarioIsFixedRouteAnchor(s));
     const drv=trucks.find(d=>d.truckKey===r.truckKey||d.driverKey===r.driverKey);
@@ -8174,6 +8174,7 @@ function exportExcel(options={}){
       'Driver':driverName,
       'Route Name':r.name||'',
       'Trailer Size':doorSheetTrailerSize(r.truckKey),
+      'Initial Depot':depotLabel(routeInitialDepot(r),r.initialLocationKey||''),
       'Comments':doorSheetComments(rs),
       'Order Types':doorSheetOrderTypes(rs)
     };
