@@ -7820,16 +7820,28 @@ function doorSheetTrailerSize(truckKey){
   return m?m[1]:'';
 }
 function doorSheetOrderTypes(routeStops){
-  const counts=new Map();
-  routeStops.forEach(s=>{
+  // Door Sheet counts order types at the LOCATION level, not the individual order level.
+  // A location with multiple orders of the same type counts once for that type.
+  const locationsByType=new Map();
+  routeStops.forEach((s,stopIndex)=>{
+    const locationId=String(
+      s.locationKey||s.shipToId||s.customerNumber||s.customerKey||s.accountNumber||
+      [s.address,s.city,s.state,s.zip].filter(Boolean).join('|')||`STOP_${stopIndex}`
+    ).trim();
     const orderRows=Array.isArray(s.orders)&&s.orders.length?s.orders:[s];
+    const typesAtLocation=new Set();
     orderRows.forEach(o=>{
       const type=String((o&&o.orderType)||(!Array.isArray(s.orders)||!s.orders.length?s.orderType:'')||'').trim();
-      if(!type)return;
-      counts.set(type,(counts.get(type)||0)+1);
+      if(type)typesAtLocation.add(type);
+    });
+    typesAtLocation.forEach(type=>{
+      if(!locationsByType.has(type))locationsByType.set(type,new Set());
+      locationsByType.get(type).add(locationId);
     });
   });
-  return Array.from(counts.entries()).map(([type,count])=>`${count} ${type}`).join(', ');
+  return Array.from(locationsByType.entries())
+    .map(([type,locations])=>`${locations.size} ${type}`)
+    .join(', ');
 }
 function doorSheetComments(routeStops){
   const vals=[];
@@ -8165,6 +8177,15 @@ function exportExcel(options={}){
       'Comments':doorSheetComments(rs),
       'Order Types':doorSheetOrderTypes(rs)
     };
+  });
+  // Sort Door Sheet only: assigned doors first in natural/numeric order; unassigned doors at the bottom.
+  doorSheetRows.sort((a,b)=>{
+    const ad=String(a['Door']??'').trim();
+    const bd=String(b['Door']??'').trim();
+    if(ad&&!bd)return -1;
+    if(!ad&&bd)return 1;
+    if(!ad&&!bd)return 0;
+    return ad.localeCompare(bd,undefined,{numeric:true,sensitivity:'base'});
   });
   const doorSheetWs=XLSX.utils.json_to_sheet(
     doorSheetRows.length?doorSheetRows:[Object.fromEntries(doorSheetHeaders.map(h=>[h,'']))],
