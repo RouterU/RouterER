@@ -2883,6 +2883,7 @@ function openRouteDetail(routeId){
     ${detailInput('ed-r-routeSummaryEnd','Route End',r.routeSummaryEnd||r.routeData?.routeEnd||'')}
     ${detailInput('ed-r-scheduleKey','ScheduleKey',r.scheduleKey)}
     ${detailInput('ed-r-udfNumber1','UDFNumber1',r.udfNumber1)}
+    ${detailInput('ed-r-door','Door',r.door||'')}
     ${detailInput('ed-r-udfString2','UDFString2 / Route Day',r.udfString2)}
     ${detailInput('ed-r-initialLocationKey','InitialLocationKey',r.initialLocationKey)}
     ${detailInput('ed-r-finalLocationKey','FinalLocationKey',r.finalLocationKey)}
@@ -2919,6 +2920,7 @@ function saveRouteDetail(){
   if(r.routeData){r.routeData.resourceName=r.resourceName;r.routeData.routeStart=r.routeSummaryStart;r.routeData.routeEnd=r.routeSummaryEnd;}
   r.scheduleKey=strVal('ed-r-scheduleKey');
   r.udfNumber1=strVal('ed-r-udfNumber1');
+  r.door=strVal('ed-r-door');
   r.udfString2=strVal('ed-r-udfString2');
   r.initialLocationKey=strVal('ed-r-initialLocationKey');
   r.finalLocationKey=strVal('ed-r-finalLocationKey');
@@ -7805,6 +7807,42 @@ function renderScenarioRouteDataDetailHtml(stop){
 
 // EXPORT
 // ============================================================
+// Door Sheet helpers — intentionally isolated from all legacy/system export logic.
+function doorSheetTrailerSize(truckKey){
+  const key=String(truckKey||'').trim();
+  if(!key)return '';
+  const parts=key.split('_');
+  for(let i=1;i<parts.length;i++){
+    const m=String(parts[i]||'').match(/^(\d{2})(?:\D|$)/);
+    if(m)return m[1];
+  }
+  const m=key.match(/_(\d{2})(?:\D|$)/);
+  return m?m[1]:'';
+}
+function doorSheetOrderTypes(routeStops){
+  const counts=new Map();
+  routeStops.forEach(s=>{
+    const orderRows=Array.isArray(s.orders)&&s.orders.length?s.orders:[s];
+    orderRows.forEach(o=>{
+      const type=String((o&&o.orderType)||(!Array.isArray(s.orders)||!s.orders.length?s.orderType:'')||'').trim();
+      if(!type)return;
+      counts.set(type,(counts.get(type)||0)+1);
+    });
+  });
+  return Array.from(counts.entries()).map(([type,count])=>`${count} ${type}`).join(', ');
+}
+function doorSheetComments(routeStops){
+  const vals=[];
+  routeStops.forEach(s=>{
+    const orderRows=Array.isArray(s.orders)&&s.orders.length?s.orders:[s];
+    orderRows.forEach(o=>{
+      const v=String((o&&o.comment)||(!Array.isArray(s.orders)||!s.orders.length?s.comment:'')||'').trim();
+      if(v&&!vals.includes(v))vals.push(v);
+    });
+  });
+  return vals.join(' | ');
+}
+
 function exportExcel(options={}){
   if(!stops.length&&!routes.length){showToast('No data to export');return;}
   const routeIdSet=options.routeIdSet||null;
@@ -8108,6 +8146,31 @@ function exportExcel(options={}){
   const outputWs=XLSX.utils.json_to_sheet(outputFileRows.length?outputFileRows:[Object.fromEntries(outputHeaders.map(h=>[h,'']))],{header:outputHeaders});
   if(!selectedOnly)applyPublishedHighlight(outputWs,outputHeaders,outputFileRows);
   XLSX.utils.book_append_sheet(wb,outputWs,'Output File');
+
+  // Additional Door Sheet only. This does not alter any existing worksheet or TXT/import-export schema.
+  const doorSheetHeaders=['Door','Route #','Start Time','Driver','Route Name','Trailer Size','Comments','Order Types'];
+  const doorSheetRows=exportRoutes.map(r=>{
+    const rs=exportStops.filter(s=>String(s.routeId||'')===String(r.id) && !scenarioIsFixedRouteAnchor(s));
+    const drv=trucks.find(d=>d.truckKey===r.truckKey||d.driverKey===r.driverKey);
+    const driverName=r.driverFirstName
+      ? (r.driverFirstName+' '+(r.driverLastName||'')).trim()
+      : (drv?drv.name:'');
+    return {
+      'Door':r.door||'',
+      'Route #':r.routeTemplateKey||'',
+      'Start Time':cleanTimeValue(r.routeSummaryStart||r.routeData?.routeStart||r.earliestStartTime)||'',
+      'Driver':driverName,
+      'Route Name':r.name||'',
+      'Trailer Size':doorSheetTrailerSize(r.truckKey),
+      'Comments':doorSheetComments(rs),
+      'Order Types':doorSheetOrderTypes(rs)
+    };
+  });
+  const doorSheetWs=XLSX.utils.json_to_sheet(
+    doorSheetRows.length?doorSheetRows:[Object.fromEntries(doorSheetHeaders.map(h=>[h,'']))],
+    {header:doorSheetHeaders}
+  );
+  XLSX.utils.book_append_sheet(wb,doorSheetWs,'Door Sheet');
 
   // Depot Locations tab intentionally removed from export. Depots still appear inside Route Summary and Route Manifest where needed.
 
